@@ -1,0 +1,13 @@
+*.pyc
+*.hdf5
+*.log
+*.sh
+*.so
+*.o
+*.png
+*.pdf
+__pycache__
+Env/env
+Ops/build
+Ops/release
+Samples/*
