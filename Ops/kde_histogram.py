@@ -1,8 +1,6 @@
 import tensorflow as tf
-import keras
 import os
 
-global_layers_list = {}  # same as for losses
 
 kde_histogram_module = tf.load_op_library(
     os.path.join(
@@ -11,7 +9,7 @@ kde_histogram_module = tf.load_op_library(
     )
 )
 
-class KDEHistogram(keras.engine.Layer):
+class KDEHistogram(tf.keras.layers.Layer):
     
 
     @tf.RegisterGradient("KDEHistogram")
@@ -80,5 +78,4 @@ class KDEHistogram(keras.engine.Layer):
         return dict(list(base_config.items()) + list(config.items()))
     '''
 
-global_layers_list['KdeHistogram'] = KDEHistogram
 

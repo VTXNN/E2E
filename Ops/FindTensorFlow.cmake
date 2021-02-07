@@ -29,16 +29,6 @@ execute_process(
 string(REGEX MATCH "tf_includepath (.*)" _ ${TF_INC})
 set(TF_INC ${CMAKE_MATCH_1})
 
-
-execute_process(
-	COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print('Compile flags: ',tf.sysconfig.get_compile_flags())"
-    OUTPUT_VARIABLE TF_CFLAGS
-    ERROR_VARIABLE TF_CFLAGS
-    RESULT_VARIABLE TF_CFLAGS_OK
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-message(STATUS ${TF_CFLAGS})
-
 execute_process(
 	COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print('-D_GLIBCXX_USE_CXX11_ABI=0' in tf.sysconfig.get_compile_flags())"
     OUTPUT_VARIABLE TF_FORCEABI
@@ -47,11 +37,13 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+
 if (TF_FORCEABI STREQUAL "True")
     set(TF_DEF "-D_GLIBCXX_USE_CXX11_ABI=0")
     message(STATUS "Force ABI: GLIBCXX_USE_CXX11_ABI=0")
 else (TF_FORCEABI STREQUAL "True")
     set(TF_DEF "-D_GLIBCXX_USE_CXX11_ABI=1")
+    message(STATUS "Force ABI: GLIBCXX_USE_CXX11_ABI=1")
 endif (TF_FORCEABI STREQUAL "True")
 
 
@@ -65,34 +57,28 @@ if (${TF_INC_OK} EQUAL 0)
 endif (${TF_INC_OK} EQUAL 0)
 message(STATUS ${TF_INC})
 
-if (TF_VER_MINOR GREATER 3)
 
-    execute_process(
-	    COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print('tf_libpath',tf.sysconfig.get_lib())"
-        OUTPUT_VARIABLE TF_LIB
-        ERROR_VARIABLE TF_LIB
-        RESULT_VARIABLE TF_LIB_OK
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print('tf_libpath',tf.sysconfig.get_lib())"
+    OUTPUT_VARIABLE TF_LIB
+    ERROR_VARIABLE TF_LIB
+    RESULT_VARIABLE TF_LIB_OK
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REGEX MATCH "tf_libpath (.*)" _ ${TF_LIB})
+set(TF_LIB ${CMAKE_MATCH_1})
+message(STATUS ${TF_LIB})
+
+if (${TF_LIB_OK} EQUAL 0)
+    find_library(TensorFlow_LIBRARY 
+            NAMES tensorflow_framework libtensorflow_framework.so.2
+            PATHS ${TF_LIB}
+            NO_DEFAULT_PATH
     )
-    string(REGEX MATCH "tf_libpath (.*)" _ ${TF_LIB})
-    set(TF_LIB ${CMAKE_MATCH_1})
+endif (${TF_LIB_OK} EQUAL 0)
+message(STATUS ${TensorFlow_LIBRARY})
 
-    message(STATUS ${TF_LIB})
-    if (${TF_LIB_OK} EQUAL 0)
-        find_library(TensorFlow_LIBRARY 
-                NAMES tensorflow_framework
-                PATHS ${TF_LIB}
-                NO_DEFAULT_PATH
-        )
-    endif (${TF_LIB_OK} EQUAL 0)
-    find_package_handle_standard_args(TensorFlow DEFAULT_MSG TensorFlow_INCLUDE_DIR TensorFlow_LIBRARY)
-    
-else (TF_VER_MINOR GREATER 3)
-    message(STATUS "Lib not required for versions 1.3.0<=")
-    set(TensorFlow_LIBRARY "")
-    find_package_handle_standard_args(TensorFlow DEFAULT_MSG TensorFlow_INCLUDE_DIR)
-endif (TF_VER_MINOR GREATER 3)
-
+find_package_handle_standard_args(TensorFlow DEFAULT_MSG TensorFlow_INCLUDE_DIR TensorFlow_LIBRARY)
 
 if(TENSORFLOW_FOUND)
     set(TensorFlow_LIBRARIES ${TensorFlow_LIBRARY})

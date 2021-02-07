@@ -1,8 +1,5 @@
 import tensorflow as tf
-import keras
 import os
-
-global_layers_list = {}  # same as for losses
 
 histogram_max_sample_module = tf.load_op_library(
     os.path.join(
@@ -11,7 +8,7 @@ histogram_max_sample_module = tf.load_op_library(
     )
 )
 
-class HistogramMax(keras.engine.Layer):
+class HistogramMax(tf.keras.layers.Layer):
     '''
     @tf.RegisterGradient("KDEHistogram")
     def _sub_grad(op, grad):
@@ -53,5 +50,4 @@ class HistogramMax(keras.engine.Layer):
         return dict(list(base_config.items()) + list(config.items()))
     '''
 
-global_layers_list['HistogramMax'] = HistogramMax
 

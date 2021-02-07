@@ -1,5 +1,3 @@
-import keras
-import keras.backend as K
 import tensorflow as tf
 import os
 import math
@@ -7,10 +5,21 @@ import time
 import numpy
 import unittest
 
+tf.compat.v1.disable_eager_execution()
+
 from sklearn.neighbors import KernelDensity
 
 from kde_histogram import KDEHistogram
 from histogram_max import *
+
+
+session = None
+def get_session():
+    global session
+    if not session:
+        session = tf.compat.v1.Session()
+    return session
+
 
 def makeModel(nelem,nbins,start,end,kernel,bandwidth):
     class TestModel():
@@ -22,9 +31,9 @@ def makeModel(nelem,nbins,start,end,kernel,bandwidth):
             self.kernel = kernel
             self.bandwidth = bandwidth
 
-            self.values = keras.layers.Input(shape=(self.nelem,))
-            self.weights = keras.layers.Input(shape=(self.nelem,))
-            self.factors = keras.layers.Input(shape=(self.nbins,))
+            self.values = tf.keras.layers.Input(shape=(self.nelem,))
+            self.weights = tf.keras.layers.Input(shape=(self.nelem,))
+            self.factors = tf.keras.layers.Input(shape=(self.nbins,))
 
             self.hist = KDEHistogram(
                 nbins=self.nbins,
@@ -36,12 +45,12 @@ def makeModel(nelem,nbins,start,end,kernel,bandwidth):
                 add_overflow = False
             )([self.values,self.weights])
 
-            self.model = keras.Model(inputs=[self.values,self.weights],outputs=[self.hist])
+            self.model = tf.keras.Model(inputs=[self.values,self.weights],outputs=[self.hist])
 
-            score = keras.layers.Lambda(lambda x: tf.multiply(x[0],x[1]))([self.hist,self.factors])
-            self.score = keras.layers.Lambda(lambda x: tf.reduce_sum(x))(score)
+            score = tf.keras.layers.Lambda(lambda x: tf.multiply(x[0],x[1]))([self.hist,self.factors])
+            self.score = tf.keras.layers.Lambda(lambda x: tf.reduce_sum(x))(score)
 
-            self.model = keras.Model(inputs=[self.values,self.weights],outputs=[self.hist])
+            self.model = tf.keras.Model(inputs=[self.values,self.weights],outputs=[self.hist])
             self.model.compile(loss='mse', optimizer='sgd') #dummy
 
             self.gradients = tf.gradients(self.score,[self.values,self.weights])
@@ -50,16 +59,15 @@ def makeModel(nelem,nbins,start,end,kernel,bandwidth):
             return self.model.predict_on_batch([valuesArray,weightsArray])
             
         def getScore(self,valuesArray,weightsArray,factorsArray):
-            sess = K.get_session()
+            sess = get_session()
             scoreArray = sess.run(self.score, feed_dict = {
                 self.values: valuesArray,
                 self.weights: weightsArray,
                 self.factors: factorsArray
             })
             return scoreArray
-            
         def getGrad(self,valuesArray,weightsArray,factorsArray):
-            sess = K.get_session()
+            sess = get_session()
             gradientsList = sess.run(self.gradients, feed_dict = {
                 self.values: valuesArray,
                 self.weights: weightsArray,
@@ -121,7 +129,7 @@ class KDETest(unittest.TestCase):
                             
                             testModel = makeModel(nelem,nbins,start,end,kernel,bandwidth)
                         
-                            sess = K.get_session()
+                            sess = get_session()
 
                             for i in range(3):
                                 valuesArray = numpy.zeros((1,nelem))
@@ -185,9 +193,9 @@ class KDETest(unittest.TestCase):
     
 class HistogramMaxSampleTest(unittest.TestCase):
     def testHistSingle(self):
-        sess = K.get_session()
+        sess = get_session()
         for n in range(2,200,10):
-            hists = tf.placeholder(tf.float32, shape=(1, n,1))
+            hists = tf.compat.v1.placeholder(tf.float32, shape=(1, n,1))
             histMax = histogram_max_sample_module.histogram_max_sample(hists)
             for i in range(hists.shape[1]):
                 val = numpy.zeros(hists.shape)
@@ -198,8 +206,8 @@ class HistogramMaxSampleTest(unittest.TestCase):
                 
             
     def testHistSample(self):
-        sess = K.get_session()
-        hists = tf.placeholder(tf.float32, shape=(100, 200,1))
+        sess = get_session()
+        hists = tf.compat.v1.placeholder(tf.float32, shape=(100, 200,1))
         histMax = histogram_max_sample_module.histogram_max_sample(hists)
         
         val = numpy.zeros(hists.shape)
