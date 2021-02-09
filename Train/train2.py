@@ -9,6 +9,7 @@ import math
 import re
 import csv
 import sklearn.metrics
+import vtx
 
 
 import matplotlib
@@ -77,8 +78,10 @@ def setup_pipeline(fileList):
     
     return ds
     
-    
+fastHisto = vtx.FastHisto()
 for batch in setup_pipeline(files[:5]):
-    pass
-    
+    predictedZ0 = fastHisto.predictZ0(batch['trk_z0'],batch['trk_pt'])
+    print(np.percentile(predictedZ0-batch['pvz0'],[5,15,50,85,95]))
+    print(np.percentile(predictedZ0-batch['pv2z0'],[5,15,50,85,95]))
+    print()
     

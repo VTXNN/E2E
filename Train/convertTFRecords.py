@@ -130,6 +130,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         #calc PV position as pt-weighted z0 average of genuine tracks
         selectGenuineTracks = (data['trk_genuine'][iev]>0.5)*selectGoodTracks
         
+        #TODO: check tp match instead of genuine flag
+        
         sumZ0 = np.sum(data['trk_pt'][iev][selectGenuineTracks]*data['trk_z0'][iev][selectGenuineTracks])
         sumWeights = np.sum(data['trk_pt'][iev][selectGenuineTracks])
         pvz0 = sumZ0/sumWeights

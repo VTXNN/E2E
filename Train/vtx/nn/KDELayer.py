@@ -1,8 +1,7 @@
 import tensorflow as tf
-import keras
 import vtxops
 
-class KDELayer(keras.layers.Layer):
+class KDELayer(tf.keras.layers.Layer):
     def __init__(self, nbins=256, start=-15, end=15, kernel='flat', bandwidth=1e-12, add_overflow=True, **kwargs):
         self.nbins = nbins
         self.start = start

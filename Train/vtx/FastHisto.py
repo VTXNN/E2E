@@ -9,7 +9,7 @@ class FastHisto():
             
     def predictZ0(self,value,weight):
         z0List = []
-        halfBinWidth = 0.5*30./256.
+        halfBinWidth = 0.5*30./self.nbins
         for ibatch in range(value.shape[0]):
             hist,bin_edges = numpy.histogram(value[ibatch],self.nbins,range=(-15,15),weights=weight[ibatch])
             hist = numpy.convolve(hist,[1,1,1],mode='same')
