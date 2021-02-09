@@ -14,11 +14,12 @@ def predictZ0(value,weight):
     return np.array(z0List,dtype=np.float32)
 
 f = uproot.open("/vols/cms/mkomm/VTX/samples/TTbar_170K_hybrid.root")
-
+print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 branches = [
     'trk_genuine', 
     'trk_pt',
-    'trk_z0'
+    'trk_z0',
+    'trk_fake'
 ]
 
 chunkread = 5000
@@ -32,10 +33,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     pvz0 = []
     
     for iev in range(len(data['trk_pt'])):
-
         #calc PV position as pt-weighted z0 average of genuine tracks
-        selectGenuineTracks = (data['trk_genuine'][iev]>0.5)
-        
+        selectGenuineTracks = (data['trk_fake'][iev]>0.5)*(data['trk_fake'][iev]<1.5)
         sumZ0 = np.sum(data['trk_pt'][iev][selectGenuineTracks]*data['trk_z0'][iev][selectGenuineTracks])
         sumWeights = np.sum(data['trk_pt'][iev][selectGenuineTracks])
         pvz0.append(sumZ0/sumWeights)
