@@ -58,6 +58,7 @@ trackFeatures = [
     'trk_chi2rz', 
     'trk_bendchi2',
     'trk_nstub', 
+    'trk_MVA1'
 ]
 
 
@@ -99,10 +100,12 @@ def decodeHitPattern(hitpattern,eta):
 
 
 def _float_feature(value):
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value.flatten()))
+    return tf.train.Feature(float_list=tf.train.FloatList(
+        value=np.nan_to_num(value.flatten(), nan=0.0, posinf=0.0, neginf=0.0)
+    ))
 
 
-nMaxTracks = 200
+nMaxTracks = 250
 
 chunkread = 5000
 
@@ -125,22 +128,25 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     for iev in range(len(data['trk_pt'])):
 
         #only consider well reconstructed tracks
-        selectGoodTracks = (data['trk_pt'][iev]<500.)#*(data['trk_chi2'][iev]<500.)
+        selectGoodTracks = (data['trk_fake'][iev]>0.5)
 
-        #calc PV position as pt-weighted z0 average of genuine tracks
-        selectGenuineTracks = (data['trk_genuine'][iev]>0.5)*selectGoodTracks
+        #calc PV position as pt-weighted z0 average of PV tracks
+        selectPVTracks = (data['trk_fake'][iev]==1)
+        if (np.sum(1.*selectPVTracks)<1):
+            continue
         
-        #TODO: check tp match instead of genuine flag
+        tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks,nMaxTracks))
         
-        sumZ0 = np.sum(data['trk_pt'][iev][selectGenuineTracks]*data['trk_z0'][iev][selectGenuineTracks])
-        sumWeights = np.sum(data['trk_pt'][iev][selectGenuineTracks])
+        sumZ0 = np.sum(data['trk_pt'][iev][selectPVTracks]*data['trk_z0'][iev][selectPVTracks])
+        sumWeights = np.sum(data['trk_pt'][iev][selectPVTracks])
         pvz0 = sumZ0/sumWeights
         tfData['pvz0'] = _float_feature(np.array([pvz0],np.float32))
         
-        sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectGenuineTracks])*data['trk_z0'][iev][selectGenuineTracks])
-        sum2Weights = np.sum(np.square(data['trk_pt'][iev][selectGenuineTracks]))
+        sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectPVTracks])*data['trk_z0'][iev][selectPVTracks])
+        sum2Weights = np.sum(np.square(data['trk_pt'][iev][selectPVTracks]))
         pv2z0 = sum2Z0/sum2Weights
         tfData['pv2z0'] = _float_feature(np.array([pv2z0],np.float32))
+        
         
         
         for trackFeature in trackFeatures:
@@ -154,7 +160,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
             )
             hitPatternArr[itrack] = hitPattern
             
-        tfData['hitPattern'] = _float_feature(hitPatternArr)
+        tfData['trk_hitpattern'] = _float_feature(hitPatternArr)
     
         example = tf.train.Example(features = tf.train.Features(feature = tfData))
         tfwriter.write(example.SerializeToString())

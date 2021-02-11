@@ -1,288 +1,163 @@
 import tensorflow as tf
-import os
-import time
-import math
-import sys
-import shutil
-import numpy
-import keras
-import keras.backend as K
+import numpy as np
+import scipy
 import h5py
-import logging
-import argparse
-import random
-import inspect
-import matplotlib.pyplot as plt
-from functools import *
-
-import vtxops
+import os
+import sys
+import glob
+import math
+import re
+import csv
+import sklearn.metrics
 import vtx
 
 
-parser = argparse.ArgumentParser(description='Training of networks')
-parser.add_argument('-i','--input',nargs="+", dest='inputFiles', default=[], action='append',
-                    help='Input files',required=True)
-parser.add_argument('-o','--output', dest='outputFolder', type=str,
-                    help='Output directory', required=True)
-parser.add_argument('-f','--force', dest='force', default=False, action='store_true',
-                    help='Force override of output directory')
-parser.add_argument('-n','--epochs', dest='epochs', default=50, type=int,
-                    help='Number of epochs')
-parser.add_argument('-b','--batch', dest='batchSize', default=1000, type=int,
-                    help='Batch size')
-parser.add_argument('--full', dest='trainFull',action='store_true', default=False,
-                    help='Train full network (default: only z0)')
-parser.add_argument('-t','--testFrac', dest='testFraction', default=0.15, type=float,
-                    help='Test fraction.')
-parser.add_argument('-v', dest='logLevel', default='Info', type=str,
-                    help='Verbosity level: Debug, Info, Warning, Error, Critical')
-parser.add_argument('--seed', dest='seed', default=int(time.time()), type=int,
-                    help='Random seed')
-parser.add_argument('--gpu', dest='gpu', default=False,action="store_true",
-                    help='Force GPU usage')
-parser.add_argument('--lr', dest='lr', default=0.01,type=float,
-                    help='Learning rate')           
-parser.add_argument('--kappa', dest='kappa', default=0.9,type=float,
-                    help='Learning rate decay')
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
-args = parser.parse_args()
+SMALL_SIZE = 15
+MEDIUM_SIZE = 15
+BIGGER_SIZE = 16
 
-logging.basicConfig(format='%(levelname)s: %(message)s', level=getattr(logging, args.logLevel.upper(), None))
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
+files = glob.glob("/vols/cms/mkomm/VTX/E2E/Train/trainData/*.tfrecord")
 
-logging.info("Python: %s (%s)"%(sys.version_info,sys.executable))
-logging.info("Keras: %s (%s)"%(keras.__version__,os.path.dirname(keras.__file__)))
-logging.info("TensorFlow: %s (%s)"%(tf.__version__,os.path.dirname(tf.__file__)))
-devices = vtx.Devices(requireGPU=args.gpu)
+print ("Input files: ",len(files))
 
-logging.info("Output folder: %s"%args.outputFolder)
-logging.info("Epochs: %i"%args.epochs)
-logging.info("Batch size: %i"%args.batchSize)
-logging.info("Test fraction: %.2f"%args.testFraction)
-logging.info("Train full network: %s"%args.trainFull)
-logging.info("Random seed: %i"%args.seed)
+features = {
+    "pvz0": tf.io.FixedLenFeature([1], tf.float32),
+    "pv2z0": tf.io.FixedLenFeature([1], tf.float32),
+    "trk_fromPV":tf.io.FixedLenFeature([250], tf.float32),
+    "trk_hitpattern": tf.io.FixedLenFeature([250*11], tf.float32),
+}
 
-random.seed(args.seed)
-numpy.random.seed(args.seed)
-tf.set_random_seed(args.seed)
+trackFeatures = [
+    'trk_z0',
+    'trk_pt',
+    'trk_eta', 
+    'trk_chi2rphi', 
+    'trk_chi2rz', 
+    'trk_bendchi2',
+    'trk_nstub', 
+]
 
-inputFiles = [f for fileList in args.inputFiles for f in fileList]
+for trackFeature in trackFeatures:
+    features[trackFeature] = tf.io.FixedLenFeature([250], tf.float32)
 
-if len(inputFiles)==0:
-    logging.critical("No input files specified")
-    sys.exit(1)
-
-if os.path.exists(args.outputFolder):
-    if not args.force:
-        logging.critical("Output folder '%s' already exists. Use --force to override."%(args.outputFolder))
-        sys.exit(1)
-else:
-    logging.info("Creating output folder: "+args.outputFolder)
-    os.mkdir(args.outputFolder)
     
+def predictFastHisto(value,weight):
+    z0List = []
+    halfBinWidth = 0.5*30./256.
+    for ibatch in range(value.shape[0]):
+        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch])
+        hist = np.convolve(hist,[1,1,1],mode='same')
+        z0Index= np.argmax(hist)
+        z0 = -15.+30.*z0Index/256.+halfBinWidth
+        z0List.append([z0])
+    return np.array(z0List,dtype=np.float32)
+    
+def decode_data(raw_data):
+    decoded_data = tf.io.parse_example(raw_data,features)
+    decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,250,11])
+    return decoded_data
 
-inputFiles = vtx.InputFiles(inputFiles)
-pipeline = vtx.Pipeline(inputFiles,testFraction=args.testFraction)
-
-#TODO: make each model part a separate model; build the full model by calling them
-
-from vtx.nn import E2ERef as Network
-shutil.copyfile(inspect.getsourcefile(Network),os.path.join(args.outputFolder,"Network.py"))
-
-network = Network(
+def setup_pipeline(fileList):
+    ds = tf.data.Dataset.from_tensor_slices(fileList)
+    ds.shuffle(len(fileList),reshuffle_each_iteration=True)
+    ds = ds.interleave(
+        lambda x: tf.data.TFRecordDataset(
+            x, compression_type='GZIP', buffer_size=100000000
+        ),
+        cycle_length=6, 
+        block_length=200, 
+        num_parallel_calls=6
+    )
+    ds = ds.batch(200) #decode in batches (match block_length?)
+    ds = ds.map(decode_data, num_parallel_calls=6)
+    ds = ds.unbatch()
+    ds = ds.shuffle(5000,reshuffle_each_iteration=True)
+    ds = ds.batch(2000)
+    ds = ds.prefetch(5)
+    
+    return ds
+    
+network = vtx.nn.E2ERef(
     nbins=256,
     ntracks=250, 
-    nfeatures=10, 
+    nfeatures=17, 
     nweights=1, 
     nlatent=0, 
     activation='relu',
-    regloss=1e-6
+    regloss=1e-10
 )
-'''
-inputFeatureLayer = keras.layers.Input(shape=(250,10))
-weights = keras.layers.Lambda(lambda x: x[:,1:])(inputFeatureLayer)
-for _ in range(2):
-    weights = keras.layers.Dense(20,activation='relu')(weights)
-    weights = keras.layers.Dropout(0.1)(weights)
-weights = keras.layers.Dense(1,activation=None)(weights)
 
-weightModel = keras.models.Model(inputs=[inputFeatureLayer],outputs=[weights])
-weightModel.add_loss(tf.reduce_mean(tf.square(weights)))
-weightModel.summary()
-
-inputWeightLayer = keras.layers.Input(shape=(250,1))
-hists = vtxops.KDELayer()([inputFeatureLayer,inputWeightLayer])
-
-histModel = keras.models.Model(inputs=[inputFeatureLayer,inputWeightLayer],outputs=[hists])
-histModel.summary()
-
-positionInput = keras.layers.Input(shape=(256,1))
-position = keras.layers.Flatten()(positionInput)
-for _ in range(2):
-    position = keras.layers.Dense(100,activation='relu')(position)
-    position = keras.layers.Dropout(0.1)(position)
-position = keras.layers.Dense(1,activation=None)(position)
-positionModel = keras.models.Model(inputs=[positionInput],outputs=[position])
-positionModel.summary()
-
-weightResult = weightModel([inputFeatureLayer])
-histResult = histModel([inputFeatureLayer,weightResult])
-positionResult = positionModel([histResult])
-model = keras.models.Model(inputs=[inputFeatureLayer],outputs=[positionResult])
+model = network.createE2EModel()
+optimizer = tf.keras.optimizers.Adam(lr=0.001)
+model.compile(
+    optimizer,
+    loss=[
+        tf.keras.losses.MeanAbsoluteError(),
+        tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    ],
+    metrics=[
+        tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+    ]
+)
 model.summary()
 
-optimizer = keras.optimizers.Adam(lr=0.01)
-model.compile(optimizer,loss='mae')
-#model = network.makeZ0Model(optimizer)
-#sys.exit(1)
-'''
-learning_rate = args.lr
-
-fhAlgo = vtx.FastHisto()
-
-history = {'lr':[],'trainLoss':[],'testLoss':[]}
-
-for epoch in range(args.epochs):
-    #distributions = []
-    #learning_rate = args.lr/(1+args.kappa*epoch)
-    optimizer = keras.optimizers.Adam(lr=learning_rate)
-    model = network.createModel(optimizer)
+for epoch in range(50):
+    lr = 0.001/(1+0.1*max(0,epoch-10)**1.5)
+    tf.keras.backend.set_value(model.optimizer.learning_rate, lr)
     
-    if epoch==0:
-        model.summary()
+    print ("Epoch %i"%epoch)
+    
     if epoch>0:
-        model.load_weights(os.path.join(args.outputFolder,"weights_%i.hdf5"%(epoch)))
-
-    stepTrain = 0
-    totalLossTrain = 0.
-    for batch in pipeline.generate(
-        batchSize=args.batchSize,
-        nFiles=max(3,len(inputFiles)),
-        isTraining=True
-    ):
-        stepTrain+=1
-        
-        #if stepTrain>10:
-        #    break
-
-        
-
-        
-        #add random shift for extra regularization
-        randomZ0Shift = numpy.random.uniform(-0.5,0.5,size=(batch['X'].shape[0],1,1))
-        batch['X']+=numpy.concatenate([
-            numpy.repeat(randomZ0Shift,batch['X'].shape[1],axis=1),
-            numpy.zeros((batch['X'].shape[0],batch['X'].shape[1],batch['X'].shape[2]-1))
-        ],axis=2)
-        batch['y']+=randomZ0Shift[:,:,0]
-        batch['y_avg']+=randomZ0Shift[:,:,0]
-        
-        
-        for i in range(batch['X'].shape[0]):
-            for c in range(batch['X'].shape[1]):
-                if batch['X'][i,c,1] > 500:
-                    for j in range(batch['X'].shape[2]):
-                        batch['X'][i,c,j] = 0.
+        model.load_weights("weights_%i.tf"%(epoch-1))
+    
+    for step,batch in enumerate(setup_pipeline(files)):
         '''
-        flatX = numpy.reshape(batch['X'],[-1,batch['X'].shape[2]])
-        flatX = flatX[flatX[:,1]>0]
-        distributions.append(flatX)
+        #random z0 shift and flip
+        z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+        z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+        batch['trk_z0']=batch['trk_z0']*z0Flip+z0Shift
+        batch['pvz0']=batch['pvz0']*z0Flip+z0Shift
+        batch['pv2z0']=batch['pv2z0']*z0Flip+z0Shift
         '''
-        #print (numpy.amax(numpy.reshape(batch['X'],[-1,batch['X'].shape[2]]),axis=0))
-        #print (numpy.mean(numpy.reshape(batch['X'],[-1,batch['X'].shape[2]]),axis=0))
-        lossTrain = model.train_on_batch(batch)
-        totalLossTrain+=lossTrain
+        trackFeatures = np.stack([batch[feature] for feature in [
+            'trk_pt','trk_eta', 'trk_chi2rphi', 'trk_chi2rz', 'trk_bendchi2','trk_nstub'
+        ]],axis=2)
+        trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
+        result = model.train_on_batch(
+            [batch['trk_z0'],trackFeatures],
+            [batch['pvz0'],batch['trk_fromPV']]
+        )
+        result = dict(zip(model.metrics_names,result))
         
-        if stepTrain%10==0:
-            logging.info("Training %i-%i: loss=%.3e"%(
-                stepTrain,
-                epoch+1,
-                lossTrain
+        if step%10==0:
+            predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_pt'])
+        
+            predictedZ0_NN, predictedAssoc_NN = model.predict_on_batch(
+                [batch['trk_z0'],trackFeatures]
+            )
+            qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,15,50,85,95])
+            qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,15,50,85,95])
+            #print (qz0_NN,qz0_FH)
+            print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                epoch,step,
+                result['loss'],result['position_final_loss'],result['association_final_loss'],
+                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
             ))
+    model.save_weights("weights_%i.tf"%(epoch))
 
-    totalLossTrain = totalLossTrain/stepTrain if stepTrain>0 else 0
-    logging.info("Done training for %i-%i: lr=%.3e total loss=%.3e"%(
-        stepTrain,
-        epoch+1,
-        learning_rate,
-        totalLossTrain
-    ))
-    '''
-    flatX = numpy.concatenate(distributions,axis=0)
-    minX = numpy.nanmin(flatX,axis=0)
-    maxX = numpy.nanmax(flatX,axis=0)
-    meanX = numpy.mean(flatX,axis=0)
-    names = ['z0','pt','eta','chi2']#,'bendchi2','nstub']
-    uselog=[False,True,False,True]#,True,False]
-    
-    for i in range(flatX.shape[1]):
-        if i>=len(names):
-            break
-        plt.figure(figsize=(9, 3))
-        if uselog[i]:
-            plt.hist(flatX[:,i], bins=numpy.logspace(math.log10(minX[i]),math.log10(maxX[i]),100))
-            plt.xscale('log')
-        else:
-            plt.hist(flatX[:,i], bins=100,range=(minX[i],maxX[i]))
-        plt.yscale('log')
-        plt.title("Feature: %s"%names[i])
-        plt.savefig("Feature_%s_ref.png"%names[i])
-    '''
-    model.save_weights(os.path.join(args.outputFolder,"weights_%i.hdf5"%(epoch+1)))
-         
-    stepTest = 0  
-    totalLossTest = 0.
-    
-    predictedZ0NN = []
-    predictedZ0FH = []
-    z0FH = fhAlgo.predictZ0(batch['X'][:,:,0],batch['X'][:,:,1])
-    trueZ0 = []
-    
-    for batch in pipeline.generate(
-        batchSize=args.batchSize,
-        nFiles=1,
-        isTraining=False
-    ):
-        stepTest += 1
-        lossTest = model.test_on_batch(batch)
-        totalLossTest+=lossTest
-        if stepTest%10==0:
-            logging.info("Testing %i-%i: loss=%.3e"%(
-                stepTest,
-                epoch+1,
-                lossTest
-            ))
-        z0NN,assoc = model.predict_on_batch(batch)
+                
+
         
-        predictedZ0NN.append(z0NN)
-        predictedZ0FH.append(fhAlgo.predictZ0(
-            batch['X'][:,:,0],
-            batch['X'][:,:,1]
-        ))
-        trueZ0.append(batch['y_avg'])
-        
-    predictedZ0NN = numpy.concatenate(predictedZ0NN,axis=0)
-    predictedZ0FH = numpy.concatenate(predictedZ0FH,axis=0)
-    trueZ0 = numpy.concatenate(trueZ0,axis=0)
-        
-    totalLossTest = totalLossTest/stepTest if stepTest>0 else 0
-    logging.info("Done testing for %i-%i: total loss=%.3e"%(
-        stepTest,
-        epoch+1,
-        totalLossTest
-    ))
-    
-    history['lr'].append(learning_rate)
-    history['trainLoss'].append(totalLossTrain)
-    history['testLoss'].append(totalLossTest)
-    if len(history["trainLoss"])>5 and numpy.mean(history["trainLoss"][-3:])<totalLossTrain:
-        learning_rate = 0.92*learning_rate
-            
-    print ("Q:  ",list(map(lambda x: "%6.1f%%"%x,[5.,15.87,50.,84.13,95.])))
-    print ("NN: ",list(map(lambda x: "%+6.4f"%x,numpy.percentile(predictedZ0NN-trueZ0,[5.,15.87,50.,84.13,95.]))))
-    print ("FH: ",list(map(lambda x: "%+6.4f"%x,numpy.percentile(predictedZ0FH-trueZ0,[5.,15.87,50.,84.13,95.]))))
-    
-
-
-
