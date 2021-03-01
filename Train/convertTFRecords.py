@@ -7,7 +7,7 @@ tf.compat.v1.disable_eager_execution()
 
 f = uproot.open("/vols/cms/mkomm/VTX/samples/TTbar_170K_hybrid.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
-
+#sys.exit(1)
 branches = [
     'tp_d0',
     'tp_d0_prod',
@@ -107,14 +107,14 @@ def _float_feature(value):
 
 nMaxTracks = 250
 
-chunkread = 5000
+chunkread = 2000
 
 for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,entrysteps=chunkread)):
     data = {k.decode('utf-8'):v for k,v in data.items()}
     print ('processing batch:',ibatch+1,'/',math.ceil(1.*len(f['L1TrackNtuple']['eventTree'])/chunkread))
     
     tfwriter = tf.io.TFRecordWriter(
-        'TTbar_%i.tfrecord'%ibatch,
+        'trainData/TTbar_%i.tfrecord'%ibatch,
         options=tf.io.TFRecordOptions(
             compression_type='GZIP',
             compression_level = 4,
@@ -124,16 +124,44 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         )
     )
     
+    #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
+    #ad-hoc correction of track z0
+    data['trk_z0']= data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03
+    #################################################
+
+    
     tfData = {}
     for iev in range(len(data['trk_pt'])):
-
+        
+        #tp met
+        tp_met_px = np.sum(data['tp_pt'][iev]*np.cos(data['tp_phi'][iev]))
+        tp_met_py = np.sum(data['tp_pt'][iev]*np.sin(data['tp_phi'][iev]))
+        tp_met_pt = math.sqrt(tp_met_px**2+tp_met_py**2)
+        tp_met_phi = math.atan2(tp_met_py,tp_met_px)
+        
+        tfData['tp_met_px'] = _float_feature(np.array([tp_met_px],np.float32))
+        tfData['tp_met_py'] = _float_feature(np.array([tp_met_py],np.float32))
+        tfData['tp_met_pt'] = _float_feature(np.array([tp_met_pt],np.float32))
+        tfData['tp_met_phi'] = _float_feature(np.array([tp_met_phi],np.float32))
+        
         #only consider well reconstructed tracks
-        selectGoodTracks = (data['trk_fake'][iev]>0.5)
+        selectGoodTracks = (data['trk_fake'][iev]>0.5)*(data['trk_pt'][iev]<512.)
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
         if (np.sum(1.*selectPVTracks)<1):
             continue
+            
+        #pv tk met
+        pv_trk_met_px = np.sum(data['trk_pt'][iev][selectPVTracks]*np.cos(data['trk_phi'][iev][selectPVTracks]))
+        pv_trk_met_py = np.sum(data['trk_pt'][iev][selectPVTracks]*np.sin(data['trk_phi'][iev][selectPVTracks]))
+        pv_trk_met_pt = math.sqrt(pv_trk_met_px**2+pv_trk_met_py**2)
+        pv_trk_met_phi = math.atan2(pv_trk_met_py,pv_trk_met_px)
+        
+        tfData['pv_trk_met_px'] = _float_feature(np.array([pv_trk_met_px],np.float32))
+        tfData['pv_trk_met_py'] = _float_feature(np.array([pv_trk_met_py],np.float32))
+        tfData['pv_trk_met_pt'] = _float_feature(np.array([pv_trk_met_pt],np.float32))
+        tfData['pv_trk_met_phi'] = _float_feature(np.array([pv_trk_met_phi],np.float32))
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks,nMaxTracks))
         

@@ -11,6 +11,8 @@ import csv
 import sklearn.metrics
 import vtx
 
+import gc
+
 
 import matplotlib
 matplotlib.use('Agg')
@@ -30,8 +32,14 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 
 files = glob.glob("/vols/cms/mkomm/VTX/E2E/Train/trainData/*.tfrecord")
+#files = files[:10]
 
-print ("Input files: ",len(files))
+
+fTest = 0.2
+iTestSplit = int(round(fTest*(len(files)-2)))+1
+filesTrain = files[iTestSplit:]
+filesTest = files[:iTestSplit]
+print ("Input train/test files: %i/%i"%(len(filesTrain),len(filesTest)))
 
 features = {
     "pvz0": tf.io.FixedLenFeature([1], tf.float32),
@@ -72,20 +80,20 @@ def decode_data(raw_data):
 
 def setup_pipeline(fileList):
     ds = tf.data.Dataset.from_tensor_slices(fileList)
-    ds.shuffle(len(fileList),reshuffle_each_iteration=True)
+    ds = ds.shuffle(len(fileList),reshuffle_each_iteration=True)
     ds = ds.interleave(
         lambda x: tf.data.TFRecordDataset(
             x, compression_type='GZIP', buffer_size=100000000
         ),
         cycle_length=6, 
-        block_length=200, 
+        block_length=50, 
         num_parallel_calls=6
     )
-    ds = ds.batch(200) #decode in batches (match block_length?)
+    ds = ds.batch(50) #decode in batches (match block_length?)
     ds = ds.map(decode_data, num_parallel_calls=6)
     ds = ds.unbatch()
-    ds = ds.shuffle(5000,reshuffle_each_iteration=True)
-    ds = ds.batch(2000)
+    ds = ds.shuffle(10000,reshuffle_each_iteration=True)
+    ds = ds.batch(1000)
     ds = ds.prefetch(5)
     
     return ds
@@ -106,13 +114,18 @@ model.compile(
     optimizer,
     loss=[
         tf.keras.losses.MeanAbsoluteError(),
-        tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        tf.keras.losses.BinaryCrossentropy(from_logits=True),
+        lambda y,x: 0.
     ],
     metrics=[
         tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
-    ]
+    ],
+    loss_weights=[1.,1.,0.]
 )
 model.summary()
+
+trainPipeline = setup_pipeline(filesTrain)
+testPipeline = setup_pipeline(filesTest)
 
 for epoch in range(50):
     lr = 0.001/(1+0.1*max(0,epoch-10)**1.5)
@@ -121,9 +134,13 @@ for epoch in range(50):
     print ("Epoch %i"%epoch)
     
     if epoch>0:
-        model.load_weights("weights_%i.tf"%(epoch-1))
+        model.load_weights("weights_%i.hdf5"%(epoch-1))
     
-    for step,batch in enumerate(setup_pipeline(files)):
+    lossTrainTotal = 0.
+    lossTrainPos = 0.
+    lossTrainAssoc = 0.
+    for stepTrain,batch in enumerate(trainPipeline):
+
         '''
         #random z0 shift and flip
         z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
@@ -136,28 +153,96 @@ for epoch in range(50):
             'trk_pt','trk_eta', 'trk_chi2rphi', 'trk_chi2rz', 'trk_bendchi2','trk_nstub'
         ]],axis=2)
         trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
+        nBatch = batch['pvz0'].shape[0]
         result = model.train_on_batch(
             [batch['trk_z0'],trackFeatures],
-            [batch['pvz0'],batch['trk_fromPV']]
+            [batch['pvz0'],batch['trk_fromPV'],np.zeros((nBatch,250,1))]
         )
         result = dict(zip(model.metrics_names,result))
         
-        if step%10==0:
+        lossTrainTotal += result['loss']
+        lossTrainPos += result['position_final_loss']
+        lossTrainAssoc += result['association_final_loss']
+        
+        if stepTrain%10==0:
             predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_pt'])
         
-            predictedZ0_NN, predictedAssoc_NN = model.predict_on_batch(
+            predictedZ0_NN, predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
                 [batch['trk_z0'],trackFeatures]
             )
             qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,15,50,85,95])
             qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,15,50,85,95])
             #print (qz0_NN,qz0_FH)
-            print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
-                epoch,step,
+            print ("Train step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                epoch,stepTrain,
                 result['loss'],result['position_final_loss'],result['association_final_loss'],
                 qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
             ))
-    model.save_weights("weights_%i.tf"%(epoch))
-
-                
-
+            gc.collect()
+            
+    model.save_weights("weights_%i.hdf5"%(epoch))
+    '''
+    z0DiffFH = []
+    z0DiffNN = []
+    weightPtHist = np.zeros((50,50))
+    weightEtaHist = np.zeros((50,50))
+    weightChi2rphiHist = np.zeros((50,50))
+    weightChi2rzHist = np.zeros((50,50))
+    weightBendChi2Hist = np.zeros((50,50))
+    weightNstubHist = np.zeros((50,50))
+    '''
+    
+    
+    lossTestTotal = 0.
+    lossTestPos = 0.
+    lossTestAssoc = 0.
+    for stepTest,batch in enumerate(testPipeline):
+        trackFeatures = np.stack([batch[feature] for feature in [
+            'trk_pt','trk_eta', 'trk_chi2rphi', 'trk_chi2rz', 'trk_bendchi2','trk_nstub'
+        ]],axis=2)
+        trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
+        nBatch = batch['pvz0'].shape[0]
+        result = model.test_on_batch(
+            [batch['trk_z0'],trackFeatures],
+            [batch['pvz0'],batch['trk_fromPV'],np.zeros((nBatch,250,1))]
+        )
+        result = dict(zip(model.metrics_names,result))
         
+        lossTestTotal += result['loss']
+        lossTestPos += result['position_final_loss']
+        lossTestAssoc += result['association_final_loss']
+        
+        predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_pt'])
+        #z0DiffFH.append(predictedZ0_FH-batch['pvz0'])
+        
+        predictedZ0_NN, predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
+            [batch['trk_z0'],trackFeatures]
+        )
+        #z0DiffNN.append(predictedZ0_NN-batch['pvz0'])
+        
+        if stepTest%10==0:
+            
+            qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,15,50,85,95])
+            qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,15,50,85,95])
+            #print (qz0_NN,qz0_FH)
+            print ("Test step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                epoch,stepTest,
+                result['loss'],result['position_final_loss'],result['association_final_loss'],
+                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
+            ))
+            gc.collect()
+
+    fstat = open("stat.dat","a")
+    fstat.write("%i; %.3e; %.3e;%.3e;%.3e; %.3e;%.3e;%.3e\n"%(
+        epoch,
+        lr,
+        lossTrainTotal/stepTrain,
+        lossTrainPos/stepTrain,
+        lossTrainAssoc/stepTrain,
+        
+        lossTestTotal/stepTest,
+        lossTestPos/stepTest,
+        lossTestAssoc/stepTest,
+    ))
+    fstat.close()
+    

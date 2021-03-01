@@ -9,6 +9,7 @@ class E2ERef():
         ntracks=200, 
         nfeatures=10, 
         nweights=1, 
+        npattern=16,
         nlatent=0, 
         activation='relu',
         regloss=1e-10
@@ -17,6 +18,7 @@ class E2ERef():
         self.ntracks = ntracks
         self.nfeatures = nfeatures
         self.nweights = nweights
+        self.npattern = npattern
         self.nlatent = nlatent
         self.activation = activation
         
@@ -56,10 +58,10 @@ class E2ERef():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
-            [16,4],
-            [16,4],
-            [16,4],
-            [16,4],
+            [self.npattern,4],
+            [self.npattern,4],
+            [self.npattern,4],
+            [self.npattern,4],
         ]):
             self.patternConvLayers.append(
                 tf.keras.layers.Conv1D(
@@ -135,6 +137,28 @@ class E2ERef():
             outputs = layer(outputs)
         return outputs
         
+    def createWeightModel(self):
+        trackInput = tf.keras.layers.Input(shape=(self.nfeatures),name="track")
+        weights = self.applyLayerList(trackInput,self.weightLayers)
+        return tf.keras.Model(inputs=[trackInput],outputs=[weights])
+    
+    def createPatternModel(self):
+        histInput = tf.keras.layers.Input(shape=(self.nbins,self.nweights),name="hist")
+        pattern = self.applyLayerList(histInput,self.patternConvLayers)
+        return tf.keras.Model(inputs=[histInput],outputs=[pattern])
+    
+    def createPositionModel(self):
+        patternInput = tf.keras.layers.Input(shape=(self.npattern,self.nbins),name="pattern")
+        positionConv = self.applyLayerList(patternInput,self.positionConvLayers)
+        flattened = tf.keras.layers.Flatten()(positionConv)
+        pvFeatures = self.applyLayerList(flattened,self.pvDenseLayers)
+        return tf.keras.Model(inputs=[patternInput],outputs=[pvFeatures])
+    
+    def createAssociationModel(self):
+        assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
+        assocProbability = self.applyLayerList(assocInput,self.assocLayers)
+        return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
+        
     def createE2EModel(self):
         weights = self.applyLayerList(self.inputTrackFeatures,self.weightLayers)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
@@ -151,7 +175,8 @@ class E2ERef():
         else:
             pvPosition = pvFeatures
         
-        z0Diff = tf.keras.layers.Lambda(lambda x: tf.expand_dims(tf.abs(x[0]-x[1]),2),name='z0_diff')([self.inputTrackZ0,pvPosition])
+        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
+        
         assocFeatures = [self.inputTrackFeatures,z0Diff]
         if self.nlatent>0:
             assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))
@@ -163,15 +188,19 @@ class E2ERef():
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputTrackFeatures],
-            outputs=[pvPosition,assocProbability]
+            outputs=[pvPosition,assocProbability,weights]
         )
-        wq90 = tfp.stats.percentile(
-            weights,
-            q=90.,
-            axis=1,
-            interpolation='nearest',
-        )
-        model.add_loss(tf.reduce_mean(0.1*tf.square(wq90-1.)))
+        
+        def q90loss(w):
+            wq90 = tfp.stats.percentile(
+                w,
+                q=90.,
+                axis=1,
+                interpolation='nearest',
+            )
+            return tf.reduce_mean(0.1*tf.square(wq90-1.))
+        
+        model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model
    
     
