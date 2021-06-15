@@ -2,10 +2,14 @@ import uproot
 import tensorflow as tf
 import numpy as np
 import math
+from math import isnan
 
 tf.compat.v1.disable_eager_execution()
 
-f = uproot.open("/vols/cms/mkomm/VTX/samples/TTbar_170K_hybrid.root")
+f = uproot.open("/home/cb719/Documents/Datasets/NewKF_object/OldKF_TTbar_300K_quality.root")
+
+name ="OldKF"
+#f = uproot.open("/home/cb719/Documents/Datasets/OldKF_object/NewKF_TTbar_300K.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -47,18 +51,26 @@ branches = [
     'trk_pt',
     'trk_seed',
     'trk_unknown',
-    'trk_z0'
+    'trk_z0',
+    'pv_MC',
+    'genMETPx',
+    'genMETPy',
+    'genMET',
+    'genMETPhi',
+    "trk_MVA1"
+
 ]
 
 trackFeatures = [
     'trk_z0',
+    "trk_MVA1",
     'trk_pt',
+    'trk_phi',
     'trk_eta', 
     'trk_chi2rphi', 
     'trk_chi2rz', 
     'trk_bendchi2',
-    'trk_nstub', 
-    'trk_MVA1'
+    'corrected_trk_z0'
 ]
 
 
@@ -97,24 +109,28 @@ def decodeHitPattern(hitpattern,eta):
     #treat patternBits as bit mask
     return unpackbits(np.sum(targetBits*patternBits[::-1]),11)
     
-
-
 def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(
         value=np.nan_to_num(value.flatten(), nan=0.0, posinf=0.0, neginf=0.0)
     ))
 
+eta_bins = np.array([0.0,0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2,2.2,2.4,np.inf])
+res_bins = np.array([0.0,0.1,0.1,0.12,0.14,0.16,0.18,0.23,0.23,0.3,0.35,0.38,0.42,0.5,1])
+
+chi2rz_bins   = np.array([0, 0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 40, 100, 200, 500, 1000, 3000, np.inf])
+chi2rphi_bins = np.array([0, 0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 40, 100, 200, 500, 1000, 3000, np.inf])
+bendchi2_bins = np.array([0, 0.5, 1.25, 2, 3, 5, 10, 50, np.inf])
 
 nMaxTracks = 250
 
 chunkread = 5000
 
 for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,entrysteps=chunkread)):
-    data = {k.decode('utf-8'):v for k,v in data.items()}
+    data = {k.decode('utf-8'):v for k,v in data.items() }
     print ('processing batch:',ibatch+1,'/',math.ceil(1.*len(f['L1TrackNtuple']['eventTree'])/chunkread))
     
     tfwriter = tf.io.TFRecordWriter(
-        'TTbar_%i.tfrecord'%ibatch,
+        'Data/%s%i.tfrecord'%(name,ibatch),
         options=tf.io.TFRecordOptions(
             compression_type='GZIP',
             compression_level = 4,
@@ -124,28 +140,94 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         )
     )
     
+    #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
+    #ad-hoc correction of track z0
+    data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
+    
+
+    
+    #################################################
+    
     tfData = {}
+    
+
     for iev in range(len(data['trk_pt'])):
+        #tp met
+        tp_met_px = np.sum(data['tp_pt'][iev]*np.cos(data['tp_phi'][iev]))
+        tp_met_py = np.sum(data['tp_pt'][iev]*np.sin(data['tp_phi'][iev]))
+        tp_met_pt = math.sqrt(tp_met_px**2+tp_met_py**2)
+        tp_met_phi = math.atan2(tp_met_py,tp_met_px)
+        
+        tfData['tp_met_px'] = _float_feature(np.array([tp_met_px],np.float32))
+        tfData['tp_met_py'] = _float_feature(np.array([tp_met_py],np.float32))
+        tfData['tp_met_pt'] = _float_feature(np.array([tp_met_pt],np.float32))
+        tfData['tp_met_phi'] = _float_feature(np.array([tp_met_phi],np.float32))
 
         #only consider well reconstructed tracks
-        selectGoodTracks = (data['trk_fake'][iev]>0.5)
+        selectGoodTracks = (data['trk_fake'][iev]>=0.0)
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
         if (np.sum(1.*selectPVTracks)<1):
             continue
+
+        #pv tk met
+        pv_trk_met_px = np.sum(data['trk_pt'][iev][selectPVTracks]*np.cos(data['trk_phi'][iev][selectPVTracks]))
+        pv_trk_met_py = np.sum(data['trk_pt'][iev][selectPVTracks]*np.sin(data['trk_phi'][iev][selectPVTracks]))
+        pv_trk_met_pt = math.sqrt(pv_trk_met_px**2+pv_trk_met_py**2)
+        pv_trk_met_phi = math.atan2(pv_trk_met_py,pv_trk_met_px)
+        
+        tfData['pv_trk_met_px'] = _float_feature(np.array([pv_trk_met_px],np.float32))
+        tfData['pv_trk_met_py'] = _float_feature(np.array([pv_trk_met_py],np.float32))
+        tfData['pv_trk_met_pt'] = _float_feature(np.array([pv_trk_met_pt],np.float32))
+        tfData['pv_trk_met_phi'] = _float_feature(np.array([pv_trk_met_phi],np.float32))
+
+        tfData['true_met_px'] = _float_feature(np.array(data['genMETPx'][iev],np.float32))
+        tfData['true_met_py'] = _float_feature(np.array(data['genMETPy'][iev],np.float32))
+        tfData['true_met_pt'] = _float_feature(np.array(data['genMET'][iev],np.float32))
+        tfData['true_met_phi'] = _float_feature(np.array(data['genMETPhi'][iev],np.float32))
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks,nMaxTracks))
-        
+
+        hist1,bin_edges = np.histogram(data['trk_z0'][iev],256,range=(-15,15),weights=selectPVTracks)
+        hist2,bin_edges = np.histogram(data['trk_z0'][iev],256,range=(-15,15),weights=selectPVTracks*data['trk_pt'][iev]*data['trk_pt'][iev])
+        tfData['PV_hist'] = _float_feature(np.array(hist1,np.float32))
+        tfData['PVpt_hist'] = _float_feature(np.array(hist2,np.float32))
+        #sumZ0 = np.sum(data['trk_pt'][iev][selectPVTracks]*data['trk_z0'][iev][selectPVTracks])
+        #sumWeights = np.sum(data['trk_pt'][iev][selectPVTracks])
+        pvz0 = data["pv_MC"][iev]
+
+        res = res_bins[np.digitize(abs(data['trk_eta'][iev]),eta_bins)]*2
+        binned_trk_chi2rphi = np.digitize(data['trk_chi2rphi'][iev],chi2rphi_bins)/16
+        binned_trk_chi2rz   = np.digitize(data['trk_chi2rz'][iev],chi2rz_bins)/16
+        binned_trk_bendchi2 = np.digitize(data['trk_bendchi2'][iev],bendchi2_bins)/8
+
+        tfData['binned_trk_chi2rphi'] =  _float_feature(padArray(np.array(binned_trk_chi2rphi,np.float32),nMaxTracks))
+        tfData['binned_trk_chi2rz'] =  _float_feature(padArray(np.array(binned_trk_chi2rz,np.float32),nMaxTracks))
+        tfData['binned_trk_bendchi2'] =  _float_feature(padArray(np.array(binned_trk_bendchi2,np.float32),nMaxTracks))
+
+        tfData['trk_z0_res']= _float_feature(padArray(np.array(res,np.float32),nMaxTracks)) 
+
         sumZ0 = np.sum(data['trk_pt'][iev][selectPVTracks]*data['trk_z0'][iev][selectPVTracks])
         sumWeights = np.sum(data['trk_pt'][iev][selectPVTracks])
-        pvz0 = sumZ0/sumWeights
-        tfData['pvz0'] = _float_feature(np.array([pvz0],np.float32))
+
+        tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
         
-        sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectPVTracks])*data['trk_z0'][iev][selectPVTracks])
-        sum2Weights = np.sum(np.square(data['trk_pt'][iev][selectPVTracks]))
-        pv2z0 = sum2Z0/sum2Weights
-        tfData['pv2z0'] = _float_feature(np.array([pv2z0],np.float32))
+
+        clipped_pt = np.clip(data['trk_pt'][iev],0, 512)
+        normed_pt = clipped_pt / 512
+
+        tfData['normed_trk_pt'] =  _float_feature(padArray(np.array(normed_pt,np.float32),nMaxTracks))
+        tfData['normed_trk_invR'] =  _float_feature(padArray(np.array(1/normed_pt,np.float32),nMaxTracks))
+        tfData['normed_trk_eta']= _float_feature(padArray(np.array(data['trk_eta'][iev]/2.4),nMaxTracks))
+        tfData['normed_trk_overeta']= _float_feature(padArray(np.array(2.4/data['trk_eta'][iev]),nMaxTracks))
+        tfData['log_pt'] = _float_feature(padArray(np.array(np.log(clipped_pt/50),np.float32),nMaxTracks))
+         
+        
+        #sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectPVTracks])*data['trk_z0'][iev][selectPVTracks])
+        #sum2Weights = np.sum(np.square(data['trk_pt'][iev][selectPVTracks]))
+        #pv2z0 = sum2Z0/sum2Weights
+        #tfData['pv2z0'] = _float_feature(np.array([pv2z0],np.float32))
         
         
         
@@ -153,12 +235,12 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectGoodTracks],nMaxTracks))
         
         hitPatternArr = np.zeros((nMaxTracks,11))
-        for itrack in range(min(nMaxTracks,len(data['trk_pt'][iev][selectGoodTracks]))): 
-            hitPattern = decodeHitPattern(
-                data['trk_hitpattern'][iev][selectGoodTracks][itrack],
-                data['trk_eta'][iev][selectGoodTracks][itrack]
-            )
-            hitPatternArr[itrack] = hitPattern
+        #for itrack in range(min(nMaxTracks,len(data['trk_pt'][iev][selectGoodTracks]))): 
+        #    hitPattern = decodeHitPattern(
+        #        data['trk_hitpattern'][iev][selectGoodTracks][itrack],
+        #        data['trk_eta'][iev][selectGoodTracks][itrack]
+        #    )
+        #    hitPatternArr[itrack] = hitPattern
             
         tfData['trk_hitpattern'] = _float_feature(hitPatternArr)
     

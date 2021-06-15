@@ -3,10 +3,11 @@ import tensorflow_probability as tfp
 import vtx
 import numpy
 
-class E2ERef():
+class E2Ecomparekernel():
     def __init__(self,
         nbins=256,
         ntracks=200, 
+        nweightfeatures=2,
         nfeatures=10, 
         nweights=1, 
         npattern=16,
@@ -16,17 +17,19 @@ class E2ERef():
     ):
         self.nbins = nbins
         self.ntracks = ntracks
+        self.nweightfeatures = nweightfeatures
         self.nfeatures = nfeatures
         self.nweights = nweights
         self.npattern = npattern
         self.nlatent = nlatent
         self.activation = activation
         
-        self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_track_features')
+        self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
+        self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_PV_track_features')
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
         
         self.weightLayers = []
-        for ilayer,nodes in enumerate([10]):
+        for ilayer,nodes in enumerate([10,10]):
             self.weightLayers.extend([
                 tf.keras.layers.Dense(
                     nodes,
@@ -138,9 +141,9 @@ class E2ERef():
         return outputs
         
     def createWeightModel(self):
-        trackInput = tf.keras.layers.Input(shape=(self.nfeatures),name="track")
-        weights = self.applyLayerList(trackInput,self.weightLayers)
-        return tf.keras.Model(inputs=[trackInput],outputs=[weights])
+        weightInput = tf.keras.layers.Input(shape=(self.nweightfeatures),name="weight")
+        weights = self.applyLayerList(weightInput,self.weightLayers)
+        return tf.keras.Model(inputs=[weightInput],outputs=[weights])
     
     def createPatternModel(self):
         histInput = tf.keras.layers.Input(shape=(self.nbins,self.nweights),name="hist")
@@ -160,7 +163,7 @@ class E2ERef():
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
-        weights = self.applyLayerList(self.inputTrackFeatures,self.weightLayers)
+        weights = self.applyLayerList(self.inputWeightFeatures,self.weightLayers)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
         pattern = self.applyLayerList(hists,self.patternConvLayers)
         
@@ -187,8 +190,8 @@ class E2ERef():
         assocProbability = self.applyLayerList(assocFeatures,self.assocLayers)
         
         model = tf.keras.Model(
-            inputs=[self.inputTrackZ0,self.inputTrackFeatures],
-            outputs=[pvPosition,assocProbability,weights]
+            inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
+            outputs=[pvPosition,assocProbability,weights,hists]
         )
         
         def q90loss(w):
