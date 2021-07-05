@@ -50,7 +50,7 @@ experiment = comet_ml.ExistingExperiment(
         log_env_cpu=True,     # to continue CPU logging
     )
 
-outputFolder = "kernelcompareplots"
+outputFolder = "quartilecompareplots"
 nMaxTracks = 250
 
 test_files = glob.glob("Data/Test/*.tfrecord")
@@ -387,11 +387,11 @@ if __name__=="__main__":
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
 
             
-    network = vtx.nn.E2Ecomparekernel(
+    network = vtx.nn.E2Equartiles(
             nbins=256,
             ntracks=nMaxTracks, 
             nweightfeatures=3, 
-            nfeatures=6, 
+            nfeatures=3, 
             nweights=1, 
             nlatent=2, 
             activation='relu',
@@ -405,15 +405,15 @@ if __name__=="__main__":
             optimizer,
             loss=[
                 tf.keras.losses.MeanAbsoluteError(),
-                #tf.keras.losses.MeanSquaredError(),
+                lambda y,x: 0.,
+                lambda y,x: 0.,
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.,
-                lambda y,x: 0.
             ],
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
             ],
-            loss_weights=[1.,1.,0.,0.]
+            loss_weights=[1.,1.,1.1.,,0.]
         )
     model.summary()
     model.load_weights("weights_4.tf")
@@ -422,13 +422,17 @@ if __name__=="__main__":
     predictedZ0_FHz0res = []
     predictedZ0_NN = []
 
-    predictedWeights = []
+    predictedZ0_25 = []
+    predictedZ0_75 = []
 
     predictedAssoc_NN = []
     predictedAssoc_FH = []
 
     actual_Assoc = []
     actual_PV = []
+
+    actual_numtracks = []
+    actual_pt_total = []
 
     tp_met_px  = []
     pv_trk_met_px = []
@@ -444,9 +448,6 @@ if __name__=="__main__":
     pv_trk_met_phi = []
     true_met_phi = []
     predicted_met_phi = []
-
-    actual_numtracks = []
-    actual_pt_total = []
 
     predictedFH_met_px = []
     predictedFH_met_py = []
@@ -474,13 +475,12 @@ if __name__=="__main__":
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                    'normed_trk_pt','normed_trk_eta', 'binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2','trk_MVA1'
+                    'normed_trk_pt','normed_trk_eta','trk_MVA1'
             ]],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in [
                  'normed_trk_pt','normed_trk_eta','trk_MVA1'
             ]],axis=2)
-            #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
-            #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)
+
         nBatch = batch['pvz0'].shape[0]
         FH = predictFastHisto(batch['trk_z0'],batch['trk_pt'])
         predictedZ0_FH.append(FH)
@@ -510,7 +510,7 @@ if __name__=="__main__":
         pv_trk_met_phi.append(batch['pv_trk_met_phi'])
         true_met_phi.append(batch['true_met_phi'])
 
-        tp_met .append(batch['tp_met_pt'])
+        tp_met.append(batch['tp_met_pt'])
         pv_trk_met.append(batch['pv_trk_met_pt'])
         true_met.append(batch['true_met_pt'])
 
@@ -520,13 +520,12 @@ if __name__=="__main__":
         FHassoc = FastHistoAssoc(predictFastHisto(batch['trk_z0'],batch['trk_pt']),batch['trk_z0'],batch['trk_eta'])
         predictedAssoc_FH.append(FHassoc)
                 
-        predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN, predictedHists_NN = model.predict_on_batch(
+        predictedZ0_NN_temp,predicted25_NN_temp,predicted75_NN_temp ,predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
                         [batch['trk_z0'],WeightFeatures,trackFeatures]
                     )
 
-        #print(batch["PV_hist"])
-        #print("---------------")
-        #print(predictedHists_NN)
+        predicted25_NN.append(predictedZ0_NN_temp)
+        predicted75_NN.append(predicted75_NN_temp)
 
         for i,event in enumerate(batch['trk_z0']):
             actual_numtracks.append(np.sum(batch["trk_fromPV"].numpy()[i]))
@@ -555,10 +554,15 @@ if __name__=="__main__":
         predictedWeights.append(predictedWeights_NN)
 
     z0_NN_array = np.concatenate(predictedZ0_NN).ravel()
+    25_NN_array = np.concatenate(predicted25_NN).ravel()
+    75_NN_array = np.concatenate(predicted75_NN).ravel()
+
     z0_FH_array = np.concatenate(predictedZ0_FH).ravel()
     z0_FHzres_array = np.concatenate(predictedZ0_FHz0res).ravel()
     z0_PV_array = np.concatenate(actual_PV).ravel()
 
+    pv_numtracks = np.concatenate(actual_numtracks).ravel()
+    pv_pttotal = np.concatenate(actual_pt_total).ravel()
 
     predictedWeightsarray = np.concatenate(predictedWeights).ravel()
 
@@ -569,13 +573,9 @@ if __name__=="__main__":
     trk_eta_array = np.concatenate(trk_eta).ravel()
     trk_phi_array = np.concatenate(trk_phi).ravel()
 
-    pv_numtracks = np.concatenate(actual_numtracks).ravel()
-    pv_pttotal = np.concatenate(actual_pt_total).ravel()
-
     trk_chi2rphi_array = np.concatenate(trk_chi2rphi).ravel()
     trk_chi2rz_array = np.concatenate(trk_chi2rz).ravel()
     trk_bendchi2_array = np.concatenate(trk_bendchi2).ravel()
-
 
     assoc_NN_array = np.concatenate(predictedAssoc_NN).ravel()
     assoc_FH_array = np.concatenate(predictedAssoc_FH).ravel()
@@ -783,7 +783,7 @@ if __name__=="__main__":
     predictedFH_met_phi_array = np.concatenate(predictedFH_met_phi).ravel()
     predictedFH_met_array = np.concatenate(predictedFH_met).ravel()
 
-    '''
+
     plt.clf()
     plt.hist(tp_met_px_array,range=(-150,150),bins=50,histtype="step",color="g",label="Tracking Particle MET px")
     plt.hist(pv_trk_met_px_array,range=(-150,150),bins=50,histtype="step",color="b",label="True PV Track MET px")
@@ -820,7 +820,6 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.savefig("%s/METpt.png" % outputFolder)
 
-
     plt.clf()
     plt.hist(tp_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="g",label="Tracking Particle MET phi")
     plt.hist(pv_trk_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="b",label="True PV Track MET phi")
@@ -833,7 +832,6 @@ if __name__=="__main__":
     plt.legend(loc="lower center")
     plt.tight_layout()
     plt.savefig("%s/METphi.png" % outputFolder)
-    '''
 
     plt.clf()
     figure=plotz0_residual((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FH_array))
@@ -899,60 +897,88 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.savefig("%s/NN_vs_z0.png" %  outputFolder)
 
+    plt.clf()
+    plt.hist2d((z0_PV_array - z0_NN_array),25_NN_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
+    plt.ylabel("25% Quartile", horizontalalignment='right', y=1.0)
+    plt.tight_layout()
+    plt.savefig("%s/NNresidual_vs_25.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d((z0_PV_array - z0_NN_array),75_NN_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
+    plt.ylabel("75% Quartile", horizontalalignment='right', y=1.0)
+    plt.tight_layout()
+    plt.savefig("%s/NNresidual_vs_75.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d((z0_PV_array - z0_NN_array),(25_NN_array-75_NN_array)/2 , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
+    plt.ylabel(" $z_0^{NN}$ Resolution", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/NNresidual_vs_NNresolution.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(z0_PV_array,z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.scatter(z0_PV_array,25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(z0_PV_array,75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("PV ", horizontalalignment='right', x=1.0)
+    plt.ylabel(" $z_0^{NN}$", horizontalalignment='right', y=1.0)
+    plt.legend()
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/quartiles_vs_PV.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("$z_0^{gen}$ ", horizontalalignment='right', x=1.0)
+    plt.ylabel(" $z_0^{gen}$/$z_0^{NN}$", horizontalalignment='right', y=1.0)
+    plt.legend()
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/quartiles_vs_PV.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.legend()
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/quartiles_vs_numtracks.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/quartiles_vs_pv_pttotal.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.legend()
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/quartiles_vs_pv_ptdensity.png" %  outputFolder)
 
     plt.clf()
     figure=plotz0_percentile((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FHzres_array))
     plt.savefig("%s/Z0withrespercentile.png" % outputFolder)
 
-    plt.clf()
-    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/z0_vs_numtracks.png" %  outputFolder)
 
-    plt.clf()
-    plt.scatter(pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/z0err_vs_numtracks.png" %  outputFolder)
-
-    plt.clf()
-    plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/z0_vs_pv_pttotal.png" %  outputFolder)
-
-    plt.clf()
-    plt.scatter(pv_pttotal,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/zerr0_vs_pv_pttotal.png" %  outputFolder)
-
-    plt.clf()
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/z0_vs_pv_ptdensity.png" %  outputFolder)
-
-    plt.clf()
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
-    plt.tight_layout()
-    plt.savefig("%s/z0diff_vs_pv_ptdensity.png" %  outputFolder)
-
-    '''
     plt.clf()
     figure=plotMET_residual((true_met_pt_array-predicted_met_array),
                             (true_met_pt_array-pv_trk_met_pt_array),
@@ -970,7 +996,7 @@ if __name__=="__main__":
                             true=true_met_pt_array
                             )
     plt.savefig("%s/METrelresidual.png" % outputFolder)
-    '''
+
     experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
 
 

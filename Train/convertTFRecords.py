@@ -6,7 +6,7 @@ from math import isnan
 
 tf.compat.v1.disable_eager_execution()
 
-f = uproot.open("/home/cb719/Documents/Datasets/NewKF_object/OldKF_TTbar_300K_quality.root")
+f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
 
 name ="OldKF"
 #f = uproot.open("/home/cb719/Documents/Datasets/OldKF_object/NewKF_TTbar_300K.root")
