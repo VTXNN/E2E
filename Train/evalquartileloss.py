@@ -29,6 +29,14 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+kf = sys.argv[1]
+
+if kf == "NewKF":
+    test_files = glob.glob("NewKFData/Test/*.tfrecord")
+    z0 = 'trk_z0'
+elif kf == "OldKF":
+    test_files = glob.glob("OldKFData/Test/*.tfrecord")
+    z0 = 'corrected_trk_z0'
 
 with open('experimentkey.txt') as f:
     first_line = f.readline()
@@ -50,10 +58,8 @@ experiment = comet_ml.ExistingExperiment(
         log_env_cpu=True,     # to continue CPU logging
     )
 
-outputFolder = "quartilecompareplots"
+outputFolder = kf+"quartilecompareplots"
 nMaxTracks = 250
-
-test_files = glob.glob("Data/Test/*.tfrecord")
 
 def predictFastHisto(value,weight):
     z0List = []
@@ -413,7 +419,7 @@ if __name__=="__main__":
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
             ],
-            loss_weights=[1.,1.,1.1.,,0.]
+            loss_weights=[1.,1.,1.,1.,0.]
         )
     model.summary()
     model.load_weights("weights_4.tf")
@@ -561,8 +567,8 @@ if __name__=="__main__":
     z0_FHzres_array = np.concatenate(predictedZ0_FHz0res).ravel()
     z0_PV_array = np.concatenate(actual_PV).ravel()
 
-    pv_numtracks = np.concatenate(actual_numtracks).ravel()
-    pv_pttotal = np.concatenate(actual_pt_total).ravel()
+    pv_numtracks = np.array(actual_numtracks)
+    pv_pttotal = np.array(actual_pt_total)
 
     predictedWeightsarray = np.concatenate(predictedWeights).ravel()
 
@@ -783,7 +789,7 @@ if __name__=="__main__":
     predictedFH_met_phi_array = np.concatenate(predictedFH_met_phi).ravel()
     predictedFH_met_array = np.concatenate(predictedFH_met).ravel()
 
-
+    '''
     plt.clf()
     plt.hist(tp_met_px_array,range=(-150,150),bins=50,histtype="step",color="g",label="Tracking Particle MET px")
     plt.hist(pv_trk_met_px_array,range=(-150,150),bins=50,histtype="step",color="b",label="True PV Track MET px")
@@ -832,7 +838,7 @@ if __name__=="__main__":
     plt.legend(loc="lower center")
     plt.tight_layout()
     plt.savefig("%s/METphi.png" % outputFolder)
-
+    '''
     plt.clf()
     figure=plotz0_residual((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FH_array))
     plt.savefig("%s/Z0Residual.png" % outputFolder)
@@ -932,8 +938,8 @@ if __name__=="__main__":
 
     plt.clf()
     plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("$z_0^{gen}$ ", horizontalalignment='right', x=1.0)
     plt.ylabel(" $z_0^{gen}$/$z_0^{NN}$", horizontalalignment='right', y=1.0)
     plt.legend()
@@ -943,8 +949,8 @@ if __name__=="__main__":
 
     plt.clf()
     plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     plt.legend()
@@ -956,20 +962,22 @@ if __name__=="__main__":
     plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
     plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
     plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
-    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.xlabel("Total PV $p_{T}$ per event [GeV] ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     #plt.colorbar(vmin=0,vmax=1000)
+    plt.xscale("log")
     plt.legend()
     plt.tight_layout()
     plt.savefig("%s/quartiles_vs_pv_pttotal.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
-    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     plt.legend()
+    plt.xscale("log")
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/quartiles_vs_pv_ptdensity.png" %  outputFolder)
@@ -978,7 +986,7 @@ if __name__=="__main__":
     figure=plotz0_percentile((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FHzres_array))
     plt.savefig("%s/Z0withrespercentile.png" % outputFolder)
 
-
+    '''
     plt.clf()
     figure=plotMET_residual((true_met_pt_array-predicted_met_array),
                             (true_met_pt_array-pv_trk_met_pt_array),
@@ -996,6 +1004,7 @@ if __name__=="__main__":
                             true=true_met_pt_array
                             )
     plt.savefig("%s/METrelresidual.png" % outputFolder)
+    '''
 
     experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
 

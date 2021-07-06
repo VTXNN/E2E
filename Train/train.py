@@ -88,14 +88,6 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             
-            
-            #random z0 shift and flip
-            #z0Shift = np.random.normal(-1.0,1.0,size=batch['pvz0'].shape)
-            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            #batch['trk_z0']=batch['trk_z0']*z0Flip+z0Shift
-            #batch['pvz0']=batch['pvz0']*z0Flip+z0Shift
-            #batch['pv2z0']=batch['pv2z0']*z0Flip+z0Shift
-            
             trackFeatures = np.stack([batch[feature] for feature in [
                 'normed_trk_pt','normed_trk_eta', 'binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2','trk_z0_res'
             ]],axis=2)

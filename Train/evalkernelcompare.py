@@ -6,6 +6,8 @@ import glob
 import sklearn.metrics as metrics
 import vtx
 
+import sys
+
 from train import *
 
 import matplotlib
@@ -29,8 +31,17 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+kf = sys.argv[1]
 
-with open('experimentkey.txt') as f:
+if kf == "NewKF":
+    test_files = glob.glob("NewKFData/Test/*.tfrecord")
+    z0 = 'trk_z0'
+elif kf == "OldKF":
+    test_files = glob.glob("OldKFData/Test/*.tfrecord")
+    z0 = 'corrected_trk_z0'
+
+
+with open(kf+'experimentkey.txt') as f:
     first_line = f.readline()
 
 EXPERIMENT_KEY = first_line
@@ -50,10 +61,8 @@ experiment = comet_ml.ExistingExperiment(
         log_env_cpu=True,     # to continue CPU logging
     )
 
-outputFolder = "kernelcompareplots"
+outputFolder = kf+"kernelcompareplots"
 nMaxTracks = 250
-
-test_files = glob.glob("Data/Test/*.tfrecord")
 
 def predictFastHisto(value,weight):
     z0List = []
@@ -380,7 +389,8 @@ if __name__=="__main__":
             'log_pt',
             'trk_eta',
             'trk_phi',
-            'trk_MVA1'
+            'trk_MVA1',
+            'corrected_trk_z0'
         ]
 
     for trackFeature in trackFeatures:
@@ -391,7 +401,7 @@ if __name__=="__main__":
             nbins=256,
             ntracks=nMaxTracks, 
             nweightfeatures=3, 
-            nfeatures=6, 
+            nfeatures=3, 
             nweights=1, 
             nlatent=2, 
             activation='relu',
@@ -409,6 +419,7 @@ if __name__=="__main__":
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.,
                 lambda y,x: 0.
+                
             ],
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
@@ -416,7 +427,7 @@ if __name__=="__main__":
             loss_weights=[1.,1.,0.,0.]
         )
     model.summary()
-    model.load_weights("weights_4.tf")
+    model.load_weights(kf+"weights_74.tf")
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
@@ -474,7 +485,7 @@ if __name__=="__main__":
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                    'normed_trk_pt','normed_trk_eta', 'binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2','trk_MVA1'
+                    'normed_trk_pt','normed_trk_eta','trk_MVA1'
             ]],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in [
                  'normed_trk_pt','normed_trk_eta','trk_MVA1'
@@ -482,12 +493,11 @@ if __name__=="__main__":
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)
         nBatch = batch['pvz0'].shape[0]
-        FH = predictFastHisto(batch['trk_z0'],batch['trk_pt'])
+        FH = predictFastHisto(batch[z0],batch['trk_pt'])
         predictedZ0_FH.append(FH)
-        predictedZ0_FHz0res.append(predictFastHistoZ0res(batch['trk_z0'],batch['trk_pt'],batch['trk_eta']))
+        predictedZ0_FHz0res.append(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']))
 
-
-        trk_z0.append(batch['trk_z0'])
+        trk_z0.append(batch[z0])
         trk_MVA.append(batch["trk_MVA1"])
         trk_pt.append(batch['normed_trk_pt'])
         trk_z0res.append(batch['trk_z0_res'])
@@ -517,18 +527,18 @@ if __name__=="__main__":
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
-        FHassoc = FastHistoAssoc(predictFastHisto(batch['trk_z0'],batch['trk_pt']),batch['trk_z0'],batch['trk_eta'])
+        FHassoc = FastHistoAssoc(predictFastHisto(batch[z0],batch['trk_pt']),batch[z0],batch['trk_eta'])
         predictedAssoc_FH.append(FHassoc)
                 
         predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN, predictedHists_NN = model.predict_on_batch(
-                        [batch['trk_z0'],WeightFeatures,trackFeatures]
+                        [batch[z0],WeightFeatures,trackFeatures]
                     )
 
         #print(batch["PV_hist"])
         #print("---------------")
         #print(predictedHists_NN)
 
-        for i,event in enumerate(batch['trk_z0']):
+        for i,event in enumerate(batch[z0]):
             actual_numtracks.append(np.sum(batch["trk_fromPV"].numpy()[i]))
             actual_pt_total.append(np.sum(batch["trk_fromPV"].numpy()[i]*batch["trk_pt"].numpy()[i]))
             if abs(predictedZ0_NN_temp.numpy()[i] - batch['pvz0'][i]) > 100:
@@ -569,8 +579,8 @@ if __name__=="__main__":
     trk_eta_array = np.concatenate(trk_eta).ravel()
     trk_phi_array = np.concatenate(trk_phi).ravel()
 
-    pv_numtracks = np.concatenate(actual_numtracks).ravel()
-    pv_pttotal = np.concatenate(actual_pt_total).ravel()
+    pv_numtracks = np.array(actual_numtracks)
+    pv_pttotal = np.array(actual_pt_total)
 
     trk_chi2rphi_array = np.concatenate(trk_chi2rphi).ravel()
     trk_chi2rz_array = np.concatenate(trk_chi2rz).ravel()
@@ -915,39 +925,43 @@ if __name__=="__main__":
     plt.clf()
     plt.scatter(pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
     plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/z0err_vs_numtracks.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.xlabel("Total PV $p_{T}$ per event [GeV] ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/z0_vs_pv_pttotal.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
-    plt.xlabel("Total PV p_{T} per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xlabel("Total PV $p_{T}$ per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/zerr0_vs_pv_pttotal.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/z0_vs_pv_ptdensity.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.xlabel("PV p_{T} density per event [GeV] ", horizontalalignment='right', x=1.0)
-    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/z0diff_vs_pv_ptdensity.png" %  outputFolder)

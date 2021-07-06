@@ -30,6 +30,13 @@ tf.config.threading.set_inter_op_parallelism_threads(
     8
 )
 
+kf = sys.argv[1]
+
+if kf == "NewKF":
+    z0 = 'trk_z0'
+elif kf == "OldKF":
+    z0 = 'corrected_trk_z0'
+
 #EXPERIMENT_KEY = os.environ.get("COMET_EXPERIMENT_KEY")
 
 SMALL_SIZE = 15
@@ -89,7 +96,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights("weights_%i.tf"%(epoch-1))
+            model.load_weights(kf+"weights_%i.tf"%(epoch-1))
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             
@@ -104,7 +111,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
 
             nBatch = batch['pvz0'].shape[0]
             result = model.train_on_batch(
-            [batch['corrected_trk_z0'],WeightFeatures,trackFeatures],
+            [batch[z0],WeightFeatures,trackFeatures],
             [batch['pvz0'],batch['pvz0'],batch['pvz0'],batch['trk_fromPV'],np.zeros((nBatch,max_ntracks,1))]
         )    ##True Z0      ##True PV            ##True weights                     ##True Hists
             result = dict(zip(model.metrics_names,result))
@@ -121,10 +128,10 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
 
             
             if step%10==0:
-                predictedZ0_FH = predictFastHisto(batch['corrected_trk_z0'],batch['trk_pt'])
+                predictedZ0_FH = predictFastHisto(batch[z0],batch['trk_pt'])
  
                 predictedZ0_NN, predicted75_NN,predicted25_NN, predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
-                    [batch['corrected_trk_z0'],WeightFeatures,trackFeatures]
+                    [batch[z0],WeightFeatures,trackFeatures]
                 )
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
                 qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,32,50,68,95])
@@ -155,7 +162,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(predictFastHisto(val_batch['corrected_trk_z0'],val_batch['trk_pt']).flatten())
+            val_predictedZ0_FH.append(predictFastHisto(val_batch[z0],val_batch['trk_pt']).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in [
             'normed_trk_pt','normed_trk_eta', 'trk_MVA1'
@@ -166,7 +173,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             ]],axis=2)
 
             temp_predictedZ0_NN, temp_predicted75_NN,temp_predicted25_NN,temp_predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
-                    [val_batch['corrected_trk_z0'],val_WeightFeatures,val_trackFeatures]
+                    [val_batch[z0],val_WeightFeatures,val_trackFeatures]
             )
                 
             val_predictedZ0_NN.append(temp_predictedZ0_NN.numpy().flatten())
@@ -198,7 +205,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
         experiment.log_metric("Validation_FH_PV_ROC",metrics.roc_auc_score(val_assoc_PV_array,val_assoc_FH_array))
         experiment.log_metric("Validation_FH_PV_ACC",metrics.balanced_accuracy_score(val_assoc_PV_array,val_assoc_FH_array))
 
-        model.save_weights("weights_%i.tf"%(epoch))
+        model.save_weights(kf+"weights_%i.tf"%(epoch))
         old_lr = callbacks.on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
         
 def test_model(model,experiment,test_files):
@@ -228,25 +235,16 @@ def test_model(model,experiment,test_files):
             ]],axis=2)
 
         nBatch = batch['pvz0'].shape[0]
-        predictedZ0_FH.append(predictFastHisto(batch['corrected_trk_z0'],batch['trk_pt']))
+        predictedZ0_FH.append(predictFastHisto(batch[z0],batch['trk_pt']))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch['corrected_trk_z0'],batch['trk_eta']))
+        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
             
         predictedZ0_NN_temp, temp_predicted75_NN,temp_predicted25_NN, predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
-                    [batch['corrected_trk_z0'],WeightFeatures,trackFeatures]
+                    [batch[z0],WeightFeatures,trackFeatures]
                 )
-
-        threshold = 0.0
-
-        predicted_trk_met_px,predicted_trk_met_py,predicted_trk_met_pt,predicted_trk_met_phi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_NN_temp,threshold)
-
-        predictedMET_pt.append(predicted_trk_met_pt)
-        tp_met .append(batch['tp_met_pt'])
-        pv_trk_met.append(batch['pv_trk_met_pt'])
-        true_met.append(batch['true_met_pt'])
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -267,8 +265,8 @@ def test_model(model,experiment,test_files):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset("weights_"+str(epochs-1)+".tf.index")
-    experiment.log_asset("weights_"+str(epochs-1)+".tf.data-00000-of-00001")
+    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.index")
+    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -297,9 +295,16 @@ def test_model(model,experiment,test_files):
 if __name__=="__main__":
     retrain = True
 
-    train_files = glob.glob("Data/Train/*.tfrecord")
-    test_files = glob.glob("Data/Test/*.tfrecord")
-    val_files = glob.glob("Data/Val/*.tfrecord")
+    if kf == "NewKF":
+        train_files = glob.glob("NewKFData/Train/*.tfrecord")
+        test_files = glob.glob("NewKFData/Test/*.tfrecord")
+        val_files = glob.glob("NewKFData/Val/*.tfrecord")
+        
+    elif kf == "OldKF":
+        train_files = glob.glob("OldKFData/Train/*.tfrecord")
+        test_files = glob.glob("OldKFData/Test/*.tfrecord")
+        val_files = glob.glob("OldKFData/Val/*.tfrecord")
+
     print ("Input Train files: ",len(train_files))
     print ("Input Validation files: ",len(val_files))
     print ("Input Test files: ",len(test_files))
@@ -349,10 +354,10 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    experiment.set_name("KFz0CNN")
-    experiment.log_other("description","baseQuartile")
+    experiment.set_name(kf+"z0CNN")
+    experiment.log_other("description",kf + " baseMVA with quartiles, with kernel compare")
     print(experiment.get_key())
-    with open('experimentkey.txt', 'w') as fh:
+    with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())  
     network = vtx.nn.E2Equartiles(
         nbins=256,
@@ -393,7 +398,7 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(),
+            tf.keras.losses.MeanAbsoluteError(),
             25_quartile_loss()
             75_quartile_loss()
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
@@ -415,7 +420,7 @@ if __name__=="__main__":
         with experiment.train():
            train_model(model,experiment,train_files,val_files,epochs=epochs,callbacks=reduceLR,nlatent=2),
     else:
-        model.load_weights("weights_74.tf")
+        model.load_weights(kf+"weights_74.tf")
 
     with experiment.test():
         test_model(model,experiment,test_files)

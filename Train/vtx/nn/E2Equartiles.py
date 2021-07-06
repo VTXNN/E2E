@@ -3,7 +3,7 @@ import tensorflow_probability as tfp
 import vtx
 import numpy
 
-class E2Ecomparekernel():
+class E2Equartiles():
     def __init__(self,
         nbins=256,
         ntracks=200, 
@@ -174,13 +174,16 @@ class E2Ecomparekernel():
         pvFeatures = self.applyLayerList(flattened,self.pvDenseLayers)
         
         if self.nlatent>0:
-            pvPosition,pv25,pv75,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:2]],x[:,2:3],x[:,3:],name='split_latent')(pvFeatures)
+            pvPosition,pv25,pv75,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:2],x[:,2:3],x[:,3:]],name='split_latent')(pvFeatures)
         else:
             pvPosition,pv25,pv75 = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:2],x[:,2:]],name='split_pv')(pvFeatures)
         
         z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
         
-        assocFeatures = [self.inputTrackFeatures,z0Diff,pv25,pv75]
+        assocFeatures = [self.inputTrackFeatures,z0Diff]
+        assocFeatures.append(self.tiledTrackDimLayer(pv25))
+        assocFeatures.append(self.tiledTrackDimLayer(pv75))
+
         if self.nlatent>0:
             assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))
             
