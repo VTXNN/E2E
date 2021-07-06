@@ -16,6 +16,8 @@ import pandas as pd
 from Callbacks import OwnReduceLROnPlateau
 from eval import*
 
+import yaml
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -288,7 +290,9 @@ def test_model(model,experiment,test_files):
     
     
 if __name__=="__main__":
-    retrain = True
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+    retrain = config["retrain"]
 
     if kf == "NewKF":
         train_files = glob.glob("NewKFData/Train/*.tfrecord")
@@ -342,7 +346,7 @@ if __name__=="__main__":
 
 
     experiment = Experiment(
-        project_name="Vertex_CNN_MVA",
+        project_name=config["comet_project_name"],
         auto_metric_logging=True,
         auto_param_logging=True,
         auto_histogram_weight_logging=True,
@@ -350,8 +354,8 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    experiment.set_name(kf+"z0CNN")
-    experiment.log_other("description",kf + " baseMVA, with kernel compare")
+    experiment.set_name(kf+config['comet_experiment_name'])
+    experiment.log_other("description",kf + config["description"])
     print(experiment.get_key())
     with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())  
@@ -366,8 +370,8 @@ if __name__=="__main__":
         regloss=1e-10
     )
 
-    startingLR = 0.001
-    epochs = 75
+    startingLR = config['starting_lr']
+    epochs = config['epochs']
 
     experiment.log_parameter("nbins",256)
     experiment.log_parameter("ntracks",max_ntracks)
@@ -391,7 +395,10 @@ if __name__=="__main__":
         metrics=[
             tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
         ],
-        loss_weights=[1.,1.,0.,5]
+        loss_weights=[config['z0_loss_weight'],
+                      config['crossentropy_loss_weight'],
+                      0.,
+                      config['kernel_compare_loss_weight']]
     )
     model.summary()
 
@@ -404,7 +411,7 @@ if __name__=="__main__":
         with experiment.train():
            train_model(model,experiment,train_files,val_files,epochs=epochs,callbacks=reduceLR,nlatent=2),
     else:
-        model.load_weights(kf+"weights_74.tf")
+        model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
 
     with experiment.test():
         test_model(model,experiment,test_files)

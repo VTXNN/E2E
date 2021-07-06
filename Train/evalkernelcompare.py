@@ -61,7 +61,6 @@ experiment = comet_ml.ExistingExperiment(
         log_env_cpu=True,     # to continue CPU logging
     )
 
-outputFolder = kf+"kernelcompareplots"
 nMaxTracks = 250
 
 def predictFastHisto(value,weight):
@@ -351,6 +350,11 @@ def setup_pipeline(fileList):
     return ds
 
 if __name__=="__main__":
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
+    outputFolder = kf+config['eval_folder']
+
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
             #"pv2z0": tf.io.FixedLenFeature([1], tf.float32),
@@ -427,7 +431,7 @@ if __name__=="__main__":
             loss_weights=[1.,1.,0.,0.]
         )
     model.summary()
-    model.load_weights(kf+"weights_74.tf")
+    model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []

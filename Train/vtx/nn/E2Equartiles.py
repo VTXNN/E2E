@@ -194,7 +194,7 @@ class E2Equartiles():
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
-            outputs=[pvPosition,pv25,pv75,assocProbability,hists]
+            outputs=[pvPosition,pv25,pv75,assocProbability,weights,hists]
         )
         
         def q90loss(w):

@@ -6,6 +6,8 @@ import glob
 import sklearn.metrics as metrics
 import vtx
 
+import yaml
+
 from train import *
 
 import matplotlib
@@ -38,7 +40,7 @@ elif kf == "OldKF":
     test_files = glob.glob("OldKFData/Test/*.tfrecord")
     z0 = 'corrected_trk_z0'
 
-with open('experimentkey.txt') as f:
+with open(kf+'experimentkey.txt') as f:
     first_line = f.readline()
 
 EXPERIMENT_KEY = first_line
@@ -58,7 +60,7 @@ experiment = comet_ml.ExistingExperiment(
         log_env_cpu=True,     # to continue CPU logging
     )
 
-outputFolder = kf+"quartilecompareplots"
+
 nMaxTracks = 250
 
 def predictFastHisto(value,weight):
@@ -348,6 +350,12 @@ def setup_pipeline(fileList):
     return ds
 
 if __name__=="__main__":
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
+    outputFolder = kf+config['eval_folder']
+
+
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
             #"pv2z0": tf.io.FixedLenFeature([1], tf.float32),
@@ -415,21 +423,22 @@ if __name__=="__main__":
                 lambda y,x: 0.,
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.,
+                lambda y,x: 0.,
             ],
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
             ],
-            loss_weights=[1.,1.,1.,1.,0.]
+            loss_weights=[1.,1.,1.,1.,0.,1]
         )
     model.summary()
-    model.load_weights("weights_4.tf")
+    model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
     predictedZ0_NN = []
 
-    predictedZ0_25 = []
-    predictedZ0_75 = []
+    predicted25_NN = []
+    predicted75_NN = []
 
     predictedAssoc_NN = []
     predictedAssoc_FH = []
@@ -475,6 +484,8 @@ if __name__=="__main__":
     trk_chi2rphi = []
     trk_chi2rz = []
     trk_bendchi2 = []
+
+    predictedWeights = []
 
     threshold = -1
 
@@ -526,11 +537,11 @@ if __name__=="__main__":
         FHassoc = FastHistoAssoc(predictFastHisto(batch['trk_z0'],batch['trk_pt']),batch['trk_z0'],batch['trk_eta'])
         predictedAssoc_FH.append(FHassoc)
                 
-        predictedZ0_NN_temp,predicted25_NN_temp,predicted75_NN_temp ,predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
+        predictedZ0_NN_temp,predicted25_NN_temp,predicted75_NN_temp ,predictedAssoc_NN_temp, predictedWeights_NN,predictedHist_NN = model.predict_on_batch(
                         [batch['trk_z0'],WeightFeatures,trackFeatures]
                     )
 
-        predicted25_NN.append(predictedZ0_NN_temp)
+        predicted25_NN.append(predicted25_NN_temp)
         predicted75_NN.append(predicted75_NN_temp)
 
         for i,event in enumerate(batch['trk_z0']):
@@ -560,8 +571,8 @@ if __name__=="__main__":
         predictedWeights.append(predictedWeights_NN)
 
     z0_NN_array = np.concatenate(predictedZ0_NN).ravel()
-    25_NN_array = np.concatenate(predicted25_NN).ravel()
-    75_NN_array = np.concatenate(predicted75_NN).ravel()
+    NN_25_array = np.concatenate(predicted25_NN).ravel()
+    NN_75_array = np.concatenate(predicted75_NN).ravel()
 
     z0_FH_array = np.concatenate(predictedZ0_FH).ravel()
     z0_FHzres_array = np.concatenate(predictedZ0_FHz0res).ravel()
@@ -904,21 +915,21 @@ if __name__=="__main__":
     plt.savefig("%s/NN_vs_z0.png" %  outputFolder)
 
     plt.clf()
-    plt.hist2d((z0_PV_array - z0_NN_array),25_NN_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.hist2d((z0_PV_array - z0_NN_array),NN_25_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
     plt.ylabel("25% Quartile", horizontalalignment='right', y=1.0)
     plt.tight_layout()
     plt.savefig("%s/NNresidual_vs_25.png" %  outputFolder)
 
     plt.clf()
-    plt.hist2d((z0_PV_array - z0_NN_array),75_NN_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.hist2d((z0_PV_array - z0_NN_array),NN_75_array , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
     plt.ylabel("75% Quartile", horizontalalignment='right', y=1.0)
     plt.tight_layout()
     plt.savefig("%s/NNresidual_vs_75.png" %  outputFolder)
 
     plt.clf()
-    plt.hist2d((z0_PV_array - z0_NN_array),(25_NN_array-75_NN_array)/2 , bins=60,range=((-1,1),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.hist2d((z0_PV_array - z0_NN_array),(NN_25_array-NN_75_array)/2 , bins=60,range=((-1,1),(-1,1)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV - $z_0^{NN}$ ", horizontalalignment='right', x=1.0)
     plt.ylabel(" $z_0^{NN}$ Resolution", horizontalalignment='right', y=1.0)
     #plt.colorbar(vmin=0,vmax=1000)
@@ -927,8 +938,8 @@ if __name__=="__main__":
 
     plt.clf()
     plt.scatter(z0_PV_array,z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(z0_PV_array,25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(z0_PV_array,75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(z0_PV_array,NN_25_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(z0_PV_array,NN_75_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("PV ", horizontalalignment='right', x=1.0)
     plt.ylabel(" $z_0^{NN}$", horizontalalignment='right', y=1.0)
     plt.legend()
@@ -938,22 +949,24 @@ if __name__=="__main__":
 
     plt.clf()
     plt.scatter(z0_PV_array,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(z0_PV_array,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(z0_PV_array,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/NN_25_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(z0_PV_array,z0_PV_array/NN_75_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("$z_0^{gen}$ ", horizontalalignment='right', x=1.0)
     plt.ylabel(" $z_0^{gen}$/$z_0^{NN}$", horizontalalignment='right', y=1.0)
     plt.legend()
+    plt.ylim(-10,10)
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
-    plt.savefig("%s/quartiles_vs_PV.png" %  outputFolder)
+    plt.savefig("%s/quartiles_vs_PVratio.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(pv_numtracks,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(pv_numtracks,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/NN_25_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_numtracks,z0_PV_array/NN_75_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     plt.legend()
+    plt.ylim(-10,10)
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/quartiles_vs_numtracks.png" %  outputFolder)
@@ -966,18 +979,20 @@ if __name__=="__main__":
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     #plt.colorbar(vmin=0,vmax=1000)
     plt.xscale("log")
+    plt.ylim(-10,10)
     plt.legend()
     plt.tight_layout()
     plt.savefig("%s/quartiles_vs_pv_pttotal.png" %  outputFolder)
 
     plt.clf()
     plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/25_NN_array,color='g',alpha=0.25,label="25 % Quartile")
-    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/75_NN_array,color='orange',alpha=0.25,label="75 % Quartile")
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/NN_25_array,color='g',alpha=0.25,label="25 % Quartile")
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/NN_75_array,color='orange',alpha=0.25,label="75 % Quartile")
     plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
     plt.legend()
     plt.xscale("log")
+    plt.ylim(-10,10)
     #plt.colorbar(vmin=0,vmax=1000)
     plt.tight_layout()
     plt.savefig("%s/quartiles_vs_pv_ptdensity.png" %  outputFolder)

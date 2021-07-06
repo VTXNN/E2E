@@ -15,6 +15,7 @@ import vtx
 import pandas as pd
 from Callbacks import OwnReduceLROnPlateau
 from eval import*
+import yaml
 
 import matplotlib
 matplotlib.use('Agg')
@@ -112,7 +113,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             nBatch = batch['pvz0'].shape[0]
             result = model.train_on_batch(
             [batch[z0],WeightFeatures,trackFeatures],
-            [batch['pvz0'],batch['pvz0'],batch['pvz0'],batch['trk_fromPV'],np.zeros((nBatch,max_ntracks,1))]
+            [batch['pvz0'],batch['pvz0'],batch['pvz0'],batch['trk_fromPV'],np.zeros((nBatch,max_ntracks,1)),batch['PV_hist']]
         )    ##True Z0      ##True PV            ##True weights                     ##True Hists
             result = dict(zip(model.metrics_names,result))
 
@@ -130,7 +131,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             if step%10==0:
                 predictedZ0_FH = predictFastHisto(batch[z0],batch['trk_pt'])
  
-                predictedZ0_NN, predicted75_NN,predicted25_NN, predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
+                predictedZ0_NN, predicted75_NN,predicted25_NN, predictedAssoc_NN, predictedWeights_NN,predictedHists_NN = model.predict_on_batch(
                     [batch[z0],WeightFeatures,trackFeatures]
                 )
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
@@ -172,7 +173,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
                 'normed_trk_pt','normed_trk_eta','trk_MVA1'
             ]],axis=2)
 
-            temp_predictedZ0_NN, temp_predicted75_NN,temp_predicted25_NN,temp_predictedAssoc_NN, predictedWeights_NN = model.predict_on_batch(
+            temp_predictedZ0_NN, temp_predicted75_NN,temp_predicted25_NN,temp_predictedAssoc_NN, predictedWeights_NN,predictedHists_NN = model.predict_on_batch(
                     [val_batch[z0],val_WeightFeatures,val_trackFeatures]
             )
                 
@@ -242,7 +243,7 @@ def test_model(model,experiment,test_files):
 
         predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
             
-        predictedZ0_NN_temp, temp_predicted75_NN,temp_predicted25_NN, predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
+        predictedZ0_NN_temp, temp_predicted75_NN,temp_predicted25_NN, predictedAssoc_NN_temp, predictedWeights_NN,predictedHists_NN = model.predict_on_batch(
                     [batch[z0],WeightFeatures,trackFeatures]
                 )
 
@@ -256,11 +257,6 @@ def test_model(model,experiment,test_files):
     assoc_NN_array = np.concatenate(predictedAssoc_NN).ravel()
     assoc_FH_array = np.concatenate(predictedAssoc_FH).ravel()
     assoc_PV_array = np.concatenate(actual_Assoc).ravel()
-
-    predictedMET_pt_array = np.concatenate(predictedMET_pt).ravel()
-    tp_met_array = np.concatenate(tp_met).ravel()
-    pv_trk_met_array = np.concatenate(pv_trk_met).ravel()
-    true_met_array = np.concatenate(true_met).ravel()
 
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
@@ -293,7 +289,9 @@ def test_model(model,experiment,test_files):
     
     
 if __name__=="__main__":
-    retrain = True
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+    retrain = config["retrain"]
 
     if kf == "NewKF":
         train_files = glob.glob("NewKFData/Train/*.tfrecord")
@@ -346,7 +344,7 @@ if __name__=="__main__":
 
 
     experiment = Experiment(
-        project_name="Vertex_CNN_MVA",
+        project_name=config["comet_project_name"],
         auto_metric_logging=True,
         auto_param_logging=True,
         auto_histogram_weight_logging=True,
@@ -354,11 +352,12 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    experiment.set_name(kf+"z0CNN")
-    experiment.log_other("description",kf + " baseMVA with quartiles, with kernel compare")
+    experiment.set_name(kf+config['comet_experiment_name'])
+    experiment.log_other("description",kf + config["description"])
     print(experiment.get_key())
     with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())  
+
     network = vtx.nn.E2Equartiles(
         nbins=256,
         ntracks=max_ntracks, 
@@ -370,27 +369,18 @@ if __name__=="__main__":
         regloss=1e-10
     )
 
-    startingLR = 0.001
-    epochs = 5
+    startingLR = config['starting_lr']
+    epochs = config['epochs']
 
-    experiment.log_parameter("nbins",256)
-    experiment.log_parameter("ntracks",max_ntracks)
-    experiment.log_parameter("nfeatures",6)
-    experiment.log_parameter("nlatent",0)
-    experiment.log_parameter("activation",'relu')
-    experiment.log_parameter("regloss",1e-10)
-    experiment.log_parameter("Start LR",startingLR)
-    experiment.log_parameter("Epochs",epochs)
-
-    def 75_quartile_loss(y_true, y_pred):
+    def quartile_loss_high(y_true, y_pred):
         z = y_true - y_pred
         is_greater_zero = z > 0
-        return tf.wwhere(is_greater_zero, 0.75*z, -0.25*z)
+        return tf.where(is_greater_zero, config['quartile_2']*z, -1*config['quartile_1']*z)
 
-    def 25_quartile_loss(y_true, y_pred):
+    def quartile_loss_low(y_true, y_pred):
         z = y_true - y_pred
         is_greater_zero = z > 0
-        return tf.wwhere(is_greater_zero, 0.25*z, -0.75*z)
+        return tf.where(is_greater_zero,  config['quartile_1']*z, -1* config['quartile_2']*z)
 
 
     model = network.createE2EModel()
@@ -399,15 +389,21 @@ if __name__=="__main__":
         optimizer,
         loss=[
             tf.keras.losses.MeanAbsoluteError(),
-            25_quartile_loss()
-            75_quartile_loss()
+            quartile_loss_low,
+            quartile_loss_high,
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
-            lambda y,x: 0.,
+            lambda x, y : 0.,
+            tf.keras.losses.MeanAbsoluteError(),
         ],
         metrics=[
             tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
         ],
-        loss_weights=[1.,1.,1.,1.,0.]
+        loss_weights=[config['z0_loss_weight'],
+                      config['quartile_loss_weight'],
+                      config['quartile_loss_weight'],
+                      config['crossentropy_loss_weight'],
+                      0.,
+                      config['kernel_compare_loss_weight']]
     )
     model.summary()
 
@@ -420,7 +416,7 @@ if __name__=="__main__":
         with experiment.train():
            train_model(model,experiment,train_files,val_files,epochs=epochs,callbacks=reduceLR,nlatent=2),
     else:
-        model.load_weights(kf+"weights_74.tf")
+        model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
 
     with experiment.test():
         test_model(model,experiment,test_files)
