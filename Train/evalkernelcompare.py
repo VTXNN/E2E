@@ -5,7 +5,7 @@ import numpy as np
 import glob
 import sklearn.metrics as metrics
 import vtx
-
+import yaml
 import sys
 
 from train import *
@@ -404,8 +404,8 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
             nbins=256,
             ntracks=nMaxTracks, 
-            nweightfeatures=3, 
-            nfeatures=3, 
+            nweightfeatures=6, 
+            nfeatures=6, 
             nweights=1, 
             nlatent=2, 
             activation='relu',
@@ -422,7 +422,7 @@ if __name__=="__main__":
                 #tf.keras.losses.MeanSquaredError(),
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.,
-                lambda y,x: 0.
+                tf.keras.losses.MeanSquaredError()
                 
             ],
             metrics=[
@@ -489,10 +489,10 @@ if __name__=="__main__":
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                    'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                    'normed_trk_pt','normed_trk_eta','trk_MVA1','binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2'
             ]],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in [
-                 'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                 'normed_trk_pt','normed_trk_eta','trk_MVA1','binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2'
             ]],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)
