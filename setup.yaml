@@ -1,7 +1,7 @@
 retrain : True
 comet_project_name : Vertex_CNN_MVA
 comet_experiment_name : z0CNN
-description : baseMVA with over eta squared
+description : baseMVA woth chi2, with kernel compare
 
 eval_folder : kernelcompareplots
 

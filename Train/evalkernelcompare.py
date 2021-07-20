@@ -5,7 +5,7 @@ import yaml
 import glob
 import sklearn.metrics as metrics
 import vtx
-
+import yaml
 import sys
 
 from train import *
@@ -423,7 +423,7 @@ if __name__=="__main__":
                 #tf.keras.losses.MeanSquaredError(),
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.,
-                lambda y,x: 0.
+                tf.keras.losses.MeanSquaredError()
                 
             ],
             metrics=[
