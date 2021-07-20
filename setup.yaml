@@ -1,16 +1,16 @@
 retrain : True
 comet_project_name : Vertex_CNN_MVA
 comet_experiment_name : z0CNN
-description : baseMVA with quartiles, with kernel compare
+description : baseMVA with over eta squared
 
-eval_folder : quartilecompareplots
+eval_folder : kernelcompareplots
 
 starting_lr : 0.001
-epochs : 5
+epochs : 50
 quartile_1 : 0.25
 quartile_2 : 0.75
 
-z0_loss_weight : 5
+z0_loss_weight : 1
 quartile_loss_weight : 1
-crossentropy_loss_weight : 5
+crossentropy_loss_weight : 1
 kernel_compare_loss_weight : 10 

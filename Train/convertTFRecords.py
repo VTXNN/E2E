@@ -6,10 +6,10 @@ from math import isnan
 
 tf.compat.v1.disable_eager_execution()
 
-f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
+#f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
 
-name ="OldKF"
-#f = uproot.open("/home/cb719/Documents/Datasets/OldKF_object/NewKF_TTbar_300K.root")
+name ="NewKF"
+f = uproot.open("~/Documents/Datasets/NewKF_object/NewKF_TTbar_300K_quality.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -221,6 +221,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['normed_trk_invR'] =  _float_feature(padArray(np.array(1/normed_pt,np.float32),nMaxTracks))
         tfData['normed_trk_eta']= _float_feature(padArray(np.array(data['trk_eta'][iev]/2.4),nMaxTracks))
         tfData['normed_trk_overeta']= _float_feature(padArray(np.array(2.4/data['trk_eta'][iev]),nMaxTracks))
+        tfData['normed_trk_overeta_squared']= _float_feature(padArray(np.array(5.76/(data['trk_eta'][iev]*data['trk_eta'][iev])),nMaxTracks))
+
         tfData['log_pt'] = _float_feature(padArray(np.array(np.log(clipped_pt/50),np.float32),nMaxTracks))
          
         

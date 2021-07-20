@@ -99,11 +99,22 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             
             
             trackFeatures = np.stack([batch[feature] for feature in [
-                'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
             ]],axis=2)
 
             WeightFeatures = np.stack([batch[feature] for feature in [
-                'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
+                'normed_trk_overeta_squared',
             ]],axis=2)
 
             nBatch = batch['pvz0'].shape[0]
@@ -162,11 +173,22 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             val_predictedZ0_FH.append(predictFastHisto(val_batch[z0],val_batch['trk_pt']).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in [
-            'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
             ]],axis=2)
 
             val_WeightFeatures = np.stack([val_batch[feature] for feature in [
-                'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
+                'normed_trk_overeta_squared',
             ]],axis=2)
             #val_trackFeatures = np.concatenate([val_trackFeatures,val_batch['trk_hitpattern']],axis=2)
             #val_trackFeatures = np.concatenate([val_trackFeatures,val_batch['trk_z0_res']],axis=2)
@@ -227,11 +249,22 @@ def test_model(model,experiment,test_files):
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                'normed_trk_pt','normed_trk_eta','trk_MVA1'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
             ]],axis=2)
 
         WeightFeatures = np.stack([batch[feature] for feature in [
-                'normed_trk_pt','normed_trk_eta','trk_MVA1'
+               'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
+                'normed_trk_overeta_squared',
             ]],axis=2)
 
         nBatch = batch['pvz0'].shape[0]
@@ -337,7 +370,8 @@ if __name__=="__main__":
         'trk_pt',
         'trk_eta',
         'trk_phi',
-        'corrected_trk_z0'
+        'corrected_trk_z0',
+        'normed_trk_overeta_squared'
 
     ]
 
@@ -362,8 +396,8 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
         nbins=256,
         ntracks=max_ntracks, 
-        nweightfeatures=3, 
-        nfeatures=3, 
+        nweightfeatures=7, 
+        nfeatures=6, 
         nweights=1, 
         nlatent=2, 
         activation='relu',
