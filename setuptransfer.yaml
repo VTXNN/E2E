@@ -1,12 +1,12 @@
 retrain : True
 comet_project_name : Vertex_CNN_transfer
-comet_experiment_name : z0CNN_base
-description : baseMVA woth chi2, with kernel compare
+comet_experiment_name : z0CNN_transfer
+description : baseMVA teacher, little MVA learner
 
-eval_folder : kernelcompareplots
+eval_folder : transferplots
 
 starting_lr : 0.001
-epochs : 50
+epochs : 75
 quartile_1 : 0.25
 quartile_2 : 0.75
 
