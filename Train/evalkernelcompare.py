@@ -1,7 +1,7 @@
 import comet_ml
 import tensorflow as tf
 import numpy as np
-
+import yaml
 import glob
 import sklearn.metrics as metrics
 import vtx
@@ -394,7 +394,8 @@ if __name__=="__main__":
             'trk_eta',
             'trk_phi',
             'trk_MVA1',
-            'corrected_trk_z0'
+            'corrected_trk_z0',
+            'normed_trk_overeta_squared'
         ]
 
     for trackFeature in trackFeatures:
@@ -404,7 +405,7 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
             nbins=256,
             ntracks=nMaxTracks, 
-            nweightfeatures=6, 
+            nweightfeatures=7, 
             nfeatures=6, 
             nweights=1, 
             nlatent=2, 
@@ -489,10 +490,21 @@ if __name__=="__main__":
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                    'normed_trk_pt','normed_trk_eta','trk_MVA1','binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2'
+                    'normed_trk_pt',
+                    'normed_trk_eta',
+                    'trk_MVA1',
+                    'binned_trk_chi2rphi',
+                    'binned_trk_chi2rz',
+                    'binned_trk_bendchi2'
             ]],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in [
-                 'normed_trk_pt','normed_trk_eta','trk_MVA1','binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2'
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2',
+                'normed_trk_overeta_squared'
             ]],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)
