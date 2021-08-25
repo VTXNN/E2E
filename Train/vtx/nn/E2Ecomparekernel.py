@@ -29,7 +29,7 @@ class E2Ecomparekernel():
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
         
         self.weightLayers = []
-        for ilayer,nodes in enumerate([10]):
+        for ilayer,nodes in enumerate([10,10]):
             self.weightLayers.extend([
                 tf.keras.layers.Dense(
                     nodes,
@@ -39,7 +39,7 @@ class E2Ecomparekernel():
                     name='weight_'+str(ilayer+1)
                 ),
                 tf.keras.layers.Dropout(0.1),
-                tf.keras.layers.BatchNormalization()
+                #tf.keras.layers.BatchNormalization()
             ])
             
         self.weightLayers.append(

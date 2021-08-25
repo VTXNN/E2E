@@ -1,43 +1,60 @@
-import comet_ml
-import tensorflow as tf
-import numpy as np
-import yaml
 import glob
-import sklearn.metrics as metrics
-import vtx
-import yaml
 import sys
+from textwrap import wrap
 
-from train import *
-
+import comet_ml
 import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mplhep as hep
+import numpy as np
+import sklearn.metrics as metrics
+import tensorflow as tf
+import yaml
+
+import vtx
+from train import *
+
 #hep.set_style("CMSTex")
-#hep.cms.label()
-#hep.cms.text("Simulation")
+hep.cms.label()
+hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
 
-SMALL_SIZE = 12
-MEDIUM_SIZE = 13
-BIGGER_SIZE = 14
+SMALL_SIZE = 30
+MEDIUM_SIZE = 30
+BIGGER_SIZE = 30
+
+LEGEND_WIDTH = 60
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
 plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
+plt.rc('axes', linewidth=5)              # thickness of axes
 plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('legend', fontsize=25)            # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+matplotlib.rcParams['xtick.major.size'] = 20
+matplotlib.rcParams['xtick.major.width'] = 5
+matplotlib.rcParams['xtick.minor.size'] = 10
+matplotlib.rcParams['xtick.minor.width'] = 4
+
+matplotlib.rcParams['ytick.major.size'] = 20
+matplotlib.rcParams['ytick.major.width'] = 5
+matplotlib.rcParams['ytick.minor.size'] = 10
+matplotlib.rcParams['ytick.minor.width'] = 4
 
 kf = sys.argv[1]
 
+with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
 if kf == "NewKF":
-    test_files = glob.glob("NewKFData/Test/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
     z0 = 'trk_z0'
 elif kf == "OldKF":
-    test_files = glob.glob("OldKFData/Test/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
     z0 = 'corrected_trk_z0'
 
 
@@ -146,8 +163,8 @@ def plotz0_residual(NNdiff,FHdiff):
     figure = plt.figure(figsize=(10,10))
     qz0_NN = np.percentile(NNdiff,[32,50,68])
     qz0_FH = np.percentile(FHdiff,[32,50,68])
-    plt.hist(NNdiff,bins=50,range=(-1,1),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_NN[0],qz0_NN[2],qz0_NN[2]-qz0_NN[0], qz0_NN[1]))
-    plt.hist(FHdiff,bins=50,range=(-1,1),histtype="step",label=f"FH: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_FH[0],qz0_FH[2],qz0_FH[2]-qz0_FH[0], qz0_FH[1]))
+    plt.hist(NNdiff,bins=50,range=(-1,1),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_NN[0],qz0_NN[2],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+    plt.hist(FHdiff,bins=50,range=(-1,1),histtype="step",label='\n'.join(wrap(f"FH: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_FH[0],qz0_FH[2],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
     plt.grid(True)
     plt.xlabel('$z_0$ Residual [cm]',ha="right",x=1)
     plt.ylabel('Events',ha="right",y=1)
@@ -193,8 +210,8 @@ def plotPV_roc(actual,NNpred,FHpred):
     ax[0].legend()
 
     ax[1].set_title("Reciever Operator Characteristic Plot" ,loc='left')
-    ax[1].plot(recallNN,FPRNN,label=f"NN AUC: %.4f" %(metrics.roc_auc_score(actual,NNpred)))
-    ax[1].scatter(TPRFH,FPRFH,color='orange',label=f"FH AUC: %.4f" %(metrics.roc_auc_score(actual,FHpred)))
+    ax[1].plot(recallNN,FPRNN,label='\n'.join(wrap(f"NN AUC: %.4f" %(metrics.roc_auc_score(actual,NNpred)),LEGEND_WIDTH)))
+    ax[1].scatter(TPRFH,FPRFH,color='orange',label='\n'.join(wrap(f"FH AUC: %.4f" %(metrics.roc_auc_score(actual,FHpred)),LEGEND_WIDTH)))
     ax[1].grid(True)
     ax[1].set_yscale("log")
     ax[1].set_xlabel('True Positive Rate',ha="right",x=1)
@@ -212,8 +229,8 @@ def plotz0_percentile(NNdiff,FHdiff):
     NNpercentiles = np.percentile(NNdiff,percentiles)
     FHpercentiles = np.percentile(FHdiff,percentiles)
     
-    plt.plot(percentiles,abs(NNpercentiles),label=f"NN minimum: %.4f at : %.2f " %(min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))))
-    plt.plot(percentiles,abs(FHpercentiles),label=f"FH minimum: %.4f at : %.2f " %(min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))))
+    plt.plot(percentiles,abs(NNpercentiles),label='\n'.join(wrap(f"NN minimum: %.4f at : %.2f " %(min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))),LEGEND_WIDTH)))
+    plt.plot(percentiles,abs(FHpercentiles),label='\n'.join(wrap(f"FH minimum: %.4f at : %.2f " %(min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))),LEGEND_WIDTH)))
     plt.grid(True)
     plt.xlabel('Percentile',ha="right",x=1)
     plt.ylabel('$|\\delta z_{0}| [cm]$',ha="right",y=1)
@@ -280,15 +297,15 @@ def plotMET_residual(NNdiff,trkdiff,tpdiff,threshold,relative=False,true=None):
     qmet_tp = np.percentile(tpdiff,[32,50,68])
 
     if relative:
-        plt.hist(NNdiff,bins=50,range=(-10,1),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold))
-        plt.hist(trkdiff,bins=50,range=(-10,1),histtype="step",label=f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]))
-        plt.hist(tpdiff,bins=50,range=(-10,1),histtype="step",label=f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]))
+        plt.hist(NNdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold),LEGEND_WIDTH)))
+        plt.hist(trkdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]),LEGEND_WIDTH)))
+        plt.hist(tpdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]),LEGEND_WIDTH)))
         plt.xlabel('Relative $E_{miss}^{T}$ Residual',ha="right",x=1)
 
     else:
-        plt.hist(NNdiff,bins=50,range=(-300,300),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold))
-        plt.hist(trkdiff,bins=50,range=(-300,300),histtype="step",label=f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]))
-        plt.hist(tpdiff,bins=50,range=(-300,300),histtype="step",label=f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]))
+        plt.hist(NNdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold),LEGEND_WIDTH)))
+        plt.hist(trkdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]),LEGEND_WIDTH)))
+        plt.hist(tpdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]),LEGEND_WIDTH)))
         plt.xlabel('$E_{miss}^{T}$ Residual [GeV]',ha="right",x=1)
 
     plt.ylabel('Events',ha="right",y=1)
@@ -395,7 +412,7 @@ if __name__=="__main__":
             'trk_phi',
             'trk_MVA1',
             'corrected_trk_z0',
-            'normed_trk_overeta_squared'
+            #'normed_trk_overeta_squared'
         ]
 
     for trackFeature in trackFeatures:
@@ -405,7 +422,7 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
             nbins=256,
             ntracks=nMaxTracks, 
-            nweightfeatures=7, 
+            nweightfeatures=6, 
             nfeatures=6, 
             nweights=1, 
             nlatent=2, 
@@ -503,8 +520,8 @@ if __name__=="__main__":
                 'trk_MVA1',
                 'binned_trk_chi2rphi',
                 'binned_trk_chi2rz',
-                'binned_trk_bendchi2',
-                'normed_trk_overeta_squared'
+                'binned_trk_bendchi2'
+                
             ]],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)

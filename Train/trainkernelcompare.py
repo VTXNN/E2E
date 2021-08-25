@@ -96,6 +96,12 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             model.load_weights(kf+"weights_%i.tf"%(epoch-1))
         
         for step,batch in enumerate(setup_pipeline(train_files)):
+
+            #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            batch[z0]=batch[z0]*z0Flip
+            batch['pvz0']=batch['pvz0']*z0Flip
+            
             
             
             trackFeatures = np.stack([batch[feature] for feature in [
@@ -114,7 +120,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
                 'binned_trk_chi2rphi',
                 'binned_trk_chi2rz',
                 'binned_trk_bendchi2',
-                'normed_trk_overeta_squared',
+                
             ]],axis=2)
 
             nBatch = batch['pvz0'].shape[0]
@@ -188,7 +194,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
                 'binned_trk_chi2rphi',
                 'binned_trk_chi2rz',
                 'binned_trk_bendchi2',
-                'normed_trk_overeta_squared',
+                
             ]],axis=2)
             #val_trackFeatures = np.concatenate([val_trackFeatures,val_batch['trk_hitpattern']],axis=2)
             #val_trackFeatures = np.concatenate([val_trackFeatures,val_batch['trk_z0_res']],axis=2)
@@ -258,13 +264,13 @@ def test_model(model,experiment,test_files):
             ]],axis=2)
 
         WeightFeatures = np.stack([batch[feature] for feature in [
-               'normed_trk_pt',
+                'normed_trk_pt',
                 'normed_trk_eta',
                 'trk_MVA1',
                 'binned_trk_chi2rphi',
                 'binned_trk_chi2rz',
                 'binned_trk_bendchi2',
-                'normed_trk_overeta_squared',
+                
             ]],axis=2)
 
         nBatch = batch['pvz0'].shape[0]
@@ -328,14 +334,14 @@ if __name__=="__main__":
     retrain = config["retrain"]
 
     if kf == "NewKF":
-        train_files = glob.glob("NewKFData/Train/*.tfrecord")
-        test_files = glob.glob("NewKFData/Test/*.tfrecord")
-        val_files = glob.glob("NewKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"NewKFData/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"NewKFData/Val/*.tfrecord")
         
     elif kf == "OldKF":
-        train_files = glob.glob("OldKFData/Train/*.tfrecord")
-        test_files = glob.glob("OldKFData/Test/*.tfrecord")
-        val_files = glob.glob("OldKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"OldKFData/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"OldKFData/Val/*.tfrecord")
        
 
     print ("Input Train files: ",len(train_files))
@@ -371,7 +377,7 @@ if __name__=="__main__":
         'trk_eta',
         'trk_phi',
         'corrected_trk_z0',
-        'normed_trk_overeta_squared'
+        #'normed_trk_overeta_squared'
 
     ]
 
@@ -396,7 +402,7 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
         nbins=256,
         ntracks=max_ntracks, 
-        nweightfeatures=7, 
+        nweightfeatures=6, 
         nfeatures=6, 
         nweights=1, 
         nlatent=2, 
