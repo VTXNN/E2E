@@ -13,8 +13,8 @@ import csv
 import sklearn.metrics as metrics
 import vtx
 import pandas as pd
-from Callbacks import OwnReduceLROnPlateau
-from eval import*
+import TrainingScripts.train
+import EvalScripts.eval as eval
 
 import yaml
 
@@ -142,7 +142,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
 
             
             if step%10==0:
-                predictedZ0_FH = predictFastHisto(batch[z0],batch['trk_pt'])
+                predictedZ0_FH = eval.predictFastHisto(batch[z0],batch['trk_pt'])
  
                 predictedZ0_NN, predictedAssoc_NN, predictedWeights_NN,predictedHist_NN = model.predict_on_batch(
                     [batch[z0],WeightFeatures,trackFeatures]
@@ -176,7 +176,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(predictFastHisto(val_batch[z0],val_batch['trk_pt']).flatten())
+            val_predictedZ0_FH.append(eval.predictFastHisto(val_batch[z0],val_batch['trk_pt']).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in [
                 'normed_trk_pt',
@@ -208,7 +208,7 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta']).flatten())
+            val_predictedAssoc_FH.append(eval.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta']).flatten())
 
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
@@ -274,12 +274,12 @@ def test_model(model,experiment,test_files):
             ]],axis=2)
 
         nBatch = batch['pvz0'].shape[0]
-        predictedZ0_FH.append(predictFastHisto(batch[z0],batch['trk_pt']))
+        predictedZ0_FH.append(eval.predictFastHisto(batch[z0],batch['trk_pt']))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
+        predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
             
         predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN,predictedHist_NN = model.predict_on_batch(
                     [batch[z0],WeightFeatures,trackFeatures]
@@ -348,6 +348,9 @@ if __name__=="__main__":
     print ("Input Validation files: ",len(val_files))
     print ("Input Test files: ",len(test_files))
 
+    trackfeat = config["track_features"] 
+    weightfeat = config["weight_features"] 
+
     features = {
         "pvz0": tf.io.FixedLenFeature([1], tf.float32),
         #"pv2z0": tf.io.FixedLenFeature([1], tf.float32),
@@ -370,13 +373,12 @@ if __name__=="__main__":
         'binned_trk_chi2rphi', 
         'binned_trk_chi2rz', 
         'binned_trk_bendchi2',
-        'normed_trk_overeta',
         'trk_z0_res',
-        'log_pt',
         'trk_pt',
         'trk_eta',
         'trk_phi',
         'corrected_trk_z0',
+        'trk_over_eta_squared'
         #'normed_trk_overeta_squared'
 
     ]
@@ -402,8 +404,8 @@ if __name__=="__main__":
     network = vtx.nn.E2Ecomparekernel(
         nbins=256,
         ntracks=max_ntracks, 
-        nweightfeatures=6, 
-        nfeatures=6, 
+        nweightfeatures=len(weightfeat), 
+        nfeatures=len(trackfeat), 
         nweights=1, 
         nlatent=2, 
         activation='relu',
@@ -442,7 +444,7 @@ if __name__=="__main__":
     )
     model.summary()
 
-    reduceLR = OwnReduceLROnPlateau(
+    reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
     monitor='loss', factor=0.1, patience=6, verbose=1,
     mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )

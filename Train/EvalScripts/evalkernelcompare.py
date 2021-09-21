@@ -1,38 +1,84 @@
-import tensorflow as tf
-import numpy as np
-
 import glob
-import sklearn.metrics as metrics
-import vtx
+import sys
+from textwrap import wrap
 
-from train import *
-
+import comet_ml
 import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mplhep as hep
+import numpy as np
+import sklearn.metrics as metrics
+import tensorflow as tf
+import yaml
+
+import vtx
+from TrainingScripts.train import *
+
 #hep.set_style("CMSTex")
 hep.cms.label()
 hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
 
-SMALL_SIZE = 12
-MEDIUM_SIZE = 13
-BIGGER_SIZE = 14
+SMALL_SIZE = 20
+MEDIUM_SIZE = 25
+BIGGER_SIZE = 30
+
+LEGEND_WIDTH = 60
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
+plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
 plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
+plt.rc('axes', linewidth=5)              # thickness of axes
 plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('legend', fontsize=15)            # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+matplotlib.rcParams['xtick.major.size'] = 20
+matplotlib.rcParams['xtick.major.width'] = 5
+matplotlib.rcParams['xtick.minor.size'] = 10
+matplotlib.rcParams['xtick.minor.width'] = 4
 
-outputFolder = "plots"
+matplotlib.rcParams['ytick.major.size'] = 20
+matplotlib.rcParams['ytick.major.width'] = 5
+matplotlib.rcParams['ytick.minor.size'] = 10
+matplotlib.rcParams['ytick.minor.width'] = 4
+
+kf = sys.argv[1]
+
+with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
+if kf == "NewKF":
+    test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
+    z0 = 'trk_z0'
+elif kf == "OldKF":
+    test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
+    z0 = 'corrected_trk_z0'
+
+
+with open(kf+'experimentkey.txt') as f:
+    first_line = f.readline()
+
+EXPERIMENT_KEY = first_line
+
+if (EXPERIMENT_KEY is not None):
+    # There is one, but the experiment might not exist yet:
+    api = comet_ml.API() # Assumes API key is set in config/env
+    try:
+        api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+    except Exception:
+        api_experiment = None
+
+experiment = comet_ml.ExistingExperiment(
+        previous_experiment=EXPERIMENT_KEY,
+        log_env_details=True, # to continue env logging
+        log_env_gpu=True,     # to continue GPU logging
+        log_env_cpu=True,     # to continue CPU logging
+    )
+
 nMaxTracks = 250
-
-test_files = glob.glob("/home/cb719/Documents/L1Trigger/GTT/Vertexing/E2E/Train/Data/Test/*.tfrecord")
 
 def predictFastHisto(value,weight):
     z0List = []
@@ -75,12 +121,16 @@ def predictMET(pt,phi,predictedAssoc,threshold):
     met_phi_list = []
 
 
+    
+
     for ibatch in range(pt.shape[0]):
-        assoc = predictedAssoc[ibatch].numpy()
+        if type(predictedAssoc) == np.ndarray:
+            assoc = np.expand_dims(predictedAssoc[ibatch],1)
+        else:
+            assoc = predictedAssoc[ibatch].numpy()
         newpt = pt[ibatch].numpy()
         newphi = phi[ibatch].numpy()
 
-        
         assoc[assoc > threshold] = 1
         NN_track_sel = assoc == 1
 
@@ -113,8 +163,8 @@ def plotz0_residual(NNdiff,FHdiff):
     figure = plt.figure(figsize=(10,10))
     qz0_NN = np.percentile(NNdiff,[32,50,68])
     qz0_FH = np.percentile(FHdiff,[32,50,68])
-    plt.hist(NNdiff,bins=50,range=(-1,1),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_NN[0],qz0_NN[2],qz0_NN[2]-qz0_NN[0], qz0_NN[1]))
-    plt.hist(FHdiff,bins=50,range=(-1,1),histtype="step",label=f"FH: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_FH[0],qz0_FH[2],qz0_FH[2]-qz0_FH[0], qz0_FH[1]))
+    plt.hist(NNdiff,bins=50,range=(-1,1),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_NN[0],qz0_NN[2],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+    plt.hist(FHdiff,bins=50,range=(-1,1),histtype="step",label='\n'.join(wrap(f"FH: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qz0_FH[0],qz0_FH[2],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
     plt.grid(True)
     plt.xlabel('$z_0$ Residual [cm]',ha="right",x=1)
     plt.ylabel('Events',ha="right",y=1)
@@ -160,8 +210,8 @@ def plotPV_roc(actual,NNpred,FHpred):
     ax[0].legend()
 
     ax[1].set_title("Reciever Operator Characteristic Plot" ,loc='left')
-    ax[1].plot(recallNN,FPRNN,label=f"NN AUC: %.4f" %(metrics.roc_auc_score(actual,NNpred)))
-    ax[1].scatter(TPRFH,FPRFH,color='orange',label=f"FH AUC: %.4f" %(metrics.roc_auc_score(actual,FHpred)))
+    ax[1].plot(recallNN,FPRNN,label='\n'.join(wrap(f"NN AUC: %.4f" %(metrics.roc_auc_score(actual,NNpred)),LEGEND_WIDTH)))
+    ax[1].scatter(TPRFH,FPRFH,color='orange',label='\n'.join(wrap(f"FH AUC: %.4f" %(metrics.roc_auc_score(actual,FHpred)),LEGEND_WIDTH)))
     ax[1].grid(True)
     ax[1].set_yscale("log")
     ax[1].set_xlabel('True Positive Rate',ha="right",x=1)
@@ -179,8 +229,8 @@ def plotz0_percentile(NNdiff,FHdiff):
     NNpercentiles = np.percentile(NNdiff,percentiles)
     FHpercentiles = np.percentile(FHdiff,percentiles)
     
-    plt.plot(percentiles,abs(NNpercentiles),label=f"NN minimum: %.4f at : %.2f " %(min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))))
-    plt.plot(percentiles,abs(FHpercentiles),label=f"FH minimum: %.4f at : %.2f " %(min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))))
+    plt.plot(percentiles,abs(NNpercentiles),label='\n'.join(wrap(f"NN minimum: %.4f at : %.2f " %(min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))),LEGEND_WIDTH)))
+    plt.plot(percentiles,abs(FHpercentiles),label='\n'.join(wrap(f"FH minimum: %.4f at : %.2f " %(min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))),LEGEND_WIDTH)))
     plt.grid(True)
     plt.xlabel('Percentile',ha="right",x=1)
     plt.ylabel('$|\\delta z_{0}| [cm]$',ha="right",y=1)
@@ -247,15 +297,15 @@ def plotMET_residual(NNdiff,trkdiff,tpdiff,threshold,relative=False,true=None):
     qmet_tp = np.percentile(tpdiff,[32,50,68])
 
     if relative:
-        plt.hist(NNdiff,bins=50,range=(-10,1),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold))
-        plt.hist(trkdiff,bins=50,range=(-10,1),histtype="step",label=f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]))
-        plt.hist(tpdiff,bins=50,range=(-10,1),histtype="step",label=f"TPs: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]))
+        plt.hist(NNdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold),LEGEND_WIDTH)))
+        plt.hist(trkdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]),LEGEND_WIDTH)))
+        plt.hist(tpdiff,bins=50,range=(-10,1),histtype="step",label='\n'.join(wrap(f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]),LEGEND_WIDTH)))
         plt.xlabel('Relative $E_{miss}^{T}$ Residual',ha="right",x=1)
 
     else:
-        plt.hist(NNdiff,bins=50,range=(-300,300),histtype="step",label=f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold))
-        plt.hist(trkdiff,bins=50,range=(-300,300),histtype="step",label=f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]))
-        plt.hist(tpdiff,bins=50,range=(-300,300),histtype="step",label=f"TPs: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]))
+        plt.hist(NNdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"NN: = (%.4f,%.4f), Width = %.4f, Centre = %.4f, at PV Assoc Threshold of: %.4f" %(qmet_NN[0],qmet_NN[2],qmet_NN[2]-qmet_NN[0],qmet_NN[1],threshold),LEGEND_WIDTH)))
+        plt.hist(trkdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"PV Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_trk[0],qmet_trk[2],qmet_trk[2]-qmet_trk[0],qmet_trk[1]),LEGEND_WIDTH)))
+        plt.hist(tpdiff,bins=50,range=(-300,300),histtype="step",label='\n'.join(wrap(f"FH Tracks: = (%.4f,%.4f), Width = %.4f, Centre = %.4f" %(qmet_tp[0],qmet_tp[2],qmet_tp[2]-qmet_tp[0],qmet_tp[1]),LEGEND_WIDTH)))
         plt.xlabel('$E_{miss}^{T}$ Residual [GeV]',ha="right",x=1)
 
     plt.ylabel('Events',ha="right",y=1)
@@ -263,6 +313,33 @@ def plotMET_residual(NNdiff,trkdiff,tpdiff,threshold,relative=False,true=None):
     plt.legend() 
     plt.tight_layout()
     return figure
+
+def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",threshold=-1):
+  plt.clf()
+  hist,bin_edges = np.histogram(tracks,256,range=(-15,15),weights=weights)
+  plt.bar(bin_edges[:-1],hist,width=30/256,color='grey',alpha=0.5, label=weight_label)
+
+  assoc[assoc > threshold] = 1
+  assoc[assoc < threshold] = 0
+  pv_track_sel = assoc == 1
+
+
+  pu_track_sel = assoc == 0
+
+  plt.plot(tracks[pv_track_sel], [0] * len(tracks[pv_track_sel]), '+b', label='PV Trk')
+  plt.plot(tracks[pu_track_sel], [0] * len(tracks[pu_track_sel]), '+r', label='PU Trk')
+   
+
+  plt.plot([predictedPV, predictedPV], [0, max(hist)], '--k', label='Reco Vx')
+
+  plt.plot([genPV, genPV], [0,max(hist)], '--g', label='True Vx')
+
+  plt.xlabel('z / cm')
+  plt.ylabel('density')
+  plt.xlim()
+  plt.ylim()
+  plt.legend()
+  plt.show()
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -290,6 +367,11 @@ def setup_pipeline(fileList):
     return ds
 
 if __name__=="__main__":
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
+    outputFolder = kf+config['eval_folder']
+
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
             #"pv2z0": tf.io.FixedLenFeature([1], tf.float32),
@@ -310,7 +392,8 @@ if __name__=="__main__":
             "true_met_phi":tf.io.FixedLenFeature([1], tf.float32),
 
             "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32),
-            "trk_hitpattern": tf.io.FixedLenFeature([nMaxTracks*11], tf.float32)     
+            "trk_hitpattern": tf.io.FixedLenFeature([nMaxTracks*11], tf.float32), 
+            "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
     }
 
     trackFeatures = [
@@ -321,22 +404,28 @@ if __name__=="__main__":
             'binned_trk_chi2rphi', 
             'binned_trk_chi2rz', 
             'binned_trk_bendchi2',
+            #'normed_trk_overeta',
             'trk_z0_res',
             'trk_pt',
+            #'log_pt',
             'trk_eta',
             'trk_phi',
+            'trk_MVA1',
+            'corrected_trk_z0',
+            #'normed_trk_overeta_squared'
         ]
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
 
             
-    network = vtx.nn.E2ERef(
+    network = vtx.nn.E2Ecomparekernel(
             nbins=256,
             ntracks=nMaxTracks, 
+            nweightfeatures=6, 
             nfeatures=6, 
             nweights=1, 
-            nlatent=0, 
+            nlatent=2, 
             activation='relu',
             regloss=1e-10
         )
@@ -350,15 +439,17 @@ if __name__=="__main__":
                 tf.keras.losses.MeanAbsoluteError(),
                 #tf.keras.losses.MeanSquaredError(),
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                lambda y,x: 0.
+                lambda y,x: 0.,
+                tf.keras.losses.MeanSquaredError()
+                
             ],
             metrics=[
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
             ],
-            loss_weights=[1.,1.,0.]
+            loss_weights=[1.,1.,0.,0.]
         )
     model.summary()
-    model.load_weights("weights_74.tf")
+    model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
@@ -387,12 +478,21 @@ if __name__=="__main__":
     true_met_phi = []
     predicted_met_phi = []
 
+    actual_numtracks = []
+    actual_pt_total = []
+
+    predictedFH_met_px = []
+    predictedFH_met_py = []
+    predictedFH_met_phi = []
+    predictedFH_met = []
+ 
     tp_met  = []
     pv_trk_met= []
     true_met = []
     predicted_met = []
 
     trk_z0 = []
+    trk_MVA = []
     trk_phi = []
     trk_pt = []
     trk_z0res = []
@@ -407,15 +507,31 @@ if __name__=="__main__":
     for step,batch in enumerate(setup_pipeline(test_files)):
 
         trackFeatures = np.stack([batch[feature] for feature in [
-                    'normed_trk_pt','normed_trk_eta', 'binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2','trk_z0_res'
+                    'normed_trk_pt',
+                    'normed_trk_eta',
+                    'trk_MVA1',
+                    'binned_trk_chi2rphi',
+                    'binned_trk_chi2rz',
+                    'binned_trk_bendchi2'
+            ]],axis=2)
+        WeightFeatures = np.stack([batch[feature] for feature in [
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_MVA1',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz',
+                'binned_trk_bendchi2'
+                
             ]],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_hitpattern']],axis=2)
             #trackFeatures = np.concatenate([trackFeatures,batch['trk_z0_res']],axis=2)
         nBatch = batch['pvz0'].shape[0]
-        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['trk_pt']))
-        predictedZ0_FHz0res.append(predictFastHistoZ0res(batch['trk_z0'],batch['trk_pt'],batch['trk_eta']))
+        FH = predictFastHisto(batch[z0],batch['trk_pt'])
+        predictedZ0_FH.append(FH)
+        predictedZ0_FHz0res.append(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']))
 
-        trk_z0.append(batch['trk_z0'])
+        trk_z0.append(batch[z0])
+        trk_MVA.append(batch["trk_MVA1"])
         trk_pt.append(batch['normed_trk_pt'])
         trk_z0res.append(batch['trk_z0_res'])
         trk_eta.append(batch['normed_trk_eta'])
@@ -444,20 +560,38 @@ if __name__=="__main__":
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
-
-        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch['trk_z0'],batch['trk_eta']))
+        FHassoc = FastHistoAssoc(predictFastHisto(batch[z0],batch['trk_pt']),batch[z0],batch['trk_eta'])
+        predictedAssoc_FH.append(FHassoc)
                 
-        predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
-                        [batch['trk_z0'],trackFeatures,np.zeros((nBatch,nMaxTracks,1))]
+        predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN, predictedHists_NN = model.predict_on_batch(
+                        [batch[z0],WeightFeatures,trackFeatures]
                     )
 
-                    
+        #print(batch["PV_hist"])
+        #print("---------------")
+        #print(predictedHists_NN)
+
+        for i,event in enumerate(batch[z0]):
+            actual_numtracks.append(np.sum(batch["trk_fromPV"].numpy()[i]))
+            actual_pt_total.append(np.sum(batch["trk_fromPV"].numpy()[i]*batch["trk_pt"].numpy()[i]))
+            if abs(predictedZ0_NN_temp.numpy()[i] - batch['pvz0'][i]) > 100:
+                plotKDEandTracks(batch['trk_z0'][i],predictedAssoc_NN_temp[i].numpy()[:,0],batch['pvz0'][i],predictedZ0_NN_temp.numpy()[i],weights=predictedWeights_NN[i].numpy()[:,0],weight_label="KDE",threshold=-1)
+                plotKDEandTracks(batch['trk_z0'][i],FHassoc[i],batch['pvz0'][i],FH[i],batch['trk_pt'][i],weight_label="FH",threshold=0.5)
+                plotKDEandTracks(batch['trk_z0'][i],batch["trk_fromPV"].numpy()[i],batch['pvz0'][i],batch['pvz0'][i],batch["trk_fromPV"][i],weight_label="True",threshold=0.5)
 
         predicted_trk_met_px,predicted_trk_met_py,predicted_trk_met_pt,predicted_trk_met_phi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_NN_temp,threshold)
+        predictedFH_trk_met_px,predictedFH_trk_met_py,predictedFH_trk_met_pt,predictedFH_trk_met_phi = predictMET(batch['trk_pt'],batch['trk_phi'],
+                                                                  FastHistoAssoc(predictFastHisto(batch['trk_z0'],batch['trk_pt']),batch['trk_z0'],batch['trk_eta']),0.5)
+        
         predicted_met_px.append(predicted_trk_met_px)
         predicted_met_py.append(predicted_trk_met_py)
         predicted_met_phi.append(predicted_trk_met_phi)
         predicted_met.append(predicted_trk_met_pt)
+
+        predictedFH_met_px.append(predictedFH_trk_met_px)
+        predictedFH_met_py.append(predictedFH_trk_met_py)
+        predictedFH_met_phi.append(predictedFH_trk_met_phi)
+        predictedFH_met.append(predictedFH_trk_met_pt)
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -471,12 +605,15 @@ if __name__=="__main__":
 
     predictedWeightsarray = np.concatenate(predictedWeights).ravel()
 
-
     trk_z0_array = np.concatenate(trk_z0).ravel()
+    trk_mva_array = np.concatenate(trk_MVA).ravel()
     trk_pt_array = np.concatenate(trk_pt).ravel()
     trk_z0res_array = np.concatenate(trk_z0res).ravel()
     trk_eta_array = np.concatenate(trk_eta).ravel()
     trk_phi_array = np.concatenate(trk_phi).ravel()
+
+    pv_numtracks = np.array(actual_numtracks)
+    pv_pttotal = np.array(actual_pt_total)
 
     trk_chi2rphi_array = np.concatenate(trk_chi2rphi).ravel()
     trk_chi2rz_array = np.concatenate(trk_chi2rz).ravel()
@@ -489,6 +626,8 @@ if __name__=="__main__":
 
     pv_track_sel = assoc_PV_array == 1
     pu_track_sel = assoc_PV_array == 0
+
+    weightmax = np.max(predictedWeightsarray)
 
 
     plt.clf()
@@ -515,8 +654,8 @@ if __name__=="__main__":
 
 
     plt.clf()
-    plt.hist(predictedWeightsarray[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
-    plt.hist(predictedWeightsarray[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5, density=True)
+    plt.hist(predictedWeightsarray[pv_track_sel],range=(0,weightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
+    plt.hist(predictedWeightsarray[pu_track_sel],range=(0,weightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
     plt.xlabel("weights", horizontalalignment='right', x=1.0)
     # plt.ylabel("tracks/counts", horizontalalignment='right', y=1.0)
     plt.yscale("log")
@@ -533,8 +672,8 @@ if __name__=="__main__":
     assoc_scale = (pv_track_no / pu_track_no)
     # plt.bar(b[:-1], h, width=bw, label="PV tracks", alpha=0.5)
 
-    plt.hist(predictedWeightsarray[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedWeightsarray[pv_track_sel]) / assoc_scale)
-    plt.hist(predictedWeightsarray[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5)
+    plt.hist(predictedWeightsarray[pv_track_sel],range=(0,weightmax), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedWeightsarray[pv_track_sel]) / assoc_scale)
+    plt.hist(predictedWeightsarray[pu_track_sel],range=(0,weightmax), bins=50, label="PU tracks", alpha=0.5)
     plt.xlabel("weights", horizontalalignment='right', x=1.0)
     plt.ylabel("a.u.", horizontalalignment='right', y=1.0)
     plt.title("Histogram weights for PU and PV tracks (normalised)")
@@ -545,7 +684,7 @@ if __name__=="__main__":
     plt.savefig("%s/corr-assoc-1d-norm.png" % outputFolder)
 
     plt.clf()
-    plt.hist2d(predictedWeightsarray, assoc_NN_array, range=((0,1),(-12,12)),bins=50, norm=matplotlib.colors.LogNorm());
+    plt.hist2d(predictedWeightsarray, assoc_NN_array, range=((0,weightmax),(-12,12)),bins=50, norm=matplotlib.colors.LogNorm());
     plt.xlabel("weights", horizontalalignment='right', x=1.0)
     plt.ylabel("track-to-vertex association flag", horizontalalignment='right', y=1.0)
     plt.colorbar()
@@ -559,6 +698,14 @@ if __name__=="__main__":
     plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/corr-z0.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(predictedWeightsarray, trk_mva_array, bins=50, norm=matplotlib.colors.LogNorm());
+    plt.xlabel("weights", horizontalalignment='right', x=1.0)
+    plt.ylabel("track MVA", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/corr-mva.png" %  outputFolder)
 
     plt.clf()
     plt.hist2d(predictedWeightsarray, trk_pt_array, bins=50, norm=matplotlib.colors.LogNorm());
@@ -616,7 +763,7 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.savefig("%s/corr-chi2bend.png" % outputFolder)
 
-    do_scatter = False
+    do_scatter = True
     if (do_scatter):
         plt.clf()
         plt.scatter(predictedWeightsarray, trk_z0_array, label="z0")
@@ -674,12 +821,18 @@ if __name__=="__main__":
     predicted_met_phi_array = np.concatenate(predicted_met_phi).ravel()
     predicted_met_array = np.concatenate(predicted_met).ravel()
 
+    predictedFH_met_px_array = np.concatenate(predictedFH_met_px).ravel()
+    predictedFH_met_py_array = np.concatenate(predictedFH_met_py).ravel()
+    predictedFH_met_phi_array = np.concatenate(predictedFH_met_phi).ravel()
+    predictedFH_met_array = np.concatenate(predictedFH_met).ravel()
 
+    '''
     plt.clf()
     plt.hist(tp_met_px_array,range=(-150,150),bins=50,histtype="step",color="g",label="Tracking Particle MET px")
     plt.hist(pv_trk_met_px_array,range=(-150,150),bins=50,histtype="step",color="b",label="True PV Track MET px")
     plt.hist(true_met_px_array,range=(-150,150),bins=50,histtype="step",color="y",label="True MET px")
     plt.hist(predicted_met_px_array,range=(-150,150),bins=50,histtype="step",color="r",label="Predicted Track MET px, threshold = "+str(threshold))
+    plt.hist(predictedFH_met_px_array,range=(-150,150),bins=50,histtype="step",color="orange",label="Predicted FH Track MET px")
     plt.xlabel("MET px [GeV]")
     plt.ylabel("Events")
     plt.legend()
@@ -691,6 +844,7 @@ if __name__=="__main__":
     plt.hist(pv_trk_met_py_array,range=(-150,150),bins=50,histtype="step",color="b",label="True PV Track MET py")
     plt.hist(true_met_py_array,range=(-150,150),bins=50,histtype="step",color="y",label="True MET py")
     plt.hist(predicted_met_py_array,range=(-150,150),bins=50,histtype="step",color="r",label="Predicted Track MET py, threshold = "+str(threshold))
+    plt.hist(predictedFH_met_py_array,range=(-150,150),bins=50,histtype="step",color="orange",label="Predicted FH Track MET py")
     plt.xlabel("MET py [GeV]")
     plt.ylabel("Events")
     plt.legend()
@@ -702,23 +856,27 @@ if __name__=="__main__":
     plt.hist(pv_trk_met_pt_array,range=(0,300),bins=50,histtype="step",color="b",label="True PV Track MET pt")
     plt.hist(true_met_pt_array,range=(0,300),bins=50,histtype="step",color="y",label="True MET pt")
     plt.hist(predicted_met_array,range=(0,300),bins=50,histtype="step",color="r",label="Predicted Track MET pt, threshold = "+str(threshold))
+    plt.hist(predictedFH_met_array,range=(0,300),bins=50,histtype="step",color="orange",label="Predicted FH Track MET pt")
     plt.xlabel("MET pt [GeV]")
     plt.ylabel("Events")
     plt.legend()
     plt.tight_layout()
     plt.savefig("%s/METpt.png" % outputFolder)
 
+
     plt.clf()
     plt.hist(tp_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="g",label="Tracking Particle MET phi")
     plt.hist(pv_trk_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="b",label="True PV Track MET phi")
     plt.hist(true_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="y",label="True MET phi")
     plt.hist(predicted_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="r",label="Predicted Track MET phi, threshold = "+str(threshold))
+    plt.hist(predictedFH_met_phi_array,range=(-np.pi,np.pi),bins=50,histtype="step",color="orange",label="Predicted FH Track MET phi")
     plt.xlabel("MET phi [GeV]")
     plt.xlim(-np.pi,np.pi)
     plt.ylabel("Events")
     plt.legend(loc="lower center")
     plt.tight_layout()
     plt.savefig("%s/METphi.png" % outputFolder)
+    '''
 
     plt.clf()
     figure=plotz0_residual((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FH_array))
@@ -728,9 +886,9 @@ if __name__=="__main__":
     figure=plotz0_residual((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FHzres_array))
     plt.savefig("%s/Z0Residualzres.png" % outputFolder)
 
-    #plt.clf()
-    #figure=plotPV_roc(assoc_PV_array,assoc_NN_array,assoc_FH_array)
-    #plt.savefig("%s/PVROC.png" % outputFolder)
+    plt.clf()
+    figure=plotPV_roc(assoc_PV_array,assoc_NN_array,assoc_FH_array)
+    plt.savefig("%s/PVROC.png" % outputFolder)
 
     plt.clf()
     figure=plotPV_classdistribution(assoc_PV_array,assoc_NN_array,assoc_FH_array)
@@ -752,16 +910,100 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.savefig("%s/z0hist.png" % outputFolder)
 
+    plt.clf()
+    plt.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV", horizontalalignment='right', x=1.0)
+    plt.ylabel("PV - $z_0^{FH}$", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/FHerr_vs_z0.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(z0_PV_array, (z0_PV_array-z0_NN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV", horizontalalignment='right', x=1.0)
+    plt.ylabel("PV - $z_0^{NN}$", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/NNerr_vs_z0.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{FH}$", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/FH_vs_z0.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(z0_PV_array, z0_NN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("PV", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{NN}$", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/NN_vs_z0.png" %  outputFolder)
+
 
     plt.clf()
     figure=plotz0_percentile((z0_PV_array-z0_NN_array),(z0_PV_array-z0_FHzres_array))
     plt.savefig("%s/Z0withrespercentile.png" % outputFolder)
 
+    plt.clf()
+    plt.scatter(pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5)
+    plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/z0_vs_numtracks.png" %  outputFolder)
 
+    plt.clf()
+    plt.scatter(pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
+    plt.xlabel("# PV tracks per event ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/z0err_vs_numtracks.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal,z0_PV_array/z0_NN_array,color='r',alpha=0.5)
+    plt.xlabel("Total PV $p_{T}$ per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/z0_vs_pv_pttotal.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal,z0_PV_array-z0_NN_array,color='r',alpha=0.5)
+    plt.xlabel("Total PV $p_{T}$ per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/zerr0_vs_pv_pttotal.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array/z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$/$z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/z0_vs_pv_ptdensity.png" %  outputFolder)
+
+    plt.clf()
+    plt.scatter(pv_pttotal/pv_numtracks,z0_PV_array-z0_NN_array,color='r',alpha=0.5,label="50 % Quartile")
+    plt.xlabel("PV $p_{T}$ density per event [GeV] ", horizontalalignment='right', x=1.0)
+    plt.ylabel("$z_0^{gen}$ - $z_0^{NN}$ ", horizontalalignment='right', y=1.0)
+    plt.xscale("log")
+    #plt.colorbar(vmin=0,vmax=1000)
+    plt.tight_layout()
+    plt.savefig("%s/z0diff_vs_pv_ptdensity.png" %  outputFolder)
+
+    '''
     plt.clf()
     figure=plotMET_residual((true_met_pt_array-predicted_met_array),
                             (true_met_pt_array-pv_trk_met_pt_array),
-                            (true_met_pt_array-tp_met_pt_array),
+                            (true_met_pt_array-predictedFH_met_array),
                             threshold = threshold,
                             )
     plt.savefig("%s/METresidual.png" % outputFolder)
@@ -769,9 +1011,16 @@ if __name__=="__main__":
     plt.clf()
     figure=plotMET_residual((true_met_pt_array-predicted_met_array),
                             (true_met_pt_array-pv_trk_met_pt_array),
-                            (true_met_pt_array-tp_met_pt_array),
+                            (true_met_pt_array-predictedFH_met_array),
                             threshold = threshold,
                             relative=True,
                             true=true_met_pt_array
                             )
     plt.savefig("%s/METrelresidual.png" % outputFolder)
+    '''
+    experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
+
+
+
+
+

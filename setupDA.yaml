@@ -1,0 +1,27 @@
+retrain : True
+comet_project_name : Vertex_CNN_DA
+comet_experiment_name : NN_DiffArgmax_Features
+description : baseDANN_with_quality_and_eta
+
+trainable : "DiffArgMax"
+track_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta',
+                  'trk_z0_res',
+                  'binned_trk_chi2rphi',
+                  'binned_trk_chi2rz',
+                  'binned_trk_bendchi2']
+weight_features : ['normed_trk_pt','trk_MVA1','trk_over_eta_squared',
+                   'binned_trk_chi2rphi',
+                   'binned_trk_chi2rz',
+                   'binned_trk_bendchi2']
+
+
+eval_folder : DAplots
+data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
+
+starting_lr : 0.001
+epochs : 75
+quartile_1 : 0.25
+quartile_2 : 0.75
+
+z0_loss_weight : 1
+crossentropy_loss_weight : 1

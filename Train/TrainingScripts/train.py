@@ -12,8 +12,8 @@ import csv
 import sklearn.metrics as metrics
 import vtx
 import pandas as pd
-from Callbacks import OwnReduceLROnPlateau
-from eval import*
+from TrainingScripts.Callbacks import OwnReduceLROnPlateau
+from EvalScripts.eval import*
 
 import matplotlib
 #matplotlib.use('Agg')
@@ -87,6 +87,8 @@ def train_model(model,experiment,train_files,val_files,epochs=50,callbacks=None,
             model.load_weights("weights_%i.tf"%(epoch-1))
         
         for step,batch in enumerate(setup_pipeline(train_files)):
+
+            
             
             trackFeatures = np.stack([batch[feature] for feature in [
                 'normed_trk_pt','normed_trk_eta', 'binned_trk_chi2rphi', 'binned_trk_chi2rz', 'binned_trk_bendchi2','trk_z0_res'
