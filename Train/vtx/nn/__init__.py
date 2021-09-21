@@ -5,4 +5,4 @@ from .E2Ecomparekernel import *
 from .E2Equartiles import *
 from .E2EReduced import *
 from .E2EFH import *
-from .E2EFHtrainable import *
+from .E2EDiffArgMax import *

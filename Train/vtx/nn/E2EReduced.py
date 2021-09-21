@@ -10,10 +10,11 @@ class E2EReduced():
         nweightfeatures=2,
         nfeatures=10, 
         nweights=1, 
-        npattern=16,
+        npattern=4,
         nlatent=0, 
         activation='relu',
-        regloss=1e-10
+        regloss=1e-10,
+        l1loss=0
     ):
         self.nbins = nbins
         self.ntracks = ntracks
@@ -27,9 +28,9 @@ class E2EReduced():
         self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
         self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_PV_track_features')
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
-        
+
         self.weightLayers = []
-        for ilayer,nodes in enumerate([5,5]):
+        for ilayer,nodes in enumerate([10,10]):
             self.weightLayers.extend([
                 tf.keras.layers.Dense(
                     nodes,
@@ -61,7 +62,7 @@ class E2EReduced():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
-            [self.npattern,4],
+            [4,4],
         ]):
             self.patternConvLayers.append(
                 tf.keras.layers.Conv1D(
@@ -78,7 +79,7 @@ class E2EReduced():
             
         self.positionConvLayers = []
         for ilayer,(filterSize,kernelSize,strides) in enumerate([
-            [8,1,1],
+            [4,1,1],
         ]):
             self.positionConvLayers.append(
                 tf.keras.layers.Conv1D(
@@ -104,7 +105,7 @@ class E2EReduced():
         ]
           
         self.assocLayers = []
-        for ilayer,filterSize in enumerate([10,10]):
+        for ilayer,filterSize in enumerate([20,20]):
             self.assocLayers.extend([
                 tf.keras.layers.Dense(
                     filterSize,
@@ -185,7 +186,7 @@ class E2EReduced():
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
-            outputs=[pvPosition,assocProbability,weights,hists]
+            outputs=[pvPosition,pvPosition,assocProbability,assocProbability,weights,hists]
         )
         
         def q90loss(w):
