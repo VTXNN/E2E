@@ -6,3 +6,4 @@ from .E2Equartiles import *
 from .E2EReduced import *
 from .E2EFH import *
 from .E2EDiffArgMax import *
+from .E2EQKerasDiffArgMax import *

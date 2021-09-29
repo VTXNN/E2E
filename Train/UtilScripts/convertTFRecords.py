@@ -71,7 +71,8 @@ trackFeatures = [
     'trk_chi2rphi', 
     'trk_chi2rz', 
     'trk_bendchi2',
-    'corrected_trk_z0'
+    'corrected_trk_z0',
+    'trk_fake'
 ]
 
 

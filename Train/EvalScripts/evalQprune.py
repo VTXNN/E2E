@@ -14,6 +14,13 @@ import yaml
 
 import vtx
 from TrainingScripts.train import *
+from EvalScripts.evalDA import *
+
+from qkeras.qlayers import QDense, QActivation
+from qkeras.quantizers import quantized_bits, quantized_relu
+from qkeras.utils import _add_supported_quantized_objects
+co = {}
+_add_supported_quantized_objects(co)
 
 #hep.set_style("CMSTex")
 #hep.cms.label()
@@ -48,269 +55,12 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 
 colours=["red","green","blue","orange","purple","yellow"]
 
-def predictFastHisto(value,weight):
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch])
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoZ0res(value,weight,eta):
-
-    def res_function(eta):
-        res = 0.1 + 0.2*eta**2
-        return res
-    
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        res = res_function(eta[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch]/res)
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoMVAcut(value,weight,MVA):
-
-    def res_function(MVA):
-        res = MVA > 0.3
-        return res
-
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        
-        res = res_function(MVA[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch][res],256,range=(-15,15),weights=(weight[ibatch][res]))
-        #hist,bin_edges = np.histogram(value[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]],256,range=(-15,15),weights=(weight[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]]))
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoZ0MVA(value,weight,eta,MVA):
-
-    def res_function(eta):
-        res = 0.1 + 0.2*eta**2
-        return res
-    
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        res = res_function(eta[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=(weight[ibatch]*MVA[ibatch])/res)
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoNoFakes(value,weight,Fakes):
-
-    def res_function(fakes):
-        res = fakes != 0
-        return res
-
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        
-        res = res_function(Fakes[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch][res],256,range=(-15,15),weights=(weight[ibatch][res]))
-        #hist,bin_edges = np.histogram(value[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]],256,range=(-15,15),weights=(weight[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]]))
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def FastHistoAssoc(PV,trk_z0,trk_eta,kf):
-    if kf == "NewKF":
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif kf == "OldKF":
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
-    eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
-    
-
-    eta_bin = np.digitize(abs(trk_eta),eta_bins)
-    deltaz = abs(trk_z0 - PV)
-
-    assoc = (deltaz < deltaz_bins[eta_bin])
-
-    return np.array(assoc,dtype=np.float32)
-
-def FastHistoAssocMVAcut(PV,trk_z0,trk_eta,MVA,kf,threshold=0.3):
-    if kf == "NewKF":
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif kf == "OldKF":
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
-    eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
-    
-
-    eta_bin = np.digitize(abs(trk_eta),eta_bins)
-    deltaz = abs(trk_z0 - PV)
-
-    assoc = (deltaz < deltaz_bins[eta_bin]) & (MVA > threshold)
-
-    return np.array(assoc,dtype=np.float32)
-
-def FastHistoAssocNoFakes(PV,trk_z0,trk_eta,Fakes,kf):
-    if kf == "NewKF":
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif kf == "OldKF":
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
-    eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
-    
-
-    eta_bin = np.digitize(abs(trk_eta),eta_bins)
-    deltaz = abs(trk_z0 - PV)
-
-    assoc = (deltaz < deltaz_bins[eta_bin]) & (Fakes != 0)
-
-    return np.array(assoc,dtype=np.float32)
-
-def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
-    plt.clf()
-    fig,ax = plt.subplots(1,2,figsize=(20,10))
-    items = 0
-    for i,FH in enumerate(FHdiff):
-        qz0_FH = np.percentile(FH,[32,50,68])
-        ax[0].hist(FH,bins=50,range=(-15,15),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
-        ax[1].hist(FH,bins=50,range=(-1,1),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
-        items+=1
-
-    for i,NN in enumerate(NNdiff):
-        qz0_NN = np.percentile(NN,[32,50,68])
-        ax[0].hist(NN,bins=50,range=(-15,15),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
-                 %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
-        ax[1].hist(NN,bins=50,range=(-1,1),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
-                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
-        items+=1
-    
-    ax[0].grid(True)
-    ax[0].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
-    ax[0].set_ylabel('Events',ha="right",y=1)
-    ax[0].set_yscale("log")
-    ax[0].legend(loc=2) 
-
-    ax[1].grid(True)
-    ax[1].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
-    ax[1].set_ylabel('Events',ha="right",y=1)
-    ax[1].legend(loc=2) 
-
-    plt.tight_layout()
-    return fig
-
-def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colours):
-    plt.clf()
-    fig,ax = plt.subplots(1,2,figsize=(20,10))
-
-    items=0
-
-    for i,FH in enumerate(FHpred):
-        tnFH, fpFH, fnFH, tpFH = metrics.confusion_matrix(actual, FH).ravel()
-        precisionFH = tpFH / (tpFH + fpFH) 
-        recallFH = tpFH / (tpFH + fnFH) 
-        TPRFH = recallFH
-        FPRFH = fpFH / (fpFH + tnFH) 
-        ax[0].plot(recallFH,precisionFH,label="FH "+str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
-        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"FH %s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
-        items+=1
-
-    for i,NN in enumerate(NNpred):
-        precisionNN = []
-        recallNN = []
-        FPRNN = []
-
-        NN = (NN - min(NN))/(max(NN) - min(NN))
-
-        thresholds = np.linspace(0,1,Nthresholds)
-
-        for j,threshold in enumerate(thresholds):
-            print(str(NNnames[i]) + " Testing ROC threshold: "+str(j) + " out of "+str(len(thresholds)))
-            tnNN, fpNN, fnNN, tpNN = metrics.confusion_matrix(actual, NN>threshold).ravel()
-            precisionNN.append( tpNN / (tpNN + fpNN) )
-            recallNN.append(tpNN / (tpNN + fnNN) )
-            FPRNN.append(fpNN / (fpNN + tnNN) )
-
-        
-        ax[0].plot(recallNN,precisionNN,label="NN "+str(NNnames[i]),linewidth=LINEWIDTH,color=colours[items])
-        ax[1].plot(recallNN,FPRNN,linewidth=LINEWIDTH,label='\n'.join(wrap(f"NN %s AUC: %.4f" %(NNnames[i],metrics.roc_auc_score(actual,NN)),LEGEND_WIDTH)),color=colours[items])
-        items+=1
-
-    
-    
-    ax[0].set_title("Purity Efficiency Plot" ,loc='left')
-    ax[0].grid(True)
-    ax[0].set_xlabel('Efficiency',ha="right",x=1)
-    ax[0].set_ylabel('Purity',ha="right",y=1)
-    ax[0].set_xlim([0.75,1])
-    ax[0].legend()
-
-    ax[1].set_title("Reciever Operator Characteristic Plot" ,loc='left')   
-    ax[1].grid(True)
-    ax[1].set_yscale("log")
-    ax[1].set_xlabel('True Positive Rate',ha="right",x=1)
-    ax[1].set_ylabel('False Positive Rate',ha="right",y=1)
-    ax[1].set_xlim([0.75,1])
-    ax[1].set_ylim([1e-2,1])
-    ax[1].legend()
-    plt.tight_layout()
-    return fig
-
-def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
-    plt.clf()
-    figure = plt.figure(figsize=(10,10))
-
-    percentiles = np.linspace(0,100,100)
-
-    items=0
-
-    for i,FH in enumerate(FHdiff):
-        FHpercentiles = np.percentile(FH,percentiles)
-        plt.plot(percentiles,abs(FHpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"FH %s minimum: %.4f at : %.2f " %(FHnames[i],min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))),LEGEND_WIDTH)))
-        items+=1
-
-    for i,NN in enumerate(NNdiff):
-        NNpercentiles = np.percentile(NN,percentiles)
-        plt.plot(percentiles,abs(NNpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"NN %s minimum: %.4f at : %.2f " %(NNnames[i],min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))),LEGEND_WIDTH)))
-        items+=1
-    
-
-    plt.grid(True)
-    plt.xlabel('Percentile',ha="right",x=1)
-    plt.ylabel('$|\\delta z_{0}| [cm]$',ha="right",y=1)
-    plt.yscale("log")
-    plt.legend()
-    plt.tight_layout()
-    
-
-    return figure
-
-
-
 if __name__=="__main__":
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+        config = yaml.load(f)
+
+    
+
     kf = sys.argv[1]
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
@@ -345,8 +95,6 @@ if __name__=="__main__":
             log_env_cpu=True,     # to continue CPU logging
         )
 
-    with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
 
     outputFolder = kf+config['eval_folder']
     trainable = config["trainable"]
@@ -383,7 +131,7 @@ if __name__=="__main__":
         ds = ds.shuffle(5000,reshuffle_each_iteration=True)
         ds = ds.batch(2000)
         ds = ds.prefetch(5)
-        
+
         return ds
 
     trackFeatures = [
@@ -410,12 +158,9 @@ if __name__=="__main__":
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
 
-            
-    if trainable == "DiffArgMax":
-        
-        nlatent = 2
+    nlatent = 2
 
-        network = vtx.nn.E2EDiffArgMax(
+    network = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
@@ -423,50 +168,8 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
-        )
-
-
-    elif trainable == "FH":
-        nlatent = 0
-
-        network = vtx.nn.E2EFH(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            activation='relu',
-            regloss=1e-10
-        )
-
-    elif trainable == "FullNetwork":
-        nlatent = 2
-
-        network = vtx.nn.E2Ecomparekernel(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            nlatent = nlatent,
-            activation='relu',
-            regloss=1e-10
-        )
-
-    elif trainable == "QDiffArgMax":
-        nlatent = 2
-
-        network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            nlatent = nlatent,
-            activation='relu',
-            l1regloss = config['l1regloss'],
-            l2regloss = config['l2regloss'],
+            l1regloss = (float)(config['l1regloss']),
+            l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -474,7 +177,7 @@ if __name__=="__main__":
             bits = config['bits'],
             integer = config['integer'],
             alpha = config['alpha'],
-        )
+    )
 
 
 
@@ -497,6 +200,41 @@ if __name__=="__main__":
     )
     model.summary()
     model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
+
+    plt.clf()
+    fig,ax = plt.subplots(1,2,figsize=(20,10))
+
+    prune_level = []
+    for i,layer in enumerate(model.layers):
+        get_weights = layer.get_weights()
+        if len(get_weights) > 0:
+            if "Bin_weight" not in layer.name:  
+                weights = get_weights[0].flatten()[get_weights[0].flatten() != 0]
+                biases = get_weights[1].flatten()[get_weights[1].flatten() != 0]
+                prune_level.append(weights.shape[0]/get_weights[0].flatten().shape[0])
+
+                ax[0].hist(weights,alpha=1,label=layer.name,histtype="step",linewidth=2,bins=50,range=(-2,2))
+                ax[1].hist(biases,alpha=1,label=layer.name,histtype="step",linewidth=2,bins=50,range=(-1,1))
+
+
+    prune = 100-np.mean(prune_level)*100
+
+
+    ax[0].set_title("QKeras Weights with " + "%.1f"%prune + "% Prune",loc='left')
+    ax[0].grid(True)
+    ax[0].set_xlabel("Weight Magnitude",ha="right",x=1)
+    ax[0].set_ylabel("# Parameters",ha="right",y=1)
+    ax[0].set_yscale("log")
+    ax[0].legend(loc=2) 
+
+    ax[1].grid(True)
+    ax[1].set_xlabel("Bias Magnitude",ha="right",x=1)
+    ax[1].set_ylabel("# Parameters",ha="right",y=1)
+    ax[1].legend(loc=2) 
+
+    plt.tight_layout()
+    plt.savefig("%s/weights_biases.png" %  outputFolder)
+    
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
@@ -550,15 +288,15 @@ if __name__=="__main__":
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
-        FHassoc = FastHistoAssoc(predictFastHisto(batch[z0],batch['trk_pt']),batch[z0],batch['trk_eta'])
+        FHassoc = FastHistoAssoc(predictFastHisto(batch[z0],batch['trk_pt']),batch[z0],batch['trk_eta'],kf)
         predictedAssoc_FH.append(FHassoc)
-        FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']),batch[z0],batch['trk_eta'])
+        FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']),batch[z0],batch['trk_eta'],kf)
         predictedAssoc_FHres.append(FHassocres)
 
-        FHassocMVA = FastHistoAssocMVAcut(predictFastHistoMVAcut(batch[z0],batch['trk_pt'],batch['trk_MVA1']),batch[z0],batch['trk_eta'],batch['trk_MVA1'])
+        FHassocMVA = FastHistoAssocMVAcut(predictFastHistoMVAcut(batch[z0],batch['trk_pt'],batch['trk_MVA1']),batch[z0],batch['trk_eta'],batch['trk_MVA1'],kf)
         predictedAssoc_FHMVA.append(FHassocMVA)
 
-        FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[z0],batch['trk_pt'],batch['trk_fake']),batch[z0],batch['trk_eta'],batch['trk_fake'])
+        FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[z0],batch['trk_pt'],batch['trk_fake']),batch[z0],batch['trk_eta'],batch['trk_fake'],kf)
         predictedAssoc_FHnoFake.append(FHassocnoFake)
 
         predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(

@@ -1,9 +1,12 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 import vtx
+from qkeras import QActivation
+from qkeras import QDense, QConv1D
+from qkeras.quantizers import quantized_bits, quantized_relu
 import numpy
 
-class E2EDiffArgMax():
+class E2EQKerasDiffArgMax():
     def __init__(self,
         nbins=256,
         ntracks=200, 
@@ -12,9 +15,17 @@ class E2EDiffArgMax():
         nweights=1, 
         npattern=4,
         nlatent=0, 
-        activation='relu',
-        regloss=1e-10,
-        temperature=1e2
+        activation=None,
+        nweightnodes = 5,
+        nweightlayers = 2,
+        nassocnodes = 10,
+        nassoclayers = 2,
+        l1regloss=1e-3,
+        l2regloss=1e-10,
+        temperature=1e2,
+        bits = 12,
+        integer = 2,
+        alpha = 1
     ):
         self.nbins = nbins
         self.ntracks = ntracks
@@ -23,7 +34,12 @@ class E2EDiffArgMax():
         self.nweights = nweights
         self.npattern = npattern
         self.nlatent = nlatent
-        self.activation = activation
+
+        self.bits = bits
+        self.integer = integer
+        self.alpha = alpha
+
+        self.activation = quantized_relu(self.bits)
 
         self.temperature = temperature
         
@@ -32,27 +48,29 @@ class E2EDiffArgMax():
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
 
         self.weightLayers = []
-        for ilayer,nodes in enumerate([10,10]):
+        for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     nodes,
-                    activation=self.activation,
+                    activation=QActivation(self.activation),
                     trainable=True,
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                    kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
+                    kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                    bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
                     name='weight_'+str(ilayer+1)
-                ),
-                tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.BatchNormalization()
+                )
             ])
             
         self.weightLayers.append(
-            tf.keras.layers.Dense(
+            QDense(
                 self.nweights,
-                activation='relu', #need to use relu here to remove negative weights
+                activation=QActivation(self.activation), #need to use relu here to remove negative weights
                 kernel_initializer='lecun_normal',
                 trainable=True,
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='weight_final'
             ),
         )
@@ -67,18 +85,18 @@ class E2EDiffArgMax():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
-            [1,7],
-            [1,5],
             [1,3]
         ]):
             self.patternConvLayers.append(
-                tf.keras.layers.Conv1D(
+                QConv1D(
                     filterSize,
                     kernelSize,
                     padding='same',
-                    activation=self.activation,
+                    activation=QActivation(self.activation),
                     trainable=True,
-                    use_bias= False,
+                    use_bias= True,
+                    kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                    bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
                     name='pattern_'+str(ilayer+1)
                 )
             )
@@ -106,36 +124,40 @@ class E2EDiffArgMax():
                 1+self.nlatent,
                 activation=None,
                 kernel_initializer='lecun_normal',
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='position_final'
             )
         ]
           
         self.assocLayers = []
-        for ilayer,filterSize in enumerate([20,20]):
+        for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
             self.assocLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     filterSize,
-                    activation=self.activation,
+                    activation=QActivation(self.activation),
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                    kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
+                    kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                    bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
                     name='association_'+str(ilayer)
-                ),
-                tf.keras.layers.Dropout(0.1),
+                )
             ])
             
         self.assocLayers.extend([
-            tf.keras.layers.Dense(
+            QDense(
                 1,
                 activation=None,
                 kernel_initializer='lecun_normal',
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
+                kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
                 name='association_final'
             )
         ])
 
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
 
+        #self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
                 
     def applyLayerList(self, inputs, layerList):
         outputs = inputs
@@ -164,6 +186,7 @@ class E2EDiffArgMax():
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
         assocProbability = self.applyLayerList(assocInput,self.assocLayers)
+        #assocProbability = self.outputSoftmax(assocQProbability)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -193,6 +216,9 @@ class E2EDiffArgMax():
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
         assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
+        #assocProbability = self.outputSoftmax(assocQProbability)
+
+
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],

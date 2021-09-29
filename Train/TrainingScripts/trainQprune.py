@@ -3,6 +3,8 @@ from tensorflow.keras import backend as K
 import tensorflow as tf
 import numpy as np
 
+import tensorflow_model_optimization as tfmot
+
 import sys
 import glob
 
@@ -74,10 +76,12 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=[None,None],nlatent=0,trainable=False):
 
     total_steps = 0
-    callbacks.on_train_begin()
+    callbacks[0].on_train_begin()
+    callbacks[1].on_train_begin()
+    
     old_lr = model.optimizer.learning_rate.numpy()
     
 
@@ -93,6 +97,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(kf+"weights_%i.tf"%(epoch-1))
         
         for step,batch in enumerate(setup_pipeline(train_files)):
+            callbacks[1].on_train_batch_begin(step)
             #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
             z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
             batch[z0]=batch[z0]*z0Flip
@@ -110,24 +115,10 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             result = dict(zip(model.metrics_names,result))
 
-            if trainable == "FH":
-                experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['differentiable_argmax_loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
-            elif (trainable == "DiffArgMax"):
-                experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
+            experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
+            experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
+            experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
-            elif (trainable == "QDiffArgMax"):
-                experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
-
-            elif trainable == "FullNetwork":
-                experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
                 predictedZ0_FH = eval.predictFastHisto(batch[z0],batch['trk_pt'])
@@ -135,30 +126,27 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                 predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
                 qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,32,50,68,95])
-
-                if trainable == "FH":
-                    print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
-                            epoch,step,
-                            result['loss'],result['differentiable_argmax_loss'],result['association_final_loss'],
-                            qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
-                        ))
-                    print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))          
-                elif ((trainable == "DiffArgMax") | (trainable == "QDiffArgMax")) :
-                    print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+       
+     
+                print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
                             epoch,step,
                             result['loss'],result['split_latent_loss'],result['association_final_loss'],
                             qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
                         ))
-                    print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))   
-                elif trainable == "FullNetwork":
-                    print ("Step %02i-%02i: loss=%.3f (split latent z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
-                        epoch,step,
-                        result['loss'],result['split_latent_loss'],result['association_final_loss'],
-                        qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
-                    ))
+                print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))   
+              
 
 
             total_steps += 1
+        prune_level = []
+        for i,layer in enumerate(model.layers):
+            get_weights = layer.get_weights()
+            if len(get_weights) > 0:
+                if "Bin_weight" not in layer.name:
+                    
+                    weights = get_weights[0].flatten()[get_weights[0].flatten() != 0]
+                    biases = get_weights[1].flatten()[get_weights[1].flatten() != 0]
+                    prune_level.append(weights.shape[0]/get_weights[0].flatten().shape[0])
 
         val_actual_PV = []
         val_predictedZ0_FH = []
@@ -178,8 +166,8 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                     [val_batch[z0],val_WeightFeatures,val_trackFeatures]
             )
   
-            val_predictedZ0_NN.append(temp_predictedZ0_NN.numpy().flatten())
-            val_predictedAssoc_NN.append(temp_predictedAssoc_NN.numpy().flatten())
+            val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
+            val_predictedAssoc_NN.append(temp_predictedAssoc_NN.flatten())
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
@@ -206,8 +194,12 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         experiment.log_metric("Validation_FH_PV_ROC",metrics.roc_auc_score(val_assoc_PV_array,val_assoc_FH_array))
         experiment.log_metric("Validation_FH_PV_ACC",metrics.balanced_accuracy_score(val_assoc_PV_array,val_assoc_FH_array))
 
-        model.save_weights(kf+"weights_%i.tf"%(epoch))
-        old_lr = callbacks.on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
+        experiment.log_metric("Validation_Prune_Level",np.mean(prune_level))
+
+        model_for_export = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
+        model_for_export.save_weights(kf+"weights_%i.tf"%(epoch))
+        old_lr = callbacks[0].on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
+        callbacks[1].on_epoch_end(batch=epoch)
         
 def test_model(model,experiment,test_files,trackfeat,weightfeat):
 
@@ -284,52 +276,8 @@ if __name__=="__main__":
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
-
-    if trainable == "DiffArgMax":
-        
-        nlatent = 2
-
-        network = vtx.nn.E2EDiffArgMax(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            nlatent = nlatent,
-            activation='relu',
-            regloss=1e-10
-        )
-
-
-    elif trainable == "FH":
-        nlatent = 0
-
-        network = vtx.nn.E2EFH(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            activation='relu',
-            regloss=1e-10
-        )
-
-    elif trainable == "FullNetwork":
-        nlatent = 2
-
-        network = vtx.nn.E2Ecomparekernel(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            nlatent = nlatent,
-            activation='relu',
-            regloss=1e-10
-        )
-
-    elif trainable == "QDiffArgMax":
-        nlatent = 2
+    if trainable == "QDiffArgMax":
+        nlatent = config["Nlatent"]
 
         network = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
@@ -412,10 +360,11 @@ if __name__=="__main__":
 
     experiment.log_parameter("nbins",256)
     experiment.log_parameter("ntracks",max_ntracks)
-    experiment.log_parameter("nfeatures",3)
-    experiment.log_parameter("nlatent",2)
+    experiment.log_parameter("nfeatures",len(weightfeat))
+    experiment.log_parameter("nlatent",nlatent)
     experiment.log_parameter("activation",'relu')
-    experiment.log_parameter("regloss",1e-10)
+    experiment.log_parameter("L1regloss",config['l1regloss'])
+    experiment.log_parameter("L2regloss",config['l2regloss'])
     experiment.log_parameter("Start LR",startingLR)
     experiment.log_parameter("Epochs",epochs)
 
@@ -424,7 +373,7 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(delta=0.5),
+            tf.keras.losses.Huber(delta=config["Huber_delta"]),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -438,21 +387,37 @@ if __name__=="__main__":
     )
     model.summary()
 
-    if trainable == "FH":
-        model.layers[2].set_weights([np.array([[1]], dtype=np.float32)])
-        model.layers[4].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
-        model.layers[7].set_weights([np.expand_dims(np.arange(256),axis=0)])
-    elif trainable == "DiffArgMax":
-        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-    elif trainable == "QDiffArgMax":
-        model.layers[config['nweightlayers'] + 7].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+
+    model.layers[config['nweightlayers'] + 7].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
         
+    pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=100)}
+
+    # Helper function uses `prune_low_magnitude` to make only the 
+    # Dense layers train with pruning.
+    def apply_pruning_to_dense(layer):
+        if isinstance(layer, tf.keras.layers.Dense):
+            return tfmot.sparsity.keras.prune_low_magnitude(layer)
+        return layer
+
+    # Use `tf.keras.models.clone_model` to apply `apply_pruning_to_dense` 
+    # to the layers of the model.
+    model_for_pruning = tf.keras.models.clone_model(
+        model,
+        clone_function=apply_pruning_to_dense,
+    )
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
     monitor='loss', factor=0.1, patience=6, verbose=1,
     mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )
+
+    pruning_callback = tfmot.sparsity.keras.UpdatePruningStep()
+    pruning_callback.set_params(pruning_params)
+    pruning_callback.set_model(model_for_pruning)
+
+    model_for_pruning.summary()
+
     with experiment.train():
-        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,trainable=trainable),
+        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR,pruning_callback],nlatent=nlatent,trainable=trainable),
     with experiment.test():
         test_model(model,experiment,test_files,trackfeat,weightfeat)
