@@ -69,8 +69,7 @@ def predictFastHistoZ0res(value,weight,eta):
 
 def predictMET(pt,phi,predictedAssoc,threshold):
 
-    met_px_list = []
-    met_py_list = []
+
     met_pt_list = []
     met_phi_list = []
 
@@ -87,14 +86,10 @@ def predictMET(pt,phi,predictedAssoc,threshold):
 
         met_px = np.sum(newpt[NN_track_sel[:,0]]*np.cos(newphi[NN_track_sel[:,0]]))
         met_py = np.sum(newpt[NN_track_sel[:,0]]*np.sin(newphi[NN_track_sel[:,0]]))
-        met_px_list.append([met_px])
-        met_py_list.append([met_py])
         met_pt_list.append([math.sqrt(met_px**2+met_py**2)])
         met_phi_list.append([math.atan2(met_py,met_px)])
-    return  [np.array(met_px_list,dtype=np.float32),
-            np.array(met_py_list,dtype=np.float32),
-            np.array(met_pt_list,dtype=np.float32),
-            np.array(met_phi_list,dtype=np.float32)]
+    return  [np.array(met_pt_list,dtype=np.float32),
+             np.array(met_phi_list,dtype=np.float32)]
 
 def FastHistoAssoc(PV,trk_z0,trk_eta,threshold=1):
     eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])

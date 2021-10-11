@@ -180,6 +180,31 @@ def FastHistoAssocNoFakes(PV,trk_z0,trk_eta,Fakes,kf):
 
     return np.array(assoc,dtype=np.float32)
 
+def predictMET(pt,phi,predictedAssoc,threshold):
+
+
+    met_pt_list = []
+    met_phi_list = []
+
+    def assoc_function(Assoc):
+        res = Assoc > threshold
+        return res
+
+
+    for ibatch in range(pt.shape[0]):
+        assoc = assoc_function(predictedAssoc[ibatch])
+        newpt = pt[ibatch][assoc]
+        newphi = phi[ibatch][assoc]
+
+
+
+        met_px = np.sum(newpt*np.cos(newphi))
+        met_py = np.sum(newpt*np.sin(newphi))
+        met_pt_list.append(math.sqrt(met_px**2+met_py**2))
+        met_phi_list.append(math.atan2(met_py,met_px))
+    return  [np.array(met_pt_list,dtype=np.float32),
+             np.array(met_phi_list,dtype=np.float32)]
+
 def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
@@ -216,6 +241,90 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 
     ax[1].grid(True)
     ax[1].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
+    ax[1].set_ylabel('Events',ha="right",y=1)
+    ax[1].legend(loc=2) 
+
+    plt.tight_layout()
+    return fig
+
+def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50),logrange=(-1,1)):
+    plt.clf()
+    fig,ax = plt.subplots(1,2,figsize=(20,10))
+    items = 0
+    for i,FH in enumerate(FHdiff):
+        qz0_FH = np.percentile(FH,[32,50,68])
+        ax[0].hist(FH,bins=50,range=logrange,histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
+                 %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
+        ax[1].hist(FH,bins=50,range=range,histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
+        items+=1
+
+    for i,NN in enumerate(NNdiff):
+        qz0_NN = np.percentile(NN,[32,50,68])
+        ax[0].hist(NN,bins=50,range=logrange,histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
+                 %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
+        ax[1].hist(NN,bins=50,range=range,histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+        items+=1
+    
+    ax[0].grid(True)
+    ax[0].set_xlabel('$E_{T}^{miss}$ Residual [GeV]',ha="right",x=1)
+    ax[0].set_ylabel('Events',ha="right",y=1)
+    ax[0].set_yscale("log")
+    ax[0].legend(loc=2) 
+
+    ax[1].grid(True)
+    ax[1].set_xlabel('$E_{T}^{miss}$  Residual [GeV]',ha="right",x=1)
+    ax[1].set_ylabel('Events',ha="right",y=1)
+    ax[1].legend(loc=2) 
+
+    plt.tight_layout()
+    return fig
+
+def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
+    plt.clf()
+    fig,ax = plt.subplots(1,2,figsize=(20,10))
+    items = 0
+    for i,FH in enumerate(FHdiff):
+        qz0_FH = np.percentile(FH,[32,50,68])
+        ax[0].hist(FH,bins=50,range=(-np.pi,np.pi),histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
+                 %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
+        ax[1].hist(FH,bins=50,range=(-2*np.pi,2*np.pi),histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
+        items+=1
+
+    for i,NN in enumerate(NNdiff):
+        qz0_NN = np.percentile(NN,[32,50,68])
+        ax[0].hist(NN,bins=50,range=(-np.pi,np.pi),histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
+                 %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
+        ax[1].hist(NN,bins=50,range=(-2*np.pi,2*np.pi),histtype="step",
+                 linewidth=LINEWIDTH,color = colours[items],
+                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+        items+=1
+    
+    ax[0].grid(True)
+    ax[0].set_xlabel('$E_{T,\\phi}^{miss}$ Residual [rad]',ha="right",x=1)
+    ax[0].set_ylabel('Events',ha="right",y=1)
+    ax[0].set_yscale("log")
+    ax[0].legend(loc=2) 
+
+    ax[1].grid(True)
+    ax[1].set_xlabel('$E_{T,\\phi}^{miss}$  Residual [rad]',ha="right",x=1)
     ax[1].set_ylabel('Events',ha="right",y=1)
     ax[1].legend(loc=2) 
 

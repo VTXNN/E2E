@@ -23,24 +23,24 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
 
 Nlatent : 2
 
-starting_lr : 0.005
+starting_lr : 0.001
 epochs : 75
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1
 
-Huber_delta : 0.5
+Huber_delta : 5
 
-l1regloss : 1e-4
+l1regloss : 1e-10
 l2regloss : 1e-10
 nweightnodes : 10
 nweightlayers : 2
 nassocnodes : 20
 nassoclayers : 2
-bits : 20
-integer : 6
+bits : 24
+integer : 12
 alpha : 1
 
-Final_Sparsity : 0.01
-Begin_step : 74
-End_step : 75
+Final_Sparsity : 0.00
+Begin_step : 1000
+End_step : 7500

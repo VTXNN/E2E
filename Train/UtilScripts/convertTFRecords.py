@@ -10,7 +10,7 @@ tf.compat.v1.disable_eager_execution()
 #f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
 
 KFname =sys.argv[1]
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+KFname+"_TTbar_170K_quality.root")
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+KFname+"_TTsl_300K_quality.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -154,9 +154,10 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     
 
     for iev in range(len(data['trk_pt'])):
+        selectPVTPs = (data['tp_eventid'][iev]==0)
         #tp met
-        tp_met_px = np.sum(data['tp_pt'][iev]*np.cos(data['tp_phi'][iev]))
-        tp_met_py = np.sum(data['tp_pt'][iev]*np.sin(data['tp_phi'][iev]))
+        tp_met_px = np.sum(data['tp_pt'][iev][selectPVTPs]*np.cos(data['tp_phi'][iev][selectPVTPs]))
+        tp_met_py = np.sum(data['tp_pt'][iev][selectPVTPs]*np.sin(data['tp_phi'][iev][selectPVTPs]))
         tp_met_pt = math.sqrt(tp_met_px**2+tp_met_py**2)
         tp_met_phi = math.atan2(tp_met_py,tp_met_px)
         

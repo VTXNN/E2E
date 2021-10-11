@@ -67,10 +67,10 @@ if __name__=="__main__":
             config = yaml.load(f)
 
     if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"NewKFData/MET/*.tfrecord")
         z0 = 'trk_z0'
     elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"OldKFData/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
 
     nMaxTracks = 250
@@ -107,6 +107,9 @@ if __name__=="__main__":
             "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32),
             "trk_hitpattern": tf.io.FixedLenFeature([nMaxTracks*11], tf.float32), 
             "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
+            "tp_met_pt" : tf.io.FixedLenFeature([1], tf.float32),
+            "tp_met_phi" : tf.io.FixedLenFeature([1], tf.float32)
+
     }
 
     def decode_data(raw_data):
@@ -199,7 +202,7 @@ if __name__=="__main__":
                       0]
     )
     model.summary()
-    model.load_weights(kf+"weights_"+str( config['epochs'] - 1)+".tf")
+    model.load_weights(kf+"best_weights.tf")
 
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
@@ -210,7 +213,8 @@ if __name__=="__main__":
         if len(get_weights) > 0:
             if "Bin_weight" not in layer.name:  
                 weights = get_weights[0].flatten()[get_weights[0].flatten() != 0]
-                biases = get_weights[1].flatten()[get_weights[1].flatten() != 0]
+                if len(get_weights) > 1:
+                    biases = get_weights[1].flatten()[get_weights[1].flatten() != 0]
                 prune_level.append(weights.shape[0]/get_weights[0].flatten().shape[0])
 
                 ax[0].hist(weights,alpha=1,label=layer.name,histtype="step",linewidth=2,bins=50,range=(-2,2))
@@ -250,8 +254,27 @@ if __name__=="__main__":
     predictedAssoc_FHMVA = []
     predictedAssoc_FHnoFake = []
 
+    num_threshold = 10
+    thresholds = [str(i/num_threshold) for i in range(0,num_threshold)]
+    predictedMET_NN = {key: value for key, value in zip(thresholds, [[] for i in range(0,num_threshold)])}
+    predictedMETphi_NN = {key: value for key, value in zip(thresholds, [[] for i in range(0,num_threshold)])}
+
+    predictedMET_FH = []
+    predictedMET_FHres = []
+    predictedMET_FHMVA = []
+    predictedMET_FHnoFake = []
+
+    predictedMETphi_FH = []
+    predictedMETphi_FHres = []
+    predictedMETphi_FHMVA = []
+    predictedMETphi_FHnoFake = []
+
     actual_Assoc = []
     actual_PV = []
+    actual_MET = []
+    actual_METphi = []
+    actual_trkMET = []
+    actual_trkMETphi = []
 
     trk_z0 = []
     trk_MVA = []
@@ -307,6 +330,34 @@ if __name__=="__main__":
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
         predictedWeights.append(predictedWeights_NN)
 
+        actual_MET.append(batch['tp_met_pt'])
+        actual_METphi.append(batch['tp_met_phi'])
+
+        temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],batch['trk_fromPV'],threshold=0.5)
+        actual_trkMET.append(temp_met)
+        actual_trkMETphi.append(temp_metphi)
+
+        temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocnoFake,threshold=0.5)
+        predictedMET_FHnoFake.append(temp_met)
+        predictedMETphi_FHnoFake.append(temp_metphi)
+
+        temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocMVA,threshold=0.5)
+        predictedMET_FHMVA.append(temp_met)
+        predictedMETphi_FHMVA.append(temp_metphi)
+
+        temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocres,threshold=0.5)
+        predictedMET_FHres.append(temp_met)
+        predictedMETphi_FHres.append(temp_metphi)
+
+        temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassoc,threshold=0.5)
+        predictedMET_FH.append(temp_met)
+        predictedMETphi_FH.append(temp_metphi)
+
+        for i in range(0,num_threshold):
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_NN_temp.squeeze(),threshold=i/num_threshold)
+            predictedMET_NN[str(i/num_threshold)].append(temp_met)
+            predictedMETphi_NN[str(i/num_threshold)].append(temp_metphi)
+
     z0_NN_array = np.concatenate(predictedZ0_NN).ravel()
     z0_FH_array = np.concatenate(predictedZ0_FH).ravel()
     z0_FHres_array = np.concatenate(predictedZ0_FHz0res).ravel()
@@ -334,13 +385,57 @@ if __name__=="__main__":
     assoc_FHnoFake_array = np.concatenate(predictedAssoc_FHnoFake).ravel()
     assoc_PV_array = np.concatenate(actual_Assoc).ravel()
 
+
+    actual_MET_array = np.concatenate(actual_MET).ravel()
+    actual_METphi_array = np.concatenate(actual_METphi).ravel()
+    actual_trkMET_array = np.concatenate(actual_trkMET).ravel()
+    actual_trkMETphi_array = np.concatenate(actual_trkMETphi).ravel()
+    MET_FHnoFake_array = np.concatenate(predictedMET_FHnoFake).ravel()
+    METphi_FHnoFake_array = np.concatenate(predictedMETphi_FHnoFake).ravel()
+    MET_FHMVA_array = np.concatenate(predictedMET_FHMVA).ravel()
+    METphi_FHMVA_array = np.concatenate(predictedMETphi_FHMVA).ravel()
+    MET_FHres_array = np.concatenate(predictedMET_FHres).ravel()
+    METphi_FHres_array = np.concatenate(predictedMETphi_FHres).ravel()
+    MET_FH_array = np.concatenate(predictedMET_FH).ravel()
+    METphi_FH_array = np.concatenate(predictedMETphi_FH).ravel()
+
+    MET_NN_RMS_array = np.zeros([num_threshold])
+    MET_NN_Quartile_array = np.zeros([num_threshold])
+    MET_NN_Centre_array = np.zeros([num_threshold])
+    METphi_NN_RMS_array = np.zeros([num_threshold])
+    METphi_NN_Quartile_array = np.zeros([num_threshold])
+    METphi_NN_Centre_array = np.zeros([num_threshold])
+    
+
+    for i in range(0,num_threshold):
+        MET_NN_array = np.concatenate(predictedMET_NN[str(i/num_threshold)]).ravel()
+        METphi_NN_array = np.concatenate(predictedMETphi_NN[str(i/num_threshold)]).ravel()
+
+        Diff = MET_NN_array - actual_MET_array
+        PhiDiff = METphi_NN_array - actual_METphi_array
+
+        MET_NN_RMS_array[i] = np.sqrt(np.mean(Diff**2))
+        METphi_NN_RMS_array[i] = np.sqrt(np.mean(PhiDiff**2))
+
+        qMET = np.percentile(Diff,[32,50,68])
+        qMETphi = np.percentile(PhiDiff,[32,50,68])
+
+        MET_NN_Quartile_array[i] = qMET[2] - qMET[0]
+        METphi_NN_Quartile_array[i] = qMETphi[2] - qMETphi[0]
+
+        MET_NN_Centre_array[i] = qMET[1]
+        METphi_NN_Centre_array[i] = qMETphi[1]
+
+
+    MET_NN_array = np.concatenate(predictedMET_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
+    METphi_NN_array = np.concatenate(predictedMETphi_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
+
     pv_track_sel = assoc_PV_array == 1
     pu_track_sel = assoc_PV_array == 0
 
     weightmax = np.max(predictedWeightsarray)
 
-
-    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
 
     plt.clf()
     plt.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
@@ -496,15 +591,32 @@ if __name__=="__main__":
     figure=plotPV_roc(assoc_PV_array,[assoc_NN_array],
                      [assoc_FH_array,assoc_FHMVA_array,assoc_FHnoFake_array],
                      ["ArgMax"],
-                     ["Base","MVA Cut","No Fakes"])
+                     ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/PVROC.png" % outputFolder)
 
     plt.clf()
     figure=plotz0_percentile([(z0_PV_array-z0_NN_array)],
                              [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
                              ["ArgMax"],
-                             ["Base","MVA Cut","No Fakes"])
+                             ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/Z0percentile.png" % outputFolder)
+
+    plt.clf()
+    figure=plotMET_residual([(actual_MET_array-MET_NN_array)],
+                             [(actual_MET_array-MET_FH_array),(actual_MET_array-MET_FHMVA_array),(actual_MET_array-MET_FHnoFake_array),(actual_MET_array-actual_trkMET_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_RMS_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300))
+    plt.savefig("%s/METresidual.png" % outputFolder)
+
+    plt.clf()
+    figure=plotMETphi_residual([(actual_METphi_array-METphi_NN_array)],
+                             [(actual_METphi_array-METphi_FH_array),(actual_METphi_array-METphi_FHMVA_array),(actual_METphi_array-METphi_FHnoFake_array),(actual_METphi_array-actual_trkMETphi_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_RMS_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"])
+    plt.savefig("%s/METphiresidual.png" % outputFolder)
+
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+
 
     plt.clf()
     plt.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
@@ -522,7 +634,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("PV - $z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FHerr_vs_z0.png" %  outputFolder)
 
@@ -530,7 +642,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("PV - $z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FHnoFakeerr_vs_z0.png" %  outputFolder)
 
@@ -538,7 +650,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("PV - $z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FHMVAerr_vs_z0.png" %  outputFolder)
 
@@ -546,7 +658,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, (z0_PV_array-z0_NN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("PV - $z_0^{NN}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/NNerr_vs_z0.png" %  outputFolder)
 
@@ -554,7 +666,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FH_vs_z0.png" %  outputFolder)
 
@@ -562,7 +674,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FHMVA_vs_z0.png" %  outputFolder)
 
@@ -570,7 +682,7 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{FH}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FHnoFake_vs_z0.png" %  outputFolder)
 
@@ -578,12 +690,139 @@ if __name__=="__main__":
     plt.hist2d(z0_PV_array, z0_NN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("PV", horizontalalignment='right', x=1.0)
     plt.ylabel("$z_0^{NN}$", horizontalalignment='right', y=1.0)
-    #plt.colorbar(vmin=0,vmax=1000)
+    plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/NN_vs_z0.png" %  outputFolder)
 
-    experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
 
+    plt.clf()
+    plt.hist2d(actual_MET_array, MET_NN_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T}^{miss,NN}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/NN_vs_MET.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_MET_array, MET_FH_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T}^{miss,FH}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/FH_vs_MET.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_METphi_array, METphi_NN_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T,\\phi}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T,\\phi}^{miss,NN}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/NN_vs_METphi.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_METphi_array, METphi_FH_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T,\\phi}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T,\\phi}^{miss,FH}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/FH_vs_METphi.png" %  outputFolder)
+
+    def calc_widths(actual,predicted):
+        diff = (actual-predicted)
+        RMS = np.sqrt(np.mean(diff**2))
+        qs = np.percentile(diff,[32,50,68])
+        qwidth = qs[2] - qs[0]
+        qcentre = qs[1]
+
+        return [RMS,qwidth,qcentre]
+
+    FHwidths = calc_widths(actual_MET_array,MET_FH_array)
+    FHMVAwidths = calc_widths(actual_MET_array,MET_FHMVA_array)
+    FHNoFakeWidths = calc_widths(actual_MET_array,MET_FHnoFake_array)
+    TrkMETWidths = calc_widths(actual_MET_array,actual_trkMET_array)
+
+    FHphiwidths = calc_widths(actual_METphi_array,METphi_FH_array)
+    FHMVAphiwidths = calc_widths(actual_METphi_array,METphi_FHMVA_array)
+    FHNoFakephiWidths = calc_widths(actual_METphi_array,METphi_FHnoFake_array)
+    TrkMETphiWidths = calc_widths(actual_METphi_array,actual_trkMETphi_array)
+
+
+    plt.clf()
+    plt.plot(thresholds,MET_NN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METRMSvsThreshold.png" %  outputFolder)
+
+    plt.clf()
+    plt.plot(thresholds,MET_NN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METQsvsThreshold.png" %  outputFolder)
+
+    plt.clf()
+    plt.plot(thresholds,MET_NN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METCentrevsThreshold.png" %  outputFolder)
+
+    plt.clf()
+    plt.plot(thresholds,METphi_NN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METphiRMSvsThreshold.png" %  outputFolder)
+
+    plt.clf()
+    plt.plot(thresholds,METphi_NN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METphiQsvsThreshold.png" %  outputFolder)
+
+    plt.clf()
+    plt.plot(thresholds,METphi_NN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
+    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
+
+
+    experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
+    experiment.log_asset(sys.argv[2]+'.yaml')
 
 
 

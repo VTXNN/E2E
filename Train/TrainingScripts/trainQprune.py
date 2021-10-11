@@ -79,6 +79,9 @@ def setup_pipeline(fileList):
 def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=[None,None],nlatent=0,trainable=False):
 
     total_steps = 0
+    early_stop_patience = 40
+    wait = 0
+    best_score = 100000
     callbacks[0].on_train_begin()
     callbacks[1].on_train_begin()
     
@@ -94,7 +97,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(kf+"weights_%i.tf"%(epoch-1))
+            model.load_weights(kf+"best_weights.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             callbacks[1].on_train_batch_begin(step)
@@ -143,9 +146,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             get_weights = layer.get_weights()
             if len(get_weights) > 0:
                 if "Bin_weight" not in layer.name:
-                    
                     weights = get_weights[0].flatten()[get_weights[0].flatten() != 0]
-                    biases = get_weights[1].flatten()[get_weights[1].flatten() != 0]
                     prune_level.append(weights.shape[0]/get_weights[0].flatten().shape[0])
 
         val_actual_PV = []
@@ -196,10 +197,21 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
         experiment.log_metric("Validation_Prune_Level",np.mean(prune_level))
 
-        model_for_export = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
-        model_for_export.save_weights(kf+"weights_%i.tf"%(epoch))
         old_lr = callbacks[0].on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
         callbacks[1].on_epoch_end(batch=epoch)
+
+        val_loss = metrics.mean_squared_error(val_z0_PV_array,val_z0_NN_array)
+
+        print ("Val_NN_z0_MSE: "+str(val_loss)+" Best_NN_z0_MSE: "+str(best_score)) 
+
+        wait += 1
+        if val_loss < best_score:
+            best_score = val_loss
+            model_for_export = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
+            model_for_export.save_weights(kf+"best_weights.tf")
+            wait = 0
+        if wait >= early_stop_patience:
+            break
         
 def test_model(model,experiment,test_files,trackfeat,weightfeat):
 
@@ -240,8 +252,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.index")
-    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.data-00000-of-00001")
+    experiment.log_asset(kf+"best_weights.tf.index")
+    experiment.log_asset(kf+"best_weights.tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -373,7 +385,8 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(delta=config["Huber_delta"]),
+            #tf.keras.losses.Huber(),
+            tf.keras.losses.MeanAbsoluteError(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -388,15 +401,19 @@ if __name__=="__main__":
     model.summary()
 
 
-    model.layers[config['nweightlayers'] + 7].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+    model.layers[config['nweightlayers'] + 9].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
         
     pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=100)}
 
     # Helper function uses `prune_low_magnitude` to make only the 
     # Dense layers train with pruning.
+
+    prunable_layer_list = ["weight_1","weight_2","association_0","association_1"]
+
     def apply_pruning_to_dense(layer):
-        if isinstance(layer, tf.keras.layers.Dense):
-            return tfmot.sparsity.keras.prune_low_magnitude(layer)
+        if layer.name in prunable_layer_list:
+        #if isinstance(layer, tf.keras.layers.Dense):
+           return tfmot.sparsity.keras.prune_low_magnitude(layer)
         return layer
 
     # Use `tf.keras.models.clone_model` to apply `apply_pruning_to_dense` 
