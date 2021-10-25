@@ -23,9 +23,7 @@ class E2EQKerasDiffArgMax():
         l1regloss=1e-3,
         l2regloss=1e-10,
         temperature=1e2,
-        bits = 12,
-        integer = 2,
-        alpha = 1
+        qconfig={}
     ):
         self.nbins = nbins
         self.ntracks = ntracks
@@ -34,10 +32,6 @@ class E2EQKerasDiffArgMax():
         self.nweights = nweights
         self.npattern = npattern
         self.nlatent = nlatent
-
-        self.bits = bits
-        self.integer = integer
-        self.alpha = alpha
 
         self.activation = 'relu'#quantized_relu(self.bits)
 
@@ -50,31 +44,30 @@ class E2EQKerasDiffArgMax():
         self.weightLayers = []
         for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     nodes,
-                    activation=self.activation,
                     trainable=True,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
-                    #kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-                    #bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                    kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
+                    bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
                     name='weight_'+str(ilayer+1)
                 ),
-                tf.keras.layers.Dropout(0.1)
+                QActivation(qconfig['weight_'+str(ilayer+1)]['activation'])
             ])
             
-        self.weightLayers.append(
-            tf.keras.layers.Dense(
+        self.weightLayers.extend([
+            QDense(
                 self.nweights,
-                activation=self.activation, #need to use relu here to remove negative weights
                 kernel_initializer='lecun_normal',
                 trainable=True,
-                #kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-                #bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
+                bias_quantizer=qconfig['weight_final']['bias_quantizer'],
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 name='weight_final'
             ),
-        )
+            QActivation(qconfig['weight_final']['activation'])
+        ])
         
         self.kdeLayer = vtx.nn.KDELayer(
             nbins=self.nbins,
@@ -88,21 +81,19 @@ class E2EQKerasDiffArgMax():
         for ilayer,(filterSize,kernelSize) in enumerate([
             [1,3]
         ]):
-            self.patternConvLayers.append(
-                tf.keras.layers.Conv1D(
+            self.patternConvLayers.extend([
+                QConv1D(
                     filterSize,
                     kernelSize,
                     padding='same',
-                    activation=self.activation,
                     trainable=True,
                     use_bias= False,
-                    #kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-                    #bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                    kernel_quantizer=qconfig['conv']['kernel_quantizer'],
+                    bias_quantizer=qconfig['conv']['bias_quantizer'],
                     name='pattern_'+str(ilayer+1)
-                )
-            )
-
-        
+                ),
+            QActivation(qconfig['conv']['activation'])
+            ])
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
 
@@ -132,37 +123,26 @@ class E2EQKerasDiffArgMax():
           
         self.assocLayers = []
         for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
-            #self.assocLayers.extend([
-            #    QDense(
-            #        filterSize,
-            #        activation=QActivation(self.activation),
-            #        kernel_initializer='lecun_normal',
-            #        kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-            #        kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-            #        bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-            #        name='association_'+str(ilayer)
-            #    )
-            #])
-
             self.assocLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     filterSize,
-                    activation=self.activation,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
+                    kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
+                    bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
                     name='association_'+str(ilayer)
                 ),
-                tf.keras.layers.Dropout(0.1)
+                QActivation(qconfig['association_'+str(ilayer)]['activation'])
             ])
             
         self.assocLayers.extend([
-            tf.keras.layers.Dense(
+            QDense(
                 1,
                 activation=None,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
-                #kernel_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
-                #bias_quantizer=quantized_bits(self.bits,self.integer,self.alpha),
+                kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
+                bias_quantizer=qconfig['association_final']['bias_quantizer'],
                 name='association_final'
             )
         ])

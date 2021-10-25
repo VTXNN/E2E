@@ -1,7 +1,7 @@
 retrain : True
 comet_project_name : Vertex_CNN_FH
 comet_experiment_name : NN_DiffArgmax_Features
-description : baseDANN_with_quality_reduced_features_Huber_Qkeras
+description : baseDANN_with_quality_reduced_features_Huber
 
 trainable : "DiffArgMax"
 track_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta']

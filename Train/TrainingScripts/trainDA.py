@@ -90,7 +90,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(kf+"weights_%i.tf"%(epoch-1))
+            model.load_weights(kf+"best_weights.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
@@ -178,8 +178,8 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                     [val_batch[z0],val_WeightFeatures,val_trackFeatures]
             )
   
-            val_predictedZ0_NN.append(temp_predictedZ0_NN.numpy().flatten())
-            val_predictedAssoc_NN.append(temp_predictedAssoc_NN.numpy().flatten())
+            val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
+            val_predictedAssoc_NN.append(temp_predictedAssoc_NN.flatten())
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
@@ -206,7 +206,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         experiment.log_metric("Validation_FH_PV_ROC",metrics.roc_auc_score(val_assoc_PV_array,val_assoc_FH_array))
         experiment.log_metric("Validation_FH_PV_ACC",metrics.balanced_accuracy_score(val_assoc_PV_array,val_assoc_FH_array))
 
-        model.save_weights(kf+"weights_%i.tf"%(epoch))
+        model.save_weights(kf+"best_weights.tf")
         old_lr = callbacks.on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
         
 def test_model(model,experiment,test_files,trackfeat,weightfeat):
@@ -248,8 +248,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.index")
-    experiment.log_asset(kf+"weights_"+str(epochs-1)+".tf.data-00000-of-00001")
+    experiment.log_asset(kf+"best_weights.tf.index")
+    experiment.log_asset(kf+"best_weights.tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -285,7 +285,7 @@ if __name__=="__main__":
     weightfeat = config["weight_features"] 
 
 
-    if trainable == "DiffArgMax":
+    if trainable == "DiffArgMax" | "QDiffArgMax":
         
         nlatent = 2
 
@@ -327,30 +327,6 @@ if __name__=="__main__":
             activation='relu',
             regloss=1e-10
         )
-
-    elif trainable == "QDiffArgMax":
-        nlatent = 2
-
-        network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=256,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
-            nlatent = nlatent,
-            activation='relu',
-            l1regloss = (float)(config['l1regloss']),
-            l2regloss = (float)(config['l2regloss']),
-            nweightnodes = config['nweightnodes'],
-            nweightlayers = config['nweightlayers'],
-            nassocnodes = config['nassocnodes'],
-            nassoclayers = config['nassoclayers'],
-            bits = config['bits'],
-            integer = config['integer'],
-            alpha = config['alpha'],
-        )
-
-
 
     if kf == "NewKF":
         train_files = glob.glob(config["data_folder"]+"NewKFData/Train/*.tfrecord")

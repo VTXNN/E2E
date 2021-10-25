@@ -5,6 +5,8 @@ import numpy as np
 
 import tensorflow_model_optimization as tfmot
 
+import qkeras
+
 import sys
 import glob
 
@@ -79,7 +81,7 @@ def setup_pipeline(fileList):
 def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=[None,None],nlatent=0,trainable=False):
 
     total_steps = 0
-    early_stop_patience = 40
+    early_stop_patience = 100
     wait = 0
     best_score = 100000
     callbacks[0].on_train_begin()
@@ -100,12 +102,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(kf+"best_weights.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            callbacks[1].on_train_batch_begin(step)
+            callbacks[1].on_train_batch_begin(epoch)
             #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            batch[z0]=batch[z0]*z0Flip
-            batch['pvz0']=batch['pvz0']*z0Flip
-            
+            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            #batch[z0]=batch[z0]*z0Flip
+            #batch['pvz0']=batch['pvz0']*z0Flip
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -286,7 +287,9 @@ if __name__=="__main__":
 
     trainable = config["trainable"]
     trackfeat = config["track_features"] 
-    weightfeat = config["weight_features"] 
+    weightfeat = config["weight_features"]
+
+    pretrained = config["pretrained"]
 
     if trainable == "QDiffArgMax":
         nlatent = config["Nlatent"]
@@ -305,12 +308,8 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            bits = config['bits'],
-            integer = config['integer'],
-            alpha = config['alpha'],
+            qconfig = config['QConfig']
         )
-
-
 
     if kf == "NewKF":
         train_files = glob.glob(config["data_folder"]+"NewKFData/Train/*.tfrecord")
@@ -385,8 +384,8 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            #tf.keras.losses.Huber(),
-            tf.keras.losses.MeanAbsoluteError(),
+            tf.keras.losses.Huber(),
+            #tf.keras.losses.MeanAbsoluteError(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -400,41 +399,97 @@ if __name__=="__main__":
     )
     model.summary()
 
-
-    model.layers[config['nweightlayers'] + 9].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+    if pretrained:
+        DAnetwork = vtx.nn.E2EDiffArgMax(
+            nbins=256,
+            ntracks=max_ntracks, 
+            nweightfeatures=len(weightfeat), 
+            nfeatures=len(trackfeat), 
+            nweights=1, 
+            nlatent = nlatent,
+            activation='relu',
+            regloss=1e-10
+        )
         
+        DAmodel = DAnetwork.createE2EModel()
+        optimizer = tf.keras.optimizers.Adam(lr=0.01)
+        DAmodel.compile(
+            optimizer,
+            loss=[
+                tf.keras.losses.MeanAbsoluteError(),
+                tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                lambda y,x: 0.
+            ],
+            metrics=[
+                tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+            ],
+            loss_weights=[config['z0_loss_weight'],
+                        config['crossentropy_loss_weight'],
+                        0]
+        )
+        DAmodel.summary()
+        DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
+
+        model.layers[1].set_weights(DAmodel.layers[1].get_weights())
+        model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
+        model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[11].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[13].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[19].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[21].get_weights()) 
+        model.layers[25].set_weights(DAmodel.layers[23].get_weights()) 
+
+
     pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=100)}
 
-    # Helper function uses `prune_low_magnitude` to make only the 
-    # Dense layers train with pruning.
+        # Helper function uses `prune_low_magnitude` to make only the 
+        # Dense layers train with pruning.
 
     prunable_layer_list = ["weight_1","weight_2","association_0","association_1"]
 
     def apply_pruning_to_dense(layer):
         if layer.name in prunable_layer_list:
-        #if isinstance(layer, tf.keras.layers.Dense):
-           return tfmot.sparsity.keras.prune_low_magnitude(layer)
+            #if isinstance(layer, tf.keras.layers.Dense):
+            return tfmot.sparsity.keras.prune_low_magnitude(layer)
         return layer
 
-    # Use `tf.keras.models.clone_model` to apply `apply_pruning_to_dense` 
-    # to the layers of the model.
+        # Use `tf.keras.models.clone_model` to apply `apply_pruning_to_dense` 
+        # to the layers of the model.
     model_for_pruning = tf.keras.models.clone_model(
         model,
         clone_function=apply_pruning_to_dense,
-    )
+     )
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
-    monitor='loss', factor=0.1, patience=6, verbose=1,
-    mode='auto', min_delta=0.005, cooldown=0, min_lr=0
+        monitor='loss', factor=0.1, patience=6, verbose=1,
+        mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )
 
     pruning_callback = tfmot.sparsity.keras.UpdatePruningStep()
     pruning_callback.set_params(pruning_params)
     pruning_callback.set_model(model_for_pruning)
 
+    optimizer = tf.keras.optimizers.Adam(lr=startingLR)
+    model_for_pruning.compile(
+        optimizer,
+        loss=[
+            tf.keras.losses.Huber(),
+            #tf.keras.losses.MeanAbsoluteError(),
+            tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            lambda y,x: 0.,
+        ],
+        metrics=[
+            tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+        ],
+        loss_weights=[config['z0_loss_weight'],
+                      config['crossentropy_loss_weight'],
+                      0
+                      ]
+    )
     model_for_pruning.summary()
 
     with experiment.train():
-        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR,pruning_callback],nlatent=nlatent,trainable=trainable),
+        train_model(model_for_pruning,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR,pruning_callback],nlatent=nlatent,trainable=trainable),
     with experiment.test():
-        test_model(model,experiment,test_files,trackfeat,weightfeat)
+        test_model(model_for_pruning,experiment,test_files,trackfeat,weightfeat)

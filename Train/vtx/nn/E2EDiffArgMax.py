@@ -67,8 +67,6 @@ class E2EDiffArgMax():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
-            [1,7],
-            [1,5],
             [1,3]
         ]):
             self.patternConvLayers.append(

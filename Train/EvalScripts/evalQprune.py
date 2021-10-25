@@ -177,9 +177,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            bits = config['bits'],
-            integer = config['integer'],
-            alpha = config['alpha'],
+            qconfig = config['QConfig']
     )
 
 
@@ -325,6 +323,8 @@ if __name__=="__main__":
         predictedZ0_NN_temp, predictedAssoc_NN_temp, predictedWeights_NN = model.predict_on_batch(
                         [batch[z0],WeightFeatures,trackFeatures]
                     )
+        predictedAssoc_NN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_NN_temp,tf.reduce_min(predictedAssoc_NN_temp)), 
+                                                 tf.math.subtract( tf.reduce_max(predictedAssoc_NN_temp), tf.reduce_min(predictedAssoc_NN_temp) ))
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -354,7 +354,7 @@ if __name__=="__main__":
         predictedMETphi_FH.append(temp_metphi)
 
         for i in range(0,num_threshold):
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_NN_temp.squeeze(),threshold=i/num_threshold)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_NN_temp.numpy().squeeze(),threshold=i/num_threshold)
             predictedMET_NN[str(i/num_threshold)].append(temp_met)
             predictedMETphi_NN[str(i/num_threshold)].append(temp_metphi)
 
@@ -427,8 +427,11 @@ if __name__=="__main__":
         METphi_NN_Centre_array[i] = qMETphi[1]
 
 
-    MET_NN_array = np.concatenate(predictedMET_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
-    METphi_NN_array = np.concatenate(predictedMETphi_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
+    MET_NN_bestQ_array = np.concatenate(predictedMET_NN[str(np.argmin(MET_NN_Quartile_array)/num_threshold)]).ravel()
+    METphi_NN_bestQ_array = np.concatenate(predictedMETphi_NN[str(np.argmin(MET_NN_Quartile_array)/num_threshold)]).ravel()
+
+    MET_NN_bestRMS_array = np.concatenate(predictedMET_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
+    METphi_NN_bestRMS_array = np.concatenate(predictedMETphi_NN[str(np.argmin(MET_NN_RMS_array)/num_threshold)]).ravel()
 
     pv_track_sel = assoc_PV_array == 1
     pu_track_sel = assoc_PV_array == 0
@@ -436,6 +439,12 @@ if __name__=="__main__":
     weightmax = np.max(predictedWeightsarray)
 
     fig,ax = plt.subplots(1,1,figsize=(10,10))
+
+    #########################################################################################
+    #                                                                                       #
+    #                                   Parameter Plots                                     #  
+    #                                                                                       #
+    #########################################################################################
 
     plt.clf()
     plt.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
@@ -482,7 +491,7 @@ if __name__=="__main__":
     plt.savefig("%s/corr-assoc-1d-norm.png" % outputFolder)
 
     plt.clf()
-    plt.hist2d(predictedWeightsarray, assoc_NN_array, range=((0,weightmax),(-12,12)),bins=50, norm=matplotlib.colors.LogNorm());
+    plt.hist2d(predictedWeightsarray, assoc_NN_array, range=((0,weightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm());
     plt.xlabel("weights", horizontalalignment='right', x=1.0)
     plt.ylabel("track-to-vertex association flag", horizontalalignment='right', y=1.0)
     plt.colorbar()
@@ -580,6 +589,12 @@ if __name__=="__main__":
         plt.legend()
         plt.savefig("%s/scatter-eta.png" %  outputFolder)
 
+    #########################################################################################
+    #                                                                                       #
+    #                                    Z0 Residual Plots                                  #  
+    #                                                                                       #
+    #########################################################################################
+
     plt.clf()
     figure=plotz0_residual([(z0_PV_array-z0_NN_array)],
                           [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
@@ -601,22 +616,69 @@ if __name__=="__main__":
                              ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/Z0percentile.png" % outputFolder)
 
+    #########################################################################################
+    #                                                                                       #
+    #                                   MET Residual Plots                                  #  
+    #                                                                                       #
+    #########################################################################################
+
     plt.clf()
-    figure=plotMET_residual([(actual_MET_array-MET_NN_array)],
+    figure=plotMET_residual([(actual_MET_array-MET_NN_bestQ_array)],
+                             [(actual_MET_array-MET_FH_array),(actual_MET_array-MET_FHMVA_array),(actual_MET_array-MET_FHnoFake_array),(actual_MET_array-actual_trkMET_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_Quartile_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300))
+    plt.savefig("%s/METbestQresidual.png" % outputFolder)
+
+    plt.clf()
+    figure=plotMETphi_residual([(actual_METphi_array-METphi_NN_bestQ_array)],
+                             [(actual_METphi_array-METphi_FH_array),(actual_METphi_array-METphi_FHMVA_array),(actual_METphi_array-METphi_FHnoFake_array),(actual_METphi_array-actual_trkMETphi_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_Quartile_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"])
+    plt.savefig("%s/METphibestQresidual.png" % outputFolder)
+
+    plt.clf()
+    figure=plotMET_residual([(actual_MET_array-MET_NN_bestRMS_array)],
                              [(actual_MET_array-MET_FH_array),(actual_MET_array-MET_FHMVA_array),(actual_MET_array-MET_FHnoFake_array),(actual_MET_array-actual_trkMET_array)],
                              ["ArgMax thresh=" + str(np.argmin(MET_NN_RMS_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300))
-    plt.savefig("%s/METresidual.png" % outputFolder)
+    plt.savefig("%s/METbestRMSresidual.png" % outputFolder)
 
     plt.clf()
-    figure=plotMETphi_residual([(actual_METphi_array-METphi_NN_array)],
+    figure=plotMETphi_residual([(actual_METphi_array-METphi_NN_bestRMS_array)],
                              [(actual_METphi_array-METphi_FH_array),(actual_METphi_array-METphi_FHMVA_array),(actual_METphi_array-METphi_FHnoFake_array),(actual_METphi_array-actual_trkMETphi_array)],
                              ["ArgMax thresh=" + str(np.argmin(MET_NN_RMS_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"])
-    plt.savefig("%s/METphiresidual.png" % outputFolder)
+    plt.savefig("%s/METphibestRMSresidual.png" % outputFolder)
 
     fig,ax = plt.subplots(1,1,figsize=(10,10))
 
+    #########################################################################################
+    #                                                                                       #
+    #                          Relative MET Residual Plots                                  #  
+    #                                                                                       #
+    #########################################################################################
+
+    plt.clf()
+    figure=plotMET_residual([(actual_MET_array-MET_NN_bestQ_array)],
+                             [(actual_MET_array-MET_FH_array),(actual_MET_array-MET_FHMVA_array),(actual_MET_array-MET_FHnoFake_array),(actual_MET_array-actual_trkMET_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_Quartile_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,1),logrange=(-30,1),relative=True,actual=actual_MET_array)
+    plt.savefig("%s/relMETbestQresidual.png" % outputFolder)
+
+    plt.clf()
+    figure=plotMET_residual([(actual_MET_array-MET_NN_bestRMS_array)],
+                             [(actual_MET_array-MET_FH_array),(actual_MET_array-MET_FHMVA_array),(actual_MET_array-MET_FHnoFake_array),(actual_MET_array-actual_trkMET_array)],
+                             ["ArgMax thresh=" + str(np.argmin(MET_NN_RMS_array)/num_threshold)],
+                             ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,1),logrange=(-30,1),relative=True,actual=actual_MET_array)
+    plt.savefig("%s/relMETbestRMSresidual.png" % outputFolder)
+
+    #########################################################################################
+    #                                                                                       #
+    #                                   Z0 pred vs True Plots                               #  
+    #                                                                                       #
+    #########################################################################################
+
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
 
     plt.clf()
     plt.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
@@ -694,15 +756,29 @@ if __name__=="__main__":
     plt.tight_layout()
     plt.savefig("%s/NN_vs_z0.png" %  outputFolder)
 
+    #########################################################################################
+    #                                                                                       #
+    #                                  MET pred vs True Plots                               #  
+    #                                                                                       #
+    #########################################################################################
+
     fig,ax = plt.subplots(1,1,figsize=(10,10))
 
     plt.clf()
-    plt.hist2d(actual_MET_array, MET_NN_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.hist2d(actual_MET_array, MET_NN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
     plt.ylabel("$E_{T}^{miss,NN}$", horizontalalignment='right', y=1.0)
     plt.colorbar()
     plt.tight_layout()
-    plt.savefig("%s/NN_vs_MET.png" %  outputFolder)
+    plt.savefig("%s/NNbestQ_vs_MET.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_MET_array, MET_NN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T}^{miss,NN}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/NNbestRMS_vs_MET.png" %  outputFolder)
 
     plt.clf()
     plt.hist2d(actual_MET_array, MET_FH_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
@@ -713,12 +789,20 @@ if __name__=="__main__":
     plt.savefig("%s/FH_vs_MET.png" %  outputFolder)
 
     plt.clf()
-    plt.hist2d(actual_METphi_array, METphi_NN_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.hist2d(actual_METphi_array, METphi_NN_bestQ_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
     plt.xlabel("$E_{T,\\phi}^{miss}$", horizontalalignment='right', x=1.0)
     plt.ylabel("$E_{T,\\phi}^{miss,NN}$", horizontalalignment='right', y=1.0)
     plt.colorbar()
     plt.tight_layout()
-    plt.savefig("%s/NN_vs_METphi.png" %  outputFolder)
+    plt.savefig("%s/NNbestQ_vs_METphi.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_METphi_array, METphi_NN_bestRMS_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T,\\phi}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$E_{T,\\phi}^{miss,NN}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/NNbestRMS_vs_METphi.png" %  outputFolder)
 
     plt.clf()
     plt.hist2d(actual_METphi_array, METphi_FH_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
@@ -727,6 +811,45 @@ if __name__=="__main__":
     plt.colorbar()
     plt.tight_layout()
     plt.savefig("%s/FH_vs_METphi.png" %  outputFolder)
+
+    #########################################################################################
+    #                                                                                       #
+    #                         Relative MET pred vs True Plots                               #  
+    #                                                                                       #
+    #########################################################################################
+
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+
+    plt.clf()
+    plt.hist2d(actual_MET_array, (MET_NN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-30,1)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/relNNbestQ_vs_MET.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_MET_array, (MET_NN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-30,1)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/relNNbestRMS_vs_MET.png" %  outputFolder)
+
+    plt.clf()
+    plt.hist2d(actual_MET_array, (MET_FH_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-30,1)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
+    plt.xlabel("$E_{T}^{miss}$", horizontalalignment='right', x=1.0)
+    plt.ylabel("$(E_{T}^{miss,FH} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    plt.colorbar()
+    plt.tight_layout()
+    plt.savefig("%s/relFH_vs_MET.png" %  outputFolder)
+
+
+    #########################################################################################
+    #                                                                                       #
+    #                                  MET Threshold Plots                                  #  
+    #                                                                                       #
+    #########################################################################################
 
     def calc_widths(actual,predicted):
         diff = (actual-predicted)
@@ -819,8 +942,7 @@ if __name__=="__main__":
     plt.legend()
     plt.tight_layout()
     plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
-
-
+    
     experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
     experiment.log_asset(sys.argv[2]+'.yaml')
 
