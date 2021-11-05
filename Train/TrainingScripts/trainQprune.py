@@ -95,7 +95,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         new_lr = old_lr
         tf.keras.backend.set_value(model.optimizer.learning_rate, new_lr)
         experiment.log_metric("learning_rate",model.optimizer.learning_rate,step=total_steps,epoch=epoch)
-        
+        callbacks[1].on_train_begin()
         print ("Epoch %i"%epoch)
         
         if epoch>0:
@@ -103,10 +103,10 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             callbacks[1].on_train_batch_begin(epoch)
-            #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            #batch[z0]=batch[z0]*z0Flip
-            #batch['pvz0']=batch['pvz0']*z0Flip
+            z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            batch[z0]=batch[z0]*z0Flip
+            batch['pvz0']=batch['pvz0']*z0Flip
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -441,7 +441,7 @@ if __name__=="__main__":
         model.layers[25].set_weights(DAmodel.layers[23].get_weights()) 
 
 
-    pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=100)}
+    pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=1)}
 
         # Helper function uses `prune_low_magnitude` to make only the 
         # Dense layers train with pruning.

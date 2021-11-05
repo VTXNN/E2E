@@ -19,13 +19,13 @@ from TrainingScripts.train import *
 #hep.cms.label()
 #hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
-
 SMALL_SIZE = 20
 MEDIUM_SIZE = 25
 BIGGER_SIZE = 30
 
-LEGEND_WIDTH = 31
+LEGEND_WIDTH = 20
 LINEWIDTH = 3
+MARKERSIZE = 20
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
@@ -211,24 +211,24 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
         qz0_FH = np.percentile(FH,[32,50,68])
         ax[0].hist(FH,bins=50,range=(-15,15),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s \nRMS = %.4f" 
+                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)))
         ax[1].hist(FH,bins=50,range=(-1,1),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)))
         items+=1
 
     for i,NN in enumerate(NNdiff):
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=50,range=(-15,15),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
-                 %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s \nRMS = %.4f" 
+                 %(NNnames[i],np.sqrt(np.mean(NN**2))),LEGEND_WIDTH)))
         ax[1].hist(NN,bins=50,range=(-1,1),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
-                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0]),LEGEND_WIDTH)))
         items+=1
     
     ax[0].grid(True)
@@ -251,29 +251,43 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     items = 0
     for i,FH in enumerate(FHdiff):
         if relative:
-            FH = FH/actual
+            FH = (FH - actual) / actual
+            actual = actual[~np.isnan(FH)]
+            actual = actual[np.isfinite(FH)]
+            FH = FH[~np.isnan(FH)]
+            FH = FH[np.isfinite(FH)]
+            
+        else:
+            FH = (FH - actual)
         qz0_FH = np.percentile(FH,[32,50,68])
         ax[0].hist(FH,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s RMS = %.4f" 
+                 %(FHnames[i],metrics.mean_squared_error(actual,FH,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(FH,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
                  %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
         items+=1
 
     for i,NN in enumerate(NNdiff):
         if relative:
-            NN = NN/actual
+            NN = (NN - actual)/actual
+            actual = actual[~np.isnan(NN)]
+            actual = actual[np.isfinite(NN)]
+            NN = NN[~np.isnan(NN)]
+            NN = NN[np.isfinite(NN)]
+
+        else:
+            NN = (NN - actual)
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
-                 %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s RMS = %.4f" 
+                 %(NNnames[i],metrics.mean_squared_error(actual,NN,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(NN,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
                  %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
         items+=1
     
@@ -281,12 +295,12 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     
     ax[0].set_ylabel('Events',ha="right",y=1)
     ax[0].set_yscale("log")
-    ax[0].legend(loc=2) 
+    ax[0].legend(loc=1) 
 
     ax[1].grid(True)
     
     ax[1].set_ylabel('Events',ha="right",y=1)
-    ax[1].legend(loc=2) 
+    ax[1].legend(loc=1) 
 
     if relative:
         ax[0].set_xlabel('$E_{T}^{miss}$ Relative Residual',ha="right",x=1)
@@ -299,31 +313,33 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     plt.tight_layout()
     return fig
 
-def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
+def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
     items = 0
     for i,FH in enumerate(FHdiff):
+        FH = FH - actual
         qz0_FH = np.percentile(FH,[32,50,68])
         ax[0].hist(FH,bins=50,range=(-np.pi,np.pi),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : RMS = %.4f,     Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s RMS = %.4f,     Centre = %.4f" 
                  %(FHnames[i],np.sqrt(np.mean(FH**2)), qz0_FH[1]),LEGEND_WIDTH)))
         ax[1].hist(FH,bins=50,range=(-2*np.pi,2*np.pi),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"FH %s : Quartile Width = %.4f, Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s Quartile Width = %.4f, Centre = %.4f" 
                  %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
         items+=1
 
     for i,NN in enumerate(NNdiff):
+        NN = NN - actual
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=50,range=(-np.pi,np.pi),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : RMS = %.4f, Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s RMS = %.4f, Centre = %.4f" 
                  %(NNnames[i],np.sqrt(np.mean(NN**2)), qz0_NN[1]),LEGEND_WIDTH)))
         ax[1].hist(NN,bins=50,range=(-2*np.pi,2*np.pi),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"NN %s : Quartile Width = %.4f, Centre = %.4f" 
+                 label='\n'.join(wrap(f"%s Quartile Width = %.4f, Centre = %.4f" 
                  %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
         items+=1
     
@@ -353,8 +369,8 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
         recallFH = tpFH / (tpFH + fnFH) 
         TPRFH = recallFH
         FPRFH = fpFH / (fpFH + tnFH) 
-        ax[0].plot(recallFH,precisionFH,label="FH "+str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
-        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"FH %s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
+        ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
+        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
         items+=1
 
     for i,NN in enumerate(NNpred):
@@ -374,8 +390,8 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
             FPRNN.append(fpNN / (fpNN + tnNN) )
 
         
-        ax[0].plot(recallNN,precisionNN,label="NN "+str(NNnames[i]),linewidth=LINEWIDTH,color=colours[items])
-        ax[1].plot(recallNN,FPRNN,linewidth=LINEWIDTH,label='\n'.join(wrap(f"NN %s AUC: %.4f" %(NNnames[i],metrics.roc_auc_score(actual,NN)),LEGEND_WIDTH)),color=colours[items])
+        ax[0].plot(recallNN,precisionNN,label=str(NNnames[i]),linewidth=LINEWIDTH,color=colours[items])
+        ax[1].plot(recallNN,FPRNN,linewidth=LINEWIDTH,label='\n'.join(wrap(f"%s AUC: %.4f" %(NNnames[i],metrics.roc_auc_score(actual,NN)),LEGEND_WIDTH)),color=colours[items])
         items+=1
 
     
@@ -426,6 +442,86 @@ def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     
 
     return figure
+
+def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",threshold=-1):
+    plt.clf()
+    figure = plt.figure(figsize=(20,10))
+
+
+    fakes = assoc == 0
+    PU = assoc == 2
+    PV = assoc == 1
+
+
+    hist,bin_edges = np.histogram(tracks,256,range=(-15,15),weights=weights)
+    plt.bar(bin_edges[:-1],hist,width=30/256,color='grey',alpha=0.5, label="$p_T$ [GeV]")
+
+    plt.plot(tracks[PV], [2] * len(tracks[PV]), '+g', label='PV Trk',markersize=MARKERSIZE)
+    plt.plot(tracks[PU], [2] * len(tracks[PU]), '+b', label='PU Trk',markersize=MARKERSIZE)
+    plt.plot(tracks[fakes], [2] * len(tracks[fakes]), '+r', label='Fake Trk',markersize=MARKERSIZE)
+    
+    plt.plot([predictedPV, predictedPV], [0, max(hist)], '--k', label='Reco Vx',linewidth=LINEWIDTH)
+
+    plt.plot([genPV, genPV], [0,max(hist)], '--g', label='True Vx',linewidth=LINEWIDTH)
+
+    plt.xlabel('$z_0$ [cm]',ha="right",x=1)
+    plt.ylabel('$p_T$ [GeV]',ha="right",y=1)
+    plt.legend()
+    plt.tight_layout()
+
+    return figure
+
+def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None,Et_bins = [0,100,300]):
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    items = 0
+
+    Et_bin_centres = []
+    Et_bin_widths = []
+    Et_bin_indices = []
+
+    for i in range(len(Et_bins) - 1):
+        Et_bin_indices.append(np.where(np.logical_and(actual >= Et_bins[i], actual < Et_bins[i+1])))
+        Et_bin_centres.append(Et_bins[i] + (Et_bins[i+1] - Et_bins[i]) / 2)
+        Et_bin_widths.append((Et_bins[i+1] - Et_bins[i]) / 2)
+
+    for i,FH in enumerate(FHpred):
+        FH = (FH - actual) / actual
+        FH = FH[~np.isnan(FH)]
+        FH = FH[np.isfinite(FH)]
+        FH_means = []
+        FH_sdevs = []
+
+        for j in range(len(Et_bins) - 1):
+            FH_means.append(np.mean(FH[Et_bin_indices[j]]))
+            FH_sdevs.append(np.std(FH[Et_bin_indices[j]]))
+
+        ax.errorbar(x=Et_bin_centres,y=FH_means,xerr = Et_bin_widths, yerr = FH_sdevs,markersize=MARKERSIZE,marker='o',color = colours[items],label=FHnames[i])
+        items+=1
+
+    for i,NN in enumerate(NNpred):
+        NN_means = []
+        NN_sdevs = []
+        NN = (NN - actual)/actual
+        NN = NN[~np.isnan(NN)]
+        NN = NN[np.isfinite(NN)]
+
+        for j in range(len(Et_bins) - 1):
+            NN_means.append(np.mean(NN[Et_bin_indices[j]]))
+            NN_sdevs.append(np.std(NN[Et_bin_indices[j]]))
+
+        ax.errorbar(x=Et_bin_centres,y=NN_means,xerr = Et_bin_widths, yerr = NN_sdevs,markersize=MARKERSIZE,marker='o',color = colours[items],label=NNnames[i])
+        items+=1
+    
+    ax.grid(True)
+    
+    ax.set_ylabel('$\\delta_{E_{T}^{miss}}/E_{T}^{miss}$',ha="right",y=1)
+    ax.set_xlabel('True $E_{T}^{miss}$ ',ha="right",x=1)
+    ax.set_ylim(-1,20)
+    ax.legend(loc=1) 
+
+    plt.tight_layout()
+    return fig
 
 
 

@@ -1,7 +1,7 @@
 retrain : True
 comet_project_name : Vertex_CNN_FH
 comet_experiment_name : QDANN_pretrained
-description : QDANN_pretrained_50_prune
+description : QDANN_pretrained_90_prune
 
 trainable : "QDiffArgMax"
 track_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta']
@@ -14,11 +14,11 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
 
 Nlatent : 2
 
-starting_lr : 0.001
+starting_lr : 0.0001
 epochs : 100
 
 z0_loss_weight : 1
-crossentropy_loss_weight : 1
+crossentropy_loss_weight : 1.5
 
 Huber_delta : 5
 
@@ -29,9 +29,9 @@ nweightlayers : 2
 nassocnodes : 20
 nassoclayers : 2
 
-Final_Sparsity : 0.9
-Begin_step : 1000
-End_step : 3000
+Final_Sparsity : 0.1
+Begin_step : 10
+End_step : 60
 
 QConfig:
   weight_1: 
@@ -51,13 +51,10 @@ QConfig:
     bias_quantizer : quantized_bits(8,2)
     activation : quantized_relu(9,1)
   association_0 :
-    kernel_quantizer : quantized_bits(8,4,alpha="auto")
-    bias_quantizer : quantized_bits(5,1,alpha="auto")
+    kernel_quantizer : quantized_bits(8,4,alpha=1)
+    bias_quantizer : quantized_bits(5,1,alpha=1)
     activation : quantized_relu(16,3)
   association_1 : 
-    kernel_quantizer : quantized_bits(8,3,alpha="auto")
-    bias_quantizer : quantized_bits(8,1,alpha="auto")
+    kernel_quantizer : quantized_bits(8,3,alpha=1)
+    bias_quantizer : quantized_bits(8,1,alpha=1)
     activation : quantized_relu(18,3)
-  association_final : 
-    kernel_quantizer : quantized_bits(4,1,alpha="auto")
-    bias_quantizer : quantized_bits(4,1,alpha="auto")

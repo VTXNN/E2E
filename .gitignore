@@ -9,6 +9,7 @@
 *.index
 *.record
 *.tf.data*
+*.txt
 __pycache__
 Env/env
 Env/install
@@ -22,4 +23,7 @@ Train/valData/*
 Train/Data/*
 Train/NewKFData/*
 Train/OldKFData/*
+Train/NewKFQplots/*
 checkpoint
+Train/*.yaml
+Train/*.py

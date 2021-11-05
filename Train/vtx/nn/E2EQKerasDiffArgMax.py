@@ -48,7 +48,7 @@ class E2EQKerasDiffArgMax():
                     nodes,
                     trainable=True,
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
+                    kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
                     name='weight_'+str(ilayer+1)
@@ -63,7 +63,7 @@ class E2EQKerasDiffArgMax():
                 trainable=True,
                 kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['weight_final']['bias_quantizer'],
-                kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
+                kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='weight_final'
             ),
             QActivation(qconfig['weight_final']['activation'])
@@ -127,7 +127,7 @@ class E2EQKerasDiffArgMax():
                 QDense(
                     filterSize,
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
+                    kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
                     bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
                     name='association_'+str(ilayer)
@@ -136,13 +136,13 @@ class E2EQKerasDiffArgMax():
             ])
             
         self.assocLayers.extend([
-            QDense(
+            tf.keras.layers.Dense(
                 1,
                 activation=None,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
-                kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
-                bias_quantizer=qconfig['association_final']['bias_quantizer'],
+                #kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
+                #bias_quantizer=qconfig['association_final']['bias_quantizer'],
                 name='association_final'
             )
         ])
