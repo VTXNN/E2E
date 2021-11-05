@@ -252,8 +252,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     for i,FH in enumerate(FHdiff):
         if relative:
             FH = (FH - actual) / actual
-            actual = actual[~np.isnan(FH)]
-            actual = actual[np.isfinite(FH)]
+            temp_actual = actual[~np.isnan(FH)]
+            temp_actual = temp_actual[np.isfinite(FH)]
             FH = FH[~np.isnan(FH)]
             FH = FH[np.isfinite(FH)]
             
@@ -263,7 +263,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
         ax[0].hist(FH,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
-                 %(FHnames[i],metrics.mean_squared_error(actual,FH,squared=False)),LEGEND_WIDTH)))
+                 %(FHnames[i],metrics.mean_squared_error(temp_actual,FH,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(FH,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
@@ -273,8 +273,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     for i,NN in enumerate(NNdiff):
         if relative:
             NN = (NN - actual)/actual
-            actual = actual[~np.isnan(NN)]
-            actual = actual[np.isfinite(NN)]
+            temp_actual = actual[~np.isnan(NN)]
+            temp_actual = temp_actual[np.isfinite(NN)]
             NN = NN[~np.isnan(NN)]
             NN = NN[np.isfinite(NN)]
 
@@ -284,7 +284,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
         ax[0].hist(NN,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
-                 %(NNnames[i],metrics.mean_squared_error(actual,NN,squared=False)),LEGEND_WIDTH)))
+                 %(NNnames[i],metrics.mean_squared_error(temp_actual,NN,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(NN,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
