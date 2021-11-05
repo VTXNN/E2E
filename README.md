@@ -14,7 +14,7 @@ Then in the Ops directory:
 `make install`
 
 To run a basic training loop first training a unquantised network followed by a quantised network you will need to change line 13 of setupQDANewKF.yaml to
-the directory that contains a Train, Test, Val, MET set of folders each with .tf.record files for training on
+the directory that contains a NewKFData and OldKFData each with a  Train, Test, Val, MET set of folders each with .tfrecord files for training on
 Then you will need a comet_ml account https://www.comet.ml/site/ for logging all the training info and resulting plots and put your API key in line 9 
 of vtxReduced.sh 
 
