@@ -259,6 +259,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
             
         else:
             FH = (FH - actual)
+            temp_actual = actual
         qz0_FH = np.percentile(FH,[32,50,68])
         ax[0].hist(FH,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
@@ -280,6 +281,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 
         else:
             NN = (NN - actual)
+            temp_actual = actual
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=50,range=logrange,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
