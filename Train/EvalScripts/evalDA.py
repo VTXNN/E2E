@@ -205,7 +205,8 @@ def predictMET(pt,phi,predictedAssoc,threshold):
 def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
     
     
     items = 0
@@ -250,7 +251,8 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50),logrange=(-1,1),relative=False,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
     
 
     items = 0
@@ -323,7 +325,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
     
 
     items = 0
@@ -370,7 +373,8 @@ def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=Non
 def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
     
 
     items=0
@@ -427,7 +431,7 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
 def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
 
     percentiles = np.linspace(0,100,100)
@@ -458,7 +462,7 @@ def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",threshold=-1):
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
 
 
@@ -493,7 +497,7 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
 def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None,Et_bins = [0,100,300]):
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
     items = 0
 
