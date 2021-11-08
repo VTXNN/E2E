@@ -366,8 +366,8 @@ if __name__=="__main__":
     with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())
 
-    startingLR = config['starting_lr']
-    epochs = config['epochs']
+    startingLR = config['qtrain_starting_lr']
+    epochs = config['qtrain_epochs']
 
     experiment.log_parameter("nbins",256)
     experiment.log_parameter("ntracks",max_ntracks)
@@ -392,8 +392,8 @@ if __name__=="__main__":
         metrics=[
             tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
         ],
-        loss_weights=[config['z0_loss_weight'],
-                      config['crossentropy_loss_weight'],
+        loss_weights=[config['qtrain_z0_loss_weight'],
+                      config['qtrain_crossentropy_loss_weight'],
                       0
                       ]
     )
@@ -482,8 +482,8 @@ if __name__=="__main__":
         metrics=[
             tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
         ],
-        loss_weights=[config['z0_loss_weight'],
-                      config['crossentropy_loss_weight'],
+        loss_weights=[config['qtrain_z0_loss_weight'],
+                      config['qtrain_crossentropy_loss_weight'],
                       0
                       ]
     )

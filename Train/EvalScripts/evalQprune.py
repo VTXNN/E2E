@@ -23,9 +23,11 @@ co = {}
 _add_supported_quantized_objects(co)
 
 #hep.set_style("CMSTex")
-#hep.cms.label()
-#hep.cms.text("Simulation")
+#plt.style.use([hep.style.ROOT, hep.style.firamath])
+
 plt.style.use(hep.style.CMS)
+
+colormap = "gist_rainbow"
 
 SMALL_SIZE = 20
 MEDIUM_SIZE = 25
@@ -59,18 +61,16 @@ if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    
-
     kf = sys.argv[1]
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
             config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"NewKFData/MET/*.tfrecord")
         z0 = 'trk_z0'
     elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"OldKFData/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
 
     nMaxTracks = 250
@@ -266,6 +266,7 @@ if __name__=="__main__":
 
     plt.tight_layout()
     plt.savefig("%s/Qweights_biases.png" %  outputFolder)
+    plt.close()
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
@@ -322,7 +323,6 @@ if __name__=="__main__":
     threshold = -1
 
     for step,batch in enumerate(setup_pipeline(test_files)):
-
 
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
@@ -536,38 +536,42 @@ if __name__=="__main__":
     pu_track_sel = assoc_PV_array == 0
 
     Qweightmax = np.max(predictedQWeightsarray)
-
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    Qweightmin = np.min(predictedQWeightsarray)
 
     #########################################################################################
     #                                                                                       #
     #                                   Parameter Plots                                     #  
     #                                                                                       #
     #########################################################################################
-
     plt.clf()
-    plt.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
-    plt.hist(trk_bendchi2_array[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5, density=True)
-    plt.xlabel("Track $\\chi^2_{bend}$", horizontalalignment='right', x=1.0)
-    # plt.ylabel("tracks/counts", horizontalalignment='right', y=1.0)
-    plt.yscale("log")
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.hist(trk_bendchi2_array[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
+    ax.hist(trk_bendchi2_array[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
+    ax.set_xlabel("Track $\\chi^2_{bend}$", horizontalalignment='right', x=1.0)
+    # ax.set_ylabel("tracks/counts", horizontalalignment='right', y=1.0)
+    ax.set_yscale("log")
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/bendchi2hist.png" % outputFolder)
-    plt.clf()
+    plt.close()
 
 
     plt.clf()
-    plt.hist(predictedQWeightsarray[pv_track_sel],range=(0,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
-    plt.hist(predictedQWeightsarray[pu_track_sel],range=(0,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    # plt.ylabel("tracks/counts", horizontalalignment='right', y=1.0)
-    plt.yscale("log")
-    plt.title("Histogram weights for PU and PV tracks")
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
+    ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    # ax.set_ylabel("tracks/counts", horizontalalignment='right', y=1.0)
+    ax.set_yscale("log")
+    ax.set_title("Histogram weights for PU and PV tracks")
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/corr-assoc-1d.png" % outputFolder)
-    plt.clf()
+    plt.close()
 
     pv_track_no = np.sum(pv_track_sel)
     pu_track_no = np.sum(pu_track_sel)
@@ -577,147 +581,203 @@ if __name__=="__main__":
     # plt.bar(b[:-1], h, width=bw, label="PV tracks", alpha=0.5)
 
     
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedQWeightsarray[pv_track_sel]) / assoc_scale)
+    ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("a.u.", horizontalalignment='right', y=1.0)
+    ax.set_title("Histogram weights for PU and PV tracks (normalised)")
+    ax.set_yscale("log")
 
-    plt.hist(predictedQWeightsarray[pv_track_sel],range=(0,Qweightmax), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedQWeightsarray[pv_track_sel]) / assoc_scale)
-    plt.hist(predictedQWeightsarray[pu_track_sel],range=(0,Qweightmax), bins=50, label="PU tracks", alpha=0.5)
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("a.u.", horizontalalignment='right', y=1.0)
-    plt.title("Histogram weights for PU and PV tracks (normalised)")
-    plt.yscale("log")
-
-    plt.legend()
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/Qcorr-assoc-1d-norm.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, assoc_QNN_array, range=((0,Qweightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] ,ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-assoc.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_z0_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_z0_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_mva_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track MVA", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_mva_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track MVA", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-mva.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hidst2d = plt.hist2d(predictedQWeightsarray, trk_pt_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hidst2d = ax.hist2d(predictedQWeightsarray, trk_pt_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
 
     plt.tight_layout()
     plt.savefig("%s/Qcorr-pt.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, np.abs(trk_eta_array), bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, np.abs(trk_eta_array), range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-abs-eta.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_eta_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_eta_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-eta.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_chi2rphi_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rphi_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rphi.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_chi2rz_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $\\chi^2_{rz}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rz_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $\\chi^2_{rz}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rz.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, trk_bendchi2_array, bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track $\\chi^2_{bend}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, trk_bendchi2_array , range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $\\chi^2_{bend}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2bend.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((0,1),(0,1)), norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Quantised weights", horizontalalignment='right', x=1.0)
-    plt.ylabel("Weights", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((Qweightmin,Qweightmax),(Qweightmin,Qweightmax)), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qweightvsweight.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(assoc_QNN_array, assoc_DANN_array,range=((0,1),(0,1)), bins=50, norm=matplotlib.colors.LogNorm());
-    plt.xlabel("Quantised Track-to-Vertex Association flag", horizontalalignment='right', x=1.0)
-    plt.ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    hist2d = ax.hist2d(assoc_QNN_array, assoc_DANN_array,range=((0,1),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Quantised Track-to-Vertex Association flag", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     plt.tight_layout()
     plt.savefig("%s/Qassocvsassoc.png" % outputFolder)
-
-
-
+    plt.close()
 
     do_scatter = False
     if (do_scatter):
         plt.clf()
-        plt.scatter(predictedQWeightsarray, trk_z0_array, label="z0")
-        plt.xlabel("weight")
-        plt.ylabel("variable")
-        plt.title("Correlation between predicted weight and track variables")
-        plt.legend()
+        fig,ax = plt.subplots(1,1,figsize=(10,10))
+        ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+        
+        ax.scatter(predictedQWeightsarray, trk_z0_array, label="z0")
+        ax.set_xlabel("weight")
+        ax.set_ylabel("variable")
+        ax.set_title("Correlation between predicted weight and track variables")
+        ax.legend()
         plt.savefig("%s/scatter-z0.png" %  outputFolder)
-        # plt.show()
+        plt.close()
 
         plt.clf()
-        plt.scatter(predictedQWeightsarray, trk_pt_array, label="pt")
-        plt.xlabel("weight")
-        plt.ylabel("variable")
-        plt.title("Correlation between predicted weight and track variables")
-        plt.legend()
+        fig,ax = plt.subplots(1,1,figsize=(10,10))
+        ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+        
+        ax.scatter(predictedQWeightsarray, trk_pt_array, label="pt")
+        ax.set_xlabel("weight")
+        ax.set_ylabel("variable")
+        ax.set_title("Correlation between predicted weight and track variables")
+        ax.legend()
         plt.savefig("%s/scatter-pt.png" % outputFolder)
+        plt.close()
 
         plt.clf()
-        plt.scatter(predictedQWeightsarray, trk_eta_array, label="eta")
-        plt.xlabel("weight")
-        plt.ylabel("variable")
-        plt.title("Correlation between predicted weight and track variables")
-        plt.legend()
+        fig,ax = plt.subplots(1,1,figsize=(10,10))
+        ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+        
+        ax.scatter(predictedQWeightsarray, trk_eta_array, label="eta")
+        ax.set_xlabel("weight")
+        ax.set_ylabel("variable")
+        ax.set_title("Correlation between predicted weight and track variables")
+        ax.legend()
         plt.savefig("%s/scatter-eta.png" %  outputFolder)
+        plt.close()
 
     #########################################################################################
     #                                                                                       #
@@ -725,12 +785,13 @@ if __name__=="__main__":
     #                                                                                       #
     #########################################################################################
 
-    plt.clf()
+    #plt.clf()
     figure=plotz0_residual([(z0_PV_array-z0_QNN_array)],
                           [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
                           ["ArgMax"],
                           ["Base","MVA Cut","No Fakes"])
     plt.savefig("%s/Z0Residual.png" % outputFolder)
+    plt.close()
 
     #plt.clf()
     #figure=plotPV_roc(assoc_PV_array,[assoc_QNN_array],
@@ -745,19 +806,21 @@ if __name__=="__main__":
                              ["ArgMax"],
                              ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/Z0percentile.png" % outputFolder)
+    plt.close()
 
     figure=plotz0_residual([(z0_PV_array-z0_DANN_array),(z0_PV_array-z0_QNN_array)],
                           [(z0_PV_array-z0_FH_array)],
                           ["NN               ","QNN             "],
                           ["Baseline         "])
     plt.savefig("%s/QcompZ0Residual.png" % outputFolder)
+    plt.close()
 
-    plt.clf()
-    figure=plotPV_roc(assoc_PV_array,[assoc_DANN_array,assoc_QNN_array],
-                     [assoc_FH_array],
-                     ["NN","QNN"],
-                     ["Baseline"])
-    plt.savefig("%s/QcompPVROC.png" % outputFolder)
+    #plt.clf()
+    #figure=plotPV_roc(assoc_PV_array,[assoc_DANN_array,assoc_QNN_array],
+    #                 [assoc_FH_array],
+    #                 ["NN","QNN"],
+    #                 ["Baseline"])
+    #plt.savefig("%s/QcompPVROC.png" % outputFolder)
 
 
     #########################################################################################
@@ -772,6 +835,7 @@ if __name__=="__main__":
                              ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
     plt.savefig("%s/METbestQresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMETphi_residual([(METphi_QNN_bestQ_array )],
@@ -779,6 +843,7 @@ if __name__=="__main__":
                              ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
     plt.savefig("%s/METphibestQresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMET_residual([(MET_QNN_bestRMS_array )],
@@ -786,6 +851,7 @@ if __name__=="__main__":
                              ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
     plt.savefig("%s/METbestRMSresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMETphi_residual([(METphi_QNN_bestRMS_array )],
@@ -793,6 +859,7 @@ if __name__=="__main__":
                             ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
     plt.savefig("%s/METphibestRMSresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
@@ -800,6 +867,7 @@ if __name__=="__main__":
                              ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"    "],
                              ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
     plt.savefig("%s/QcompMETbestQresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
@@ -807,8 +875,8 @@ if __name__=="__main__":
                              ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"    "],
                              ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
     plt.savefig("%s/QcompMETbestRMSresidual.png" % outputFolder)
+    plt.close()
 
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
 
     #########################################################################################
     #                                                                                       #
@@ -822,6 +890,7 @@ if __name__=="__main__":
                              ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
     plt.savefig("%s/relMETbestQresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMET_residual([(MET_QNN_bestRMS_array )],
@@ -829,21 +898,24 @@ if __name__=="__main__":
                              ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
                              ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
     plt.savefig("%s/relMETbestRMSresidual.png" % outputFolder)
+    plt.close()
 
 
     plt.clf()
     figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
                              [(MET_FH_array )],
-                             ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"    "],
+                             ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"         "],
                              ["Baseline            "],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
     plt.savefig("%s/QcomprelMETbestQresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
                              [(MET_FH_array )],
-                             ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"    "],
+                             ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"         "],
                              ["Baseline            "],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
     plt.savefig("%s/QcomprelMETbestRMSresidual.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     plotMET_resolution([(MET_QNN_bestRMS_array )],
@@ -851,6 +923,7 @@ if __name__=="__main__":
                        ["QNN"],["Baseline","BDT Cut","No Fakes","PV Tracks"],
                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
     plt.savefig("%s/relMETbestRMSresolution.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     plotMET_resolution([(MET_QNN_bestQ_array )],
@@ -858,6 +931,7 @@ if __name__=="__main__":
                        ["QNN"],["Baseline","BDT Cut","No Fakes","PV Tracks"],
                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
     plt.savefig("%s/relMETbestQresolution.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     plotMET_resolution([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
@@ -865,6 +939,7 @@ if __name__=="__main__":
                        ["NN","QNN"],["Baseline"],
                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
     plt.savefig("%s/QcomprelMETbestQresolution.png" % outputFolder)
+    plt.close()
 
     plt.clf()
     plotMET_resolution([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
@@ -872,107 +947,127 @@ if __name__=="__main__":
                        ["NN","QNN"],["Baseline"],
                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
     plt.savefig("%s/QcomprelMETbestRMSresolution.png" % outputFolder)
+    plt.close()
 
     #########################################################################################
     #                                                                                       #
     #                                   Z0 pred vs True Plots                               #  
     #                                                                                       #
     #########################################################################################
-
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
-
     plt.clf()
-    plt.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
-    plt.hist(z0_FHres_array,range=(-15,15),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
-    plt.hist(z0_QNN_array,range=(-15,15),bins=120,density=True,color='b',histtype="step",label="CNN")
-    plt.hist(z0_PV_array,range=(-15,15),bins=120,density=True,color='y',histtype="step",label="Truth")
-    plt.grid(True)
-    plt.xlabel('$z_0$ [cm]',ha="right",x=1)
-    plt.ylabel('Events',ha="right",y=1)
-    plt.legend() 
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
+    ax.hist(z0_FHres_array,range=(-15,15),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
+    ax.hist(z0_QNN_array,range=(-15,15),bins=120,density=True,color='b',histtype="step",label="CNN")
+    ax.hist(z0_PV_array,range=(-15,15),bins=120,density=True,color='y',histtype="step",label="Truth")
+    ax.grid(True)
+    ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
+    ax.set_ylabel('Events',ha="right",y=1)
+    ax.legend() 
     plt.tight_layout()
     plt.savefig("%s/Qz0hist.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FHerr_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FHnoFakeerr_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FHMVAerr_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("True PV $z_0$ - Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNerr_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FH_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FHMVA_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FHnoFake_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNN_vs_z0.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("Reco PV $z_0$ NN [cm]", horizontalalignment='right', x=1.0)
-    plt.ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("Reco PV $z_0$ NN [cm]", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNN_vs_NN.png" %  outputFolder)
+    plt.close()
 
     #########################################################################################
     #                                                                                       #
@@ -980,79 +1075,93 @@ if __name__=="__main__":
     #                                                                                       #
     #########################################################################################
 
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
-
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestQ_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestRMS_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, MET_FH_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T}^{miss,FH}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, MET_FH_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T}^{miss,FH}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FH_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_METphi_array, METphi_QNN_bestQ_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_METphi_array, METphi_QNN_bestQ_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestQ_vs_METphi.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_METphi_array, METphi_QNN_bestRMS_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_METphi_array, METphi_QNN_bestRMS_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestRMS_vs_METphi.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_METphi_array, METphi_FH_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T,\\phi}^{miss,FH}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_METphi_array, METphi_FH_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T,\\phi}^{miss,FH}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/FH_vs_METphi.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(MET_DANN_bestQ_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(MET_DANN_bestQ_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestQ_vs_NNbestQ.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(MET_DANN_bestRMS_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(MET_DANN_bestRMS_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QNNbestRMS_vs_NNbestRMS.png" %  outputFolder)
+    plt.close()
 
 
     #########################################################################################
@@ -1061,52 +1170,60 @@ if __name__=="__main__":
     #                                                                                       #
     #########################################################################################
 
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
-
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QrelNNbestQ_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QrelNNbestRMS_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d(actual_MET_array, (MET_FH_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$(E_{T}^{miss,FH} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d(actual_MET_array, (MET_FH_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$(E_{T}^{miss,FH} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/relFH_vs_MET.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d((MET_DANN_bestQ_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d((MET_DANN_bestQ_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QrelNNbestQ_vs_relNNbestQ.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    hist2d = plt.hist2d((MET_DANN_bestRMS_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(),vmin=1,vmax=1000)
-    plt.xlabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
-    plt.ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3])
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hist2d = ax.hist2d((MET_DANN_bestRMS_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    ax.set_xlabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Events')
     plt.tight_layout()
     plt.savefig("%s/QrelNNbestRMS_vs_relNNbestRMS.png" %  outputFolder)
+    plt.close()
 
 
     #########################################################################################
@@ -1136,81 +1253,100 @@ if __name__=="__main__":
 
 
     plt.clf()
-    plt.plot(thresholds,MET_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,MET_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METRMSvsThreshold.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    plt.plot(thresholds,MET_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,MET_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METQsvsThreshold.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    plt.plot(thresholds,MET_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,MET_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METCentrevsThreshold.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    plt.plot(thresholds,METphi_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,METphi_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[0]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[0]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[0]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T,\\phi}^{miss}$ Residual RMS", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METphiRMSvsThreshold.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    plt.plot(thresholds,METphi_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,METphi_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[1]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[1]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[1]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T,\\phi}^{miss}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METphiQsvsThreshold.png" %  outputFolder)
+    plt.close()
 
     plt.clf()
-    plt.plot(thresholds,METphi_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
-    plt.plot(thresholds,np.full(len(thresholds),FHphiwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
-    plt.ylabel("$E_{T,\\phi}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
-    plt.xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
-    plt.legend()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    ax.plot(thresholds,METphi_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
+    ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHMVAphiwidths[2]),label="BDT Cut FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),FHNoFakephiWidths[2]),label="No Fakes FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.plot(thresholds,np.full(len(thresholds),TrkMETphiWidths[2]),label="PV Tracks FH",linestyle='--',linewidth=LINEWIDTH)
+    ax.set_ylabel("$E_{T,\\phi}^{miss}$ Residual Centre", horizontalalignment='right', y=1.0)
+    ax.set_xlabel("Track-to-vertex association threshold", horizontalalignment='right', x=1.0)
+    ax.legend()
     plt.tight_layout()
     plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
+    plt.close()
     
     experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
     experiment.log_asset(sys.argv[2]+'.yaml')
-
-
-
-
-

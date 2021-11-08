@@ -14,11 +14,8 @@ import yaml
 
 import vtx
 from TrainingScripts.train import *
-
-#hep.set_style("CMSTex")
-#hep.cms.label()
-#hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
+
 SMALL_SIZE = 20
 MEDIUM_SIZE = 25
 BIGGER_SIZE = 30
@@ -26,6 +23,8 @@ BIGGER_SIZE = 30
 LEGEND_WIDTH = 20
 LINEWIDTH = 3
 MARKERSIZE = 20
+
+colormap = "seismic"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
@@ -206,6 +205,9 @@ def predictMET(pt,phi,predictedAssoc,threshold):
 def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+    
     items = 0
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
@@ -248,6 +250,9 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50),logrange=(-1,1),relative=False,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+
     items = 0
     for i,FH in enumerate(FHdiff):
         if relative:
@@ -318,6 +323,9 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
+
     items = 0
     for i,FH in enumerate(FHdiff):
         FH = FH - actual
@@ -362,6 +370,8 @@ def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=Non
 def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
 
     items=0
 
@@ -398,14 +408,12 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
 
     
     
-    ax[0].set_title("Purity Efficiency Plot" ,loc='left')
     ax[0].grid(True)
     ax[0].set_xlabel('Efficiency',ha="right",x=1)
     ax[0].set_ylabel('Purity',ha="right",y=1)
     ax[0].set_xlim([0.75,1])
     ax[0].legend()
 
-    ax[1].set_title("Reciever Operator Characteristic Plot" ,loc='left')   
     ax[1].grid(True)
     ax[1].set_yscale("log")
     ax[1].set_xlabel('True Positive Rate',ha="right",x=1)
@@ -418,7 +426,9 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
 
 def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
-    figure = plt.figure(figsize=(10,10))
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
 
     percentiles = np.linspace(0,100,100)
 
@@ -426,20 +436,20 @@ def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 
     for i,FH in enumerate(FHdiff):
         FHpercentiles = np.percentile(FH,percentiles)
-        plt.plot(percentiles,abs(FHpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"FH %s minimum: %.4f at : %.2f " %(FHnames[i],min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))),LEGEND_WIDTH)))
+        ax.plot(percentiles,abs(FHpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"FH %s minimum: %.4f at : %.2f " %(FHnames[i],min(abs(FHpercentiles)),np.argmin(abs(FHpercentiles))),LEGEND_WIDTH)))
         items+=1
 
     for i,NN in enumerate(NNdiff):
         NNpercentiles = np.percentile(NN,percentiles)
-        plt.plot(percentiles,abs(NNpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"NN %s minimum: %.4f at : %.2f " %(NNnames[i],min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))),LEGEND_WIDTH)))
+        ax.plot(percentiles,abs(NNpercentiles),linewidth=LINEWIDTH,color=colours[items],label='\n'.join(wrap(f"NN %s minimum: %.4f at : %.2f " %(NNnames[i],min(abs(NNpercentiles)),np.argmin(abs(NNpercentiles))),LEGEND_WIDTH)))
         items+=1
     
 
-    plt.grid(True)
-    plt.xlabel('Percentile',ha="right",x=1)
-    plt.ylabel('$|\\delta z_{0}| [cm]$',ha="right",y=1)
-    plt.yscale("log")
-    plt.legend()
+    ax.grid(True)
+    ax.set_xlabel('Percentile',ha="right",x=1)
+    ax.set_ylabel('$|\\delta z_{0}| [cm]$',ha="right",y=1)
+    ax.set_yscale("log")
+    ax.legend()
     plt.tight_layout()
     
 
@@ -447,7 +457,9 @@ def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 
 def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",threshold=-1):
     plt.clf()
-    figure = plt.figure(figsize=(20,10))
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
 
 
     fakes = assoc == 0
@@ -455,20 +467,25 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     PV = assoc == 1
 
 
-    hist,bin_edges = np.histogram(tracks,256,range=(-15,15),weights=weights)
-    plt.bar(bin_edges[:-1],hist,width=30/256,color='grey',alpha=0.5, label="$p_T$ [GeV]")
+    #hist,bin_edges = np.histogram(tracks,256,range=(-15,15),weights=weights)
+    #plt.bar(bin_edges[:-1],hist,width=30/256,color='grey',alpha=0.5, label="$p_T$ [GeV]")
 
-    plt.plot(tracks[PV], [2] * len(tracks[PV]), '+g', label='PV Trk',markersize=MARKERSIZE)
-    plt.plot(tracks[PU], [2] * len(tracks[PU]), '+b', label='PU Trk',markersize=MARKERSIZE)
-    plt.plot(tracks[fakes], [2] * len(tracks[fakes]), '+r', label='Fake Trk',markersize=MARKERSIZE)
+    #plt.plot(tracks[PV], [2] * len(tracks[PV]), '+g', label='PV Trk',markersize=MARKERSIZE)
+    #plt.plot(tracks[PU], [2] * len(tracks[PU]), '+b', label='PU Trk',markersize=MARKERSIZE)
+    #plt.plot(tracks[fakes], [2] * len(tracks[fakes]), '+r', label='Fake Trk',markersize=MARKERSIZE)
+
+    ax.hist(tracks[PV], weights=weights[PV],bins=256,range=(-15,15), color='g', label='PV Trk',stacked=True)
+    ax.hist(tracks[PU], weights=weights[PU],bins=256,range=(-15,15), color='b', label='PU Trk',stacked=True)
+    ax.hist(tracks[fakes], weights=weights[fakes],bins=256,range=(-15,15),color='r', label='Fake Trk',stacked=True)
     
-    plt.plot([predictedPV, predictedPV], [0, max(hist)], '--k', label='Reco Vx',linewidth=LINEWIDTH)
+    ax.plot([predictedPV, predictedPV], [0,200], '--k', label='Reco Vx',linewidth=LINEWIDTH)
 
-    plt.plot([genPV, genPV], [0,max(hist)], '--g', label='True Vx',linewidth=LINEWIDTH)
+    ax.plot([genPV, genPV], [0,200], '--g', label='True Vx',linewidth=LINEWIDTH)
 
-    plt.xlabel('$z_0$ [cm]',ha="right",x=1)
-    plt.ylabel('$p_T$ [GeV]',ha="right",y=1)
-    plt.legend()
+    ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
+    ax.set_ylabel('$p_T$ [GeV]',ha="right",y=1)
+    ax.set_yscale("log")
+    ax.legend()
     plt.tight_layout()
 
     return figure
@@ -476,6 +493,8 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
 def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None,Et_bins = [0,100,300]):
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
+    ax = hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax)
+    
     items = 0
 
     Et_bin_centres = []
