@@ -338,7 +338,7 @@ if __name__=="__main__":
 
 
     model = network.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     model.compile(
             optimizer,
             loss=[

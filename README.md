@@ -18,4 +18,6 @@ the directory that contains a NewKFData and OldKFData each with a  Train, Test, 
 Then you will need a comet_ml account https://www.comet.ml/site/ for logging all the training info and resulting plots and put your API key in line 9 
 of vtxReduced.sh 
 
+Also update line 7 of vtxReduced.sh to the absolute path of the directory Ops/release
+
 Once done you can simply run vtxReduced.sh which should run the training and evaluation of the model

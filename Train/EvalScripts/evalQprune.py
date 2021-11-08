@@ -57,14 +57,14 @@ colours=["red","green","blue","orange","purple","yellow"]
 
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
     
 
     kf = sys.argv[1]
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
-            config = yaml.load(f)
+            config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
@@ -84,7 +84,7 @@ if __name__=="__main__":
         # There is one, but the experiment might not exist yet:
         api = comet_ml.API() # Assumes API key is set in config/env
         try:
-            api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+            api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
         except Exception:
             api_experiment = None
 
@@ -184,7 +184,7 @@ if __name__=="__main__":
 
 
     qmodel = qnetwork.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     qmodel.compile(
         optimizer,
         loss=[
@@ -214,7 +214,7 @@ if __name__=="__main__":
         )
         
     DAmodel = DAnetwork.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     DAmodel.compile(
             optimizer,
             loss=[

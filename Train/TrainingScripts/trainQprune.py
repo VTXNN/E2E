@@ -282,7 +282,7 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
     retrain = config["retrain"]
 
     trainable = config["trainable"]
@@ -412,7 +412,7 @@ if __name__=="__main__":
         )
         
         DAmodel = DAnetwork.createE2EModel()
-        optimizer = tf.keras.optimizers.Adam(lr=0.01)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         DAmodel.compile(
             optimizer,
             loss=[

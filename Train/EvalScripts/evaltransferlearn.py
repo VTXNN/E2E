@@ -39,7 +39,7 @@ elif kf == "OldKF":
     z0 = 'corrected_trk_z0'
 
 with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
 test_files = glob.glob(config["data_folder"]+kf+"Data/Test/*.tfrecord")
 with open(kf+'experimentkey.txt') as f:
@@ -51,7 +51,7 @@ if (EXPERIMENT_KEY is not None):
     # There is one, but the experiment might not exist yet:
     api = comet_ml.API() # Assumes API key is set in config/env
     try:
-        api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+        api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
     except Exception:
         api_experiment = None
 
@@ -387,7 +387,7 @@ if __name__=="__main__":
 
 
     bigmodel = bignetwork.createE2EModel()
-    bigoptimizer = tf.keras.optimizers.Adam(lr=0.01)
+    bigoptimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     bigmodel.compile(
             bigoptimizer,
             loss=[
@@ -424,7 +424,7 @@ if __name__=="__main__":
 
 
     redmodel = rednetwork.createE2EModel()
-    redoptimizer = tf.keras.optimizers.Adam(lr=0.01)
+    redoptimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     redmodel.compile(
             redoptimizer,
             loss=[

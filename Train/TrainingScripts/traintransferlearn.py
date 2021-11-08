@@ -337,7 +337,7 @@ def test_model(bigmodel,reducedmodel,experiment,test_files):
     
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
     retrain = config["retrain"]
 
     train_files = glob.glob(config["data_folder"]+kf+"Data/Train/*.tfrecord")

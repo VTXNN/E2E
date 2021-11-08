@@ -37,7 +37,7 @@ LINEWIDTH = 3
 kf = sys.argv[1]
 
 with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
@@ -101,7 +101,7 @@ elif trainable == "DiffArgMax":
 
 
 model = network.createE2EModel()
-optimizer = tf.keras.optimizers.Adam(lr=0.01)
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
 model.compile(
     optimizer,
     loss=[
@@ -208,7 +208,7 @@ if (EXPERIMENT_KEY is not None):
         # There is one, but the experiment might not exist yet:
         api = comet_ml.API() # Assumes API key is set in config/env
         try:
-            api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+            api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
         except Exception:
             api_experiment = None
 

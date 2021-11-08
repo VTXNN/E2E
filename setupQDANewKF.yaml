@@ -14,7 +14,7 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
 
 Nlatent : 2
 
-starting_lr : 0.005
+starting_lr : 0.0001
 epochs : 100
 
 z0_loss_weight : 1

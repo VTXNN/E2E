@@ -48,7 +48,7 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 kf = sys.argv[1]
 
 with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
 if kf == "NewKF":
     test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
@@ -67,7 +67,7 @@ if (EXPERIMENT_KEY is not None):
     # There is one, but the experiment might not exist yet:
     api = comet_ml.API() # Assumes API key is set in config/env
     try:
-        api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+        api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
     except Exception:
         api_experiment = None
 
@@ -368,7 +368,7 @@ def setup_pipeline(fileList):
 
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
     outputFolder = kf+config['eval_folder']
 
@@ -432,7 +432,7 @@ if __name__=="__main__":
 
 
     model = network.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     model.compile(
             optimizer,
             loss=[

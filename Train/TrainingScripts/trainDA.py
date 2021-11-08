@@ -277,7 +277,7 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
     retrain = config["retrain"]
 
     trainable = config["trainable"]
@@ -285,7 +285,7 @@ if __name__=="__main__":
     weightfeat = config["weight_features"] 
 
 
-    if trainable == "DiffArgMax" | "QDiffArgMax":
+    if (trainable == "DiffArgMax") | (trainable == "QDiffArgMax"):
         
         nlatent = 2
 
@@ -421,7 +421,7 @@ if __name__=="__main__":
     elif trainable == "DiffArgMax":
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
     elif trainable == "QDiffArgMax":
-        model.layers[config['nweightlayers'] + 7].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
         
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(

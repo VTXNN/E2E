@@ -9,7 +9,7 @@ import yaml
 kf = sys.argv[1]
 
 with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 retrain = config["retrain"]
 
 trainable = config["trainable"]

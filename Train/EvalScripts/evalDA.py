@@ -267,8 +267,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
                  %(FHnames[i],metrics.mean_squared_error(temp_actual,FH,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(FH,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s Quartile Width = %.4f   Centre = %.4f" 
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),25)))
         items+=1
 
     for i,NN in enumerate(NNdiff):
@@ -289,8 +289,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
                  %(NNnames[i],metrics.mean_squared_error(temp_actual,NN,squared=False)),LEGEND_WIDTH)))
         ax[1].hist(NN,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
-                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f \nCentre = %.4f" 
-                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),LEGEND_WIDTH)))
+                 label='\n'.join(wrap(f"%s Quartile Width = %.4f   Centre = %.4f" 
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),25)))
         items+=1
     
     ax[0].grid(True)
@@ -498,7 +498,7 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
             FH_means.append(np.mean(FH[Et_bin_indices[j]]))
             FH_sdevs.append(np.std(FH[Et_bin_indices[j]]))
 
-        ax.errorbar(x=Et_bin_centres,y=FH_means,xerr = Et_bin_widths, yerr = FH_sdevs,markersize=MARKERSIZE,marker='o',color = colours[items],label=FHnames[i])
+        ax.errorbar(x=Et_bin_centres,y=FH_means,xerr = Et_bin_widths, yerr = FH_sdevs,markersize=5,marker='s',color = colours[items],label=FHnames[i])
         items+=1
 
     for i,NN in enumerate(NNpred):
@@ -512,7 +512,7 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
             NN_means.append(np.mean(NN[Et_bin_indices[j]]))
             NN_sdevs.append(np.std(NN[Et_bin_indices[j]]))
 
-        ax.errorbar(x=Et_bin_centres,y=NN_means,xerr = Et_bin_widths, yerr = NN_sdevs,markersize=MARKERSIZE,marker='o',color = colours[items],label=NNnames[i])
+        ax.errorbar(x=Et_bin_centres,y=NN_means,xerr = Et_bin_widths, yerr = NN_sdevs,markersize=5,marker='s',color = colours[items],label=NNnames[i])
         items+=1
     
     ax.grid(True)
@@ -531,7 +531,7 @@ if __name__=="__main__":
     kf = sys.argv[1]
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
-            config = yaml.load(f)
+            config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"NewKFData/MET/*.tfrecord")
@@ -551,7 +551,7 @@ if __name__=="__main__":
         # There is one, but the experiment might not exist yet:
         api = comet_ml.API() # Assumes API key is set in config/env
         try:
-            api_experiment = api.get_experiment_by_id(EXPERIMENT_KEY)
+            api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
         except Exception:
             api_experiment = None
 
@@ -563,7 +563,7 @@ if __name__=="__main__":
         )
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
 
     outputFolder = kf+config['eval_folder']
     trainable = config["trainable"]
@@ -699,7 +699,7 @@ if __name__=="__main__":
 
 
     model = network.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     model.compile(
         optimizer,
         loss=[

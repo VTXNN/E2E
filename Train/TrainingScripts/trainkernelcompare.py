@@ -330,7 +330,7 @@ def test_model(model,experiment,test_files):
     
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.load(f,Loader=yaml.FullLoader)
     retrain = config["retrain"]
 
     if kf == "NewKF":

@@ -82,7 +82,7 @@ if __name__=="__main__":
     kf = sys.argv[1]
 
     with open(sys.argv[2]+'.yaml', 'r') as f:
-            config = yaml.load(f)
+            config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
@@ -200,7 +200,7 @@ if __name__=="__main__":
         )
 
     model1 = network1.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=0.01)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     model1.compile(
         optimizer,
         loss=[
