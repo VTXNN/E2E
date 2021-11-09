@@ -27,3 +27,6 @@ Train/NewKFQplots/*
 checkpoint
 Train/*.yaml
 Train/*.py
+Train/*/hls4ml_prj/*
+Train/*/hls4ml_prj.tar.gz
+*.npy

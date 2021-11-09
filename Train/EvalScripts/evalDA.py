@@ -205,8 +205,8 @@ def predictMET(pt,phi,predictedAssoc,threshold):
 def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
     
     
     items = 0
@@ -248,13 +248,17 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.tight_layout()
     return fig
 
-def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50),logrange=(-1,1),relative=False,actual=None):
+def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50),logrange=(-1,1),relative=False,actual=None,logbins=False):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
-    
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
 
+    if logbins:
+        bins = np.logspace(logrange[0],logrange[1],10)
+    else:
+        bins = np.linspace(logrange[0],logrange[1],50)
+    
     items = 0
     for i,FH in enumerate(FHdiff):
         if relative:
@@ -263,12 +267,16 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
             temp_actual = temp_actual[np.isfinite(FH)]
             FH = FH[~np.isnan(FH)]
             FH = FH[np.isfinite(FH)]
+
+            if logbins:
+                FH = FH + 1
             
         else:
             FH = (FH - actual)
             temp_actual = actual
         qz0_FH = np.percentile(FH,[32,50,68])
-        ax[0].hist(FH,bins=50,range=logrange,histtype="step",
+
+        ax[0].hist(FH,bins=bins,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
                  %(FHnames[i],metrics.mean_squared_error(temp_actual,FH,squared=False)),LEGEND_WIDTH)))
@@ -286,11 +294,14 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
             NN = NN[~np.isnan(NN)]
             NN = NN[np.isfinite(NN)]
 
+            if logbins:
+                NN = NN + 1
+
         else:
             NN = (NN - actual)
             temp_actual = actual
         qz0_NN = np.percentile(NN,[32,50,68])
-        ax[0].hist(NN,bins=50,range=logrange,histtype="step",
+        ax[0].hist(NN,bins=bins,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
                  %(NNnames[i],metrics.mean_squared_error(temp_actual,NN,squared=False)),LEGEND_WIDTH)))
@@ -325,8 +336,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=None):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
     
 
     items = 0
@@ -373,8 +384,8 @@ def plotMETphi_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,actual=Non
 def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colours):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[0])
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14TeV,200PU",ax=ax[1])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
     
 
     items=0
@@ -457,11 +468,11 @@ def plotz0_percentile(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     plt.tight_layout()
     
 
-    return figure
+    return fig
 
 def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",threshold=-1):
     plt.clf()
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    fig,ax = plt.subplots(1,1,figsize=(20,10))
     hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
 
@@ -470,29 +481,34 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     PU = assoc == 2
     PV = assoc == 1
 
+    PUhist,PUbin_edges = np.histogram(tracks[PU],256,range=(-15,15),weights=weights[PU])
+    plt.bar(PUbin_edges[:-1],PUhist,width=30/256,color='b',alpha=0.5, label="Fake Trk $p_T$ [GeV]",bottom=2)
 
-    #hist,bin_edges = np.histogram(tracks,256,range=(-15,15),weights=weights)
-    #plt.bar(bin_edges[:-1],hist,width=30/256,color='grey',alpha=0.5, label="$p_T$ [GeV]")
+    Fakehist,Fakebin_edges = np.histogram(tracks[fakes],256,range=(-15,15),weights=weights[fakes])
+    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/256,color='r',alpha=0.5, label="Fake Trk $p_T$ [GeV]",bottom=2+PUhist)
+
+    PVhist,PVbin_edges = np.histogram(tracks[PV],256,range=(-15,15),weights=weights[PV])
+    plt.bar(PVbin_edges[:-1],PVhist,width=30/256,color='g',alpha=0.5, label="PV Trk $p_T$ [GeV]",bottom=2+PUhist+Fakehist)
+
+
 
     #plt.plot(tracks[PV], [2] * len(tracks[PV]), '+g', label='PV Trk',markersize=MARKERSIZE)
     #plt.plot(tracks[PU], [2] * len(tracks[PU]), '+b', label='PU Trk',markersize=MARKERSIZE)
     #plt.plot(tracks[fakes], [2] * len(tracks[fakes]), '+r', label='Fake Trk',markersize=MARKERSIZE)
 
-    ax.hist(tracks[PV], weights=weights[PV],bins=256,range=(-15,15), color='g', label='PV Trk',stacked=True)
-    ax.hist(tracks[PU], weights=weights[PU],bins=256,range=(-15,15), color='b', label='PU Trk',stacked=True)
-    ax.hist(tracks[fakes], weights=weights[fakes],bins=256,range=(-15,15),color='r', label='Fake Trk',stacked=True)
-    
     ax.plot([predictedPV, predictedPV], [0,200], '--k', label='Reco Vx',linewidth=LINEWIDTH)
 
     ax.plot([genPV, genPV], [0,200], '--g', label='True Vx',linewidth=LINEWIDTH)
 
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
     ax.set_ylabel('$p_T$ [GeV]',ha="right",y=1)
+    ax.set_xlim(-15,15)
     ax.set_yscale("log")
+    ax.grid()
     ax.legend()
     plt.tight_layout()
 
-    return figure
+    return fig
 
 def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None,Et_bins = [0,100,300]):
     plt.clf()
@@ -506,20 +522,22 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
     Et_bin_indices = []
 
     for i in range(len(Et_bins) - 1):
-        Et_bin_indices.append(np.where(np.logical_and(actual >= Et_bins[i], actual < Et_bins[i+1])))
         Et_bin_centres.append(Et_bins[i] + (Et_bins[i+1] - Et_bins[i]) / 2)
         Et_bin_widths.append((Et_bins[i+1] - Et_bins[i]) / 2)
 
     for i,FH in enumerate(FHpred):
         FH = (FH - actual) / actual
+        temp_actual = actual[~np.isnan(FH)]
+        temp_actual = temp_actual[np.isfinite(FH)]
         FH = FH[~np.isnan(FH)]
         FH = FH[np.isfinite(FH)]
         FH_means = []
         FH_sdevs = []
 
         for j in range(len(Et_bins) - 1):
-            FH_means.append(np.mean(FH[Et_bin_indices[j]]))
-            FH_sdevs.append(np.std(FH[Et_bin_indices[j]]))
+            Et_bin_indices = np.where(np.logical_and(temp_actual >= Et_bins[j], temp_actual < Et_bins[j+1]))
+            FH_means.append(np.mean(FH[Et_bin_indices]))
+            FH_sdevs.append(np.std(FH[Et_bin_indices]))
 
         ax.errorbar(x=Et_bin_centres,y=FH_means,xerr = Et_bin_widths, yerr = FH_sdevs,markersize=5,marker='s',color = colours[items],label=FHnames[i])
         items+=1
@@ -528,12 +546,15 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
         NN_means = []
         NN_sdevs = []
         NN = (NN - actual)/actual
+        temp_actual = actual[~np.isnan(NN)]
+        temp_actual = temp_actual[np.isfinite(NN)]
         NN = NN[~np.isnan(NN)]
         NN = NN[np.isfinite(NN)]
 
         for j in range(len(Et_bins) - 1):
-            NN_means.append(np.mean(NN[Et_bin_indices[j]]))
-            NN_sdevs.append(np.std(NN[Et_bin_indices[j]]))
+            Et_bin_indices = np.where(np.logical_and(temp_actual >= Et_bins[j], temp_actual < Et_bins[j+1]))
+            NN_means.append(np.mean(NN[Et_bin_indices]))
+            NN_sdevs.append(np.std(NN[Et_bin_indices]))
 
         ax.errorbar(x=Et_bin_centres,y=NN_means,xerr = Et_bin_widths, yerr = NN_sdevs,markersize=5,marker='s',color = colours[items],label=NNnames[i])
         items+=1
@@ -547,8 +568,6 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
 
     plt.tight_layout()
     return fig
-
-
 
 if __name__=="__main__":
     kf = sys.argv[1]
