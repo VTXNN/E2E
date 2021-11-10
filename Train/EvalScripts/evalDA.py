@@ -482,13 +482,15 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     PV = assoc == 1
 
     PUhist,PUbin_edges = np.histogram(tracks[PU],256,range=(-15,15),weights=weights[PU])
-    plt.bar(PUbin_edges[:-1],PUhist,width=30/256,color='b',alpha=0.5, label="Fake Trk $p_T$ [GeV]",bottom=2)
+    plt.bar(PUbin_edges[:-1],PUhist,width=30/256,color='b',alpha=0.5, label="PU Trk",bottom=2)
 
     Fakehist,Fakebin_edges = np.histogram(tracks[fakes],256,range=(-15,15),weights=weights[fakes])
-    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/256,color='r',alpha=0.5, label="Fake Trk $p_T$ [GeV]",bottom=2+PUhist)
+    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/256,color='r',alpha=0.5, label="Fake Trk",bottom=2+PUhist)
 
     PVhist,PVbin_edges = np.histogram(tracks[PV],256,range=(-15,15),weights=weights[PV])
-    plt.bar(PVbin_edges[:-1],PVhist,width=30/256,color='g',alpha=0.5, label="PV Trk $p_T$ [GeV]",bottom=2+PUhist+Fakehist)
+    plt.bar(PVbin_edges[:-1],PVhist,width=30/256,color='g',alpha=0.5, label="PV Trk",bottom=2+PUhist+Fakehist)
+
+    maxpt = np.max(2+PUhist+Fakehist+PVhist)*1.1
 
 
 
@@ -496,13 +498,14 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     #plt.plot(tracks[PU], [2] * len(tracks[PU]), '+b', label='PU Trk',markersize=MARKERSIZE)
     #plt.plot(tracks[fakes], [2] * len(tracks[fakes]), '+r', label='Fake Trk',markersize=MARKERSIZE)
 
-    ax.plot([predictedPV, predictedPV], [0,200], '--k', label='Reco Vx',linewidth=LINEWIDTH)
+    ax.plot([predictedPV, predictedPV], [0,maxpt], '--k', label='Reco Vx',linewidth=LINEWIDTH)
 
-    ax.plot([genPV, genPV], [0,200], '--g', label='True Vx',linewidth=LINEWIDTH)
+    ax.plot([genPV, genPV], [0,maxpt], '--g', label='True Vx',linewidth=LINEWIDTH)
 
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
     ax.set_ylabel('$p_T$ [GeV]',ha="right",y=1)
     ax.set_xlim(-15,15)
+    ax.set_ylim(2,maxpt)
     ax.set_yscale("log")
     ax.grid()
     ax.legend()
