@@ -12,6 +12,8 @@ import sklearn.metrics as metrics
 import tensorflow as tf
 import yaml
 
+from tensorflow.keras.models import Model
+
 import vtx
 from TrainingScripts.train import *
 from EvalScripts.evalDA import *
@@ -30,7 +32,7 @@ plt.style.use(hep.style.CMS)
 colormap = "jet"
 
 save = True
-savingfolder = "FullMETSavedArrays/"
+savingfolder = "SavedArrays/"
 PVROCs = False 
 
 SMALL_SIZE = 20
@@ -329,8 +331,10 @@ if __name__=="__main__":
     threshold = -1
 
     if save:
-
         for step,batch in enumerate(setup_pipeline(test_files)):
+
+            #if step > 0:
+            #    break
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
@@ -372,8 +376,14 @@ if __name__=="__main__":
 
 
             #### Q NETWORK #########################################################################################################################
+            XX = qmodel.input 
+            YY = qmodel.layers[5].output
+            new_model = Model(XX, YY)
 
-            predictedZ0_QNN_temp, predictedAssoc_QNN_temp, predictedQWeights_QNN = qmodel.predict_on_batch(
+            predictedQWeights_QNN = new_model.predict_on_batch(
+                            [batch[z0],WeightFeatures,trackFeatures])
+
+            predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
             predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
@@ -386,8 +396,15 @@ if __name__=="__main__":
             
 
             #### DA NETWORK #########################################################################################################################
+            XX = DAmodel.input 
+            YY = DAmodel.layers[5].output
+            new_model = Model(XX, YY)
 
-            predictedZ0_DANN_temp, predictedAssoc_DANN_temp, predictedDAWeights_DANN = DAmodel.predict_on_batch(
+            predictedDAWeights_DANN = new_model.predict_on_batch(
+                            [batch[z0],WeightFeatures,trackFeatures])
+
+
+            predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
             predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
@@ -416,16 +433,19 @@ if __name__=="__main__":
             predictedMET_FHres.append(temp_met)
             predictedMETphi_FHres.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassoc,threshold=0.5)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassoc,threshold=0.5,quality=True,
+                                              chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
             predictedMET_FH.append(temp_met)
             predictedMETphi_FH.append(temp_metphi)
 
             for i in range(0,num_threshold):
-                temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold)
+                temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold,quality=True,
+                                              chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
                 predictedMET_QNN[str(i/num_threshold)].append(temp_met)
                 predictedMETphi_QNN[str(i/num_threshold)].append(temp_metphi)
 
-                temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold)
+                temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,quality=True,
+                                              chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
                 predictedMET_DANN[str(i/num_threshold)].append(temp_met)
                 predictedMETphi_DANN[str(i/num_threshold)].append(temp_metphi)
 
@@ -540,68 +560,68 @@ if __name__=="__main__":
         MET_DANN_bestRMS_array = np.concatenate(predictedMET_DANN[str(np.argmin(MET_DANN_RMS_array)/num_threshold)]).ravel()
         METphi_DANN_bestRMS_array = np.concatenate(predictedMETphi_DANN[str(np.argmin(MET_DANN_RMS_array)/num_threshold)]).ravel()
 
-        np.save(savingfolder+"z0_QNN_array.npy",z0_QNN_array)
-        np.save(savingfolder+"z0_DANN_array.npy",z0_DANN_array)
-        np.save(savingfolder+"z0_FH_array.npy",z0_FH_array)
-        np.save(savingfolder+"z0_FHres_array.npy",z0_FHres_array)
-        np.save(savingfolder+"z0_FHMVA_array.npy",z0_FHMVA_array)
-        np.save(savingfolder+"z0_FHnoFake_array.npy",z0_FHnoFake_array)
-        np.save(savingfolder+"z0_PV_array.npy",z0_PV_array)
-        np.save(savingfolder+"predictedQWeightsarray.npy",predictedQWeightsarray)
-        np.save(savingfolder+"predictedDAWeightsarray.npy",predictedDAWeightsarray)
-        np.save(savingfolder+"trk_z0_array.npy",trk_z0_array)
-        np.save(savingfolder+"trk_mva_array.npy",trk_mva_array)
-        np.save(savingfolder+"trk_pt_array.npy",trk_pt_array)
-        np.save(savingfolder+"trk_eta_array.npy",trk_eta_array)
-        np.save(savingfolder+"trk_phi_array.npy",trk_phi_array)
-        np.save(savingfolder+"trk_chi2rphi_array.npy",trk_chi2rphi_array)
-        np.save(savingfolder+"trk_chi2rz_array.npy",trk_chi2rz_array)
-        np.save(savingfolder+"trk_bendchi2_array.npy",trk_bendchi2_array)
-        np.save(savingfolder+"assoc_QNN_array.npy",assoc_QNN_array)
-        np.save(savingfolder+"assoc_DANN_array.npy",assoc_DANN_array)
-        np.save(savingfolder+"assoc_FH_array.npy",assoc_FH_array)
-        np.save(savingfolder+"assoc_FHres_array.npy",assoc_FHres_array)
-        np.save(savingfolder+"assoc_FHMVA_array.npy",assoc_FHMVA_array)
-        np.save(savingfolder+"assoc_FHnoFake_array.npy",assoc_FHnoFake_array)
-        np.save(savingfolder+"assoc_PV_array.npy",assoc_PV_array)
-        np.save(savingfolder+"actual_MET_array.npy",actual_MET_array)
-        np.save(savingfolder+"actual_METphi_array.npy",actual_METphi_array)
-        np.save(savingfolder+"actual_trkMET_array.npy",actual_trkMET_array)
-        np.save(savingfolder+"actual_trkMETphi_array.npy",actual_trkMETphi_array)
-        np.save(savingfolder+"MET_FHnoFake_array.npy",MET_FHnoFake_array)
-        np.save(savingfolder+"METphi_FHnoFake_array.npy",METphi_FHnoFake_array)
-        np.save(savingfolder+"MET_FHMVA_array.npy",MET_FHMVA_array)
-        np.save(savingfolder+"METphi_FHMVA_array.npy",METphi_FHMVA_array)
-        np.save(savingfolder+"MET_FHres_array.npy",MET_FHres_array)
-        np.save(savingfolder+"METphi_FHres_array.npy",METphi_FHres_array)
-        np.save(savingfolder+"MET_FH_array.npy",MET_FH_array)
-        np.save(savingfolder+"METphi_FH_array.npy",METphi_FH_array)
-        np.save(savingfolder+"MET_QNN_RMS_array.npy",MET_QNN_RMS_array)
-        np.save(savingfolder+"MET_QNN_Quartile_array.npy",MET_QNN_Quartile_array)
-        np.save(savingfolder+"MET_QNN_Centre_array.npy",MET_QNN_Centre_array)
-        np.save(savingfolder+"METphi_QNN_RMS_array.npy",METphi_QNN_RMS_array)
-        np.save(savingfolder+"METphi_QNN_Quartile_array.npy",METphi_QNN_Quartile_array)
-        np.save(savingfolder+"METphi_QNN_Centre_array.npy",METphi_QNN_Centre_array)
-        np.save(savingfolder+"MET_DANN_RMS_array .npy",MET_DANN_RMS_array)
-        np.save(savingfolder+"MET_DANN_Quartile_array.npy",MET_DANN_Quartile_array)
-        np.save(savingfolder+"MET_QNN_Centre_array.npy",MET_QNN_Centre_array)
-        np.save(savingfolder+"METphi_QNN_RMS_array.npy",METphi_QNN_RMS_array)
-        np.save(savingfolder+"METphi_QNN_Quartile_array.npy",METphi_QNN_Quartile_array)
-        np.save(savingfolder+"METphi_QNN_Centre_array.npy",METphi_QNN_Centre_array)
-        np.save(savingfolder+"MET_DANN_RMS_array.npy",MET_DANN_RMS_array)
-        np.save(savingfolder+"MET_DANN_Quartile_array.npy",MET_DANN_Quartile_array)
-        np.save(savingfolder+"MET_DANN_Centre_array.npy",MET_DANN_Centre_array)
-        np.save(savingfolder+"METphi_DANN_RMS_array.npy",METphi_DANN_RMS_array)
-        np.save(savingfolder+"METphi_DANN_Quartile_array.npy",METphi_DANN_Quartile_array)
-        np.save(savingfolder+"METphi_DANN_Centre_array.npy",METphi_DANN_Centre_array)
-        np.save(savingfolder+"MET_QNN_bestQ_array.npy",MET_QNN_bestQ_array)
-        np.save(savingfolder+"METphi_QNN_bestQ_array.npy",METphi_QNN_bestQ_array)
-        np.save(savingfolder+"MET_QNN_bestRMS_array.npy",MET_QNN_bestRMS_array)
-        np.save(savingfolder+"METphi_QNN_bestRMS_array.npy",METphi_QNN_bestRMS_array)
-        np.save(savingfolder+"MET_DANN_bestQ_array.npy",MET_DANN_bestQ_array)
-        np.save(savingfolder+"METphi_DANN_bestQ_array.npy",METphi_DANN_bestQ_array)
-        np.save(savingfolder+"MET_DANN_bestRMS_array.npy",MET_DANN_bestRMS_array)
-        np.save(savingfolder+"METphi_DANN_bestRMS_array.npy",METphi_DANN_bestRMS_array)
+        np.save(savingfolder+"z0_QNN_array",z0_QNN_array)
+        np.save(savingfolder+"z0_DANN_array",z0_DANN_array)
+        np.save(savingfolder+"z0_FH_array",z0_FH_array)
+        np.save(savingfolder+"z0_FHres_array",z0_FHres_array)
+        np.save(savingfolder+"z0_FHMVA_array",z0_FHMVA_array)
+        np.save(savingfolder+"z0_FHnoFake_array",z0_FHnoFake_array)
+        np.save(savingfolder+"z0_PV_array",z0_PV_array)
+        np.save(savingfolder+"predictedQWeightsarray",predictedQWeightsarray)
+        np.save(savingfolder+"predictedDAWeightsarray",predictedDAWeightsarray)
+        np.save(savingfolder+"trk_z0_array",trk_z0_array)
+        np.save(savingfolder+"trk_mva_array",trk_mva_array)
+        np.save(savingfolder+"trk_pt_array",trk_pt_array)
+        np.save(savingfolder+"trk_eta_array",trk_eta_array)
+        np.save(savingfolder+"trk_phi_array",trk_phi_array)
+        np.save(savingfolder+"trk_chi2rphi_array",trk_chi2rphi_array)
+        np.save(savingfolder+"trk_chi2rz_array",trk_chi2rz_array)
+        np.save(savingfolder+"trk_bendchi2_array",trk_bendchi2_array)
+        np.save(savingfolder+"assoc_QNN_array",assoc_QNN_array)
+        np.save(savingfolder+"assoc_DANN_array",assoc_DANN_array)
+        np.save(savingfolder+"assoc_FH_array",assoc_FH_array)
+        np.save(savingfolder+"assoc_FHres_array",assoc_FHres_array)
+        np.save(savingfolder+"assoc_FHMVA_array",assoc_FHMVA_array)
+        np.save(savingfolder+"assoc_FHnoFake_array",assoc_FHnoFake_array)
+        np.save(savingfolder+"assoc_PV_array",assoc_PV_array)
+        np.save(savingfolder+"actual_MET_array",actual_MET_array)
+        np.save(savingfolder+"actual_METphi_array",actual_METphi_array)
+        np.save(savingfolder+"actual_trkMET_array",actual_trkMET_array)
+        np.save(savingfolder+"actual_trkMETphi_array",actual_trkMETphi_array)
+        np.save(savingfolder+"MET_FHnoFake_array",MET_FHnoFake_array)
+        np.save(savingfolder+"METphi_FHnoFake_array",METphi_FHnoFake_array)
+        np.save(savingfolder+"MET_FHMVA_array",MET_FHMVA_array)
+        np.save(savingfolder+"METphi_FHMVA_array",METphi_FHMVA_array)
+        np.save(savingfolder+"MET_FHres_array",MET_FHres_array)
+        np.save(savingfolder+"METphi_FHres_array",METphi_FHres_array)
+        np.save(savingfolder+"MET_FH_array",MET_FH_array)
+        np.save(savingfolder+"METphi_FH_array",METphi_FH_array)
+        np.save(savingfolder+"MET_QNN_RMS_array",MET_QNN_RMS_array)
+        np.save(savingfolder+"MET_QNN_Quartile_array",MET_QNN_Quartile_array)
+        np.save(savingfolder+"MET_QNN_Centre_array",MET_QNN_Centre_array)
+        np.save(savingfolder+"METphi_QNN_RMS_array",METphi_QNN_RMS_array)
+        np.save(savingfolder+"METphi_QNN_Quartile_array",METphi_QNN_Quartile_array)
+        np.save(savingfolder+"METphi_QNN_Centre_array",METphi_QNN_Centre_array)
+        np.save(savingfolder+"MET_DANN_RMS_arrayy",MET_DANN_RMS_array)
+        np.save(savingfolder+"MET_DANN_Quartile_array",MET_DANN_Quartile_array)
+        np.save(savingfolder+"MET_QNN_Centre_array",MET_QNN_Centre_array)
+        np.save(savingfolder+"METphi_QNN_RMS_array",METphi_QNN_RMS_array)
+        np.save(savingfolder+"METphi_QNN_Quartile_array",METphi_QNN_Quartile_array)
+        np.save(savingfolder+"METphi_QNN_Centre_array",METphi_QNN_Centre_array)
+        np.save(savingfolder+"MET_DANN_RMS_array",MET_DANN_RMS_array)
+        np.save(savingfolder+"MET_DANN_Quartile_array",MET_DANN_Quartile_array)
+        np.save(savingfolder+"MET_DANN_Centre_array",MET_DANN_Centre_array)
+        np.save(savingfolder+"METphi_DANN_RMS_array",METphi_DANN_RMS_array)
+        np.save(savingfolder+"METphi_DANN_Quartile_array",METphi_DANN_Quartile_array)
+        np.save(savingfolder+"METphi_DANN_Centre_array",METphi_DANN_Centre_array)
+        np.save(savingfolder+"MET_QNN_bestQ_array",MET_QNN_bestQ_array)
+        np.save(savingfolder+"METphi_QNN_bestQ_array",METphi_QNN_bestQ_array)
+        np.save(savingfolder+"MET_QNN_bestRMS_array",MET_QNN_bestRMS_array)
+        np.save(savingfolder+"METphi_QNN_bestRMS_array",METphi_QNN_bestRMS_array)
+        np.save(savingfolder+"MET_DANN_bestQ_array",MET_DANN_bestQ_array)
+        np.save(savingfolder+"METphi_DANN_bestQ_array",METphi_DANN_bestQ_array)
+        np.save(savingfolder+"MET_DANN_bestRMS_array",MET_DANN_bestRMS_array)
+        np.save(savingfolder+"METphi_DANN_bestRMS_array",METphi_DANN_bestRMS_array)
 
     else:
         z0_QNN_array = np.load(savingfolder+"z0_QNN_array.npy")
@@ -683,8 +703,8 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
-    ax.hist(trk_bendchi2_array[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
-    ax.hist(trk_bendchi2_array[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
+    ax.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
+    ax.hist(trk_bendchi2_array[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5, density=True)
     ax.set_xlabel("Track $\\chi^2_{bend}$", horizontalalignment='right', x=1.0)
     # ax.set_ylabel("tracks/counts", horizontalalignment='right', y=1.0)
     ax.set_yscale("log")

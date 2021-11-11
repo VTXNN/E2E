@@ -179,7 +179,7 @@ def FastHistoAssocNoFakes(PV,trk_z0,trk_eta,Fakes,kf):
 
     return np.array(assoc,dtype=np.float32)
 
-def predictMET(pt,phi,predictedAssoc,threshold):
+def predictMET(pt,phi,predictedAssoc,threshold,quality=False,chi2rphi=None,chi2rz=None,bendchi2=None):
     met_pt_list = []
     met_phi_list = []
 
@@ -187,11 +187,24 @@ def predictMET(pt,phi,predictedAssoc,threshold):
         res = Assoc > threshold
         return res
 
+    def quality_function(chi2rphi,chi2rz,bendchi2):
+        qrphi = chi2rphi < 12 
+        qrz =  chi2rz < 9 
+        qbend = bendchi2 < 4
+        q = np.logical_and(qrphi,qrz)
+        q = np.logical_and(q,qbend)
+        return q
+
 
     for ibatch in range(pt.shape[0]):
         assoc = assoc_function(predictedAssoc[ibatch])
-        newpt = pt[ibatch][assoc]
-        newphi = phi[ibatch][assoc]
+        if quality:
+            quality_s = quality_function(chi2rphi[ibatch],chi2rz[ibatch],bendchi2[ibatch])
+            selection = np.logical_and(assoc,quality_s)
+        else:
+            selection = assoc
+        newpt = pt[ibatch][selection]
+        newphi = phi[ibatch][selection]
 
 
 
@@ -255,7 +268,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
 
     if logbins:
-        bins = np.logspace(logrange[0],logrange[1],10)
+        bins = [0,5,10,20,30,45,60,80,100]
     else:
         bins = np.linspace(logrange[0],logrange[1],50)
     
