@@ -93,7 +93,6 @@ class E2EQKerasDiffArgMax():
                     trainable=True,
                     use_bias= False,
                     kernel_quantizer=qconfig['conv']['kernel_quantizer'],
-                    bias_quantizer=qconfig['conv']['bias_quantizer'],
                     name='pattern_'+str(ilayer+1)
                 ),
             QActivation(qconfig['conv']['activation'])
