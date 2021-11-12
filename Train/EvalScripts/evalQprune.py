@@ -31,10 +31,6 @@ plt.style.use(hep.style.CMS)
 
 colormap = "jet"
 
-save = True
-savingfolder = "SavedArrays/"
-PVROCs = False 
-
 SMALL_SIZE = 20
 MEDIUM_SIZE = 25
 BIGGER_SIZE = 30
@@ -75,11 +71,18 @@ if __name__=="__main__":
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"NewKFData/MET/*.tfrecord")
         z0 = 'trk_z0'
+        bit_z0 = 'bit_trk_z0'
     elif kf == "OldKF":
         test_files = glob.glob(config["data_folder"]+"OldKFData/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
+        bit_z0 = 'bit_corrected_trk_z0'
 
     nMaxTracks = 250
+
+    save = True
+    savingfolder = kf+"SavedArrays/"
+    PVROCs = True 
+
 
     with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
@@ -171,6 +174,8 @@ if __name__=="__main__":
 
     qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
+            start=0,
+            end=4095,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -210,6 +215,8 @@ if __name__=="__main__":
 
     DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=256,
+            start=0,
+            end=4095,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -380,12 +387,24 @@ if __name__=="__main__":
             YY = qmodel.layers[5].output
             new_model = Model(XX, YY)
 
-            predictedQWeights_QNN = new_model.predict_on_batch(
+            if bit:
+                predictedQWeights_QNN = new_model.predict_on_batch(
+                            [batch[bit_z0],WeightFeatures,trackFeatures])
+
+                predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
+                            [batch[bit_z0],WeightFeatures,trackFeatures]
+                        )
+
+            else:
+                predictedQWeights_QNN = new_model.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures])
 
-            predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
+                predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
+
+
+            
             predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
 
@@ -400,13 +419,24 @@ if __name__=="__main__":
             YY = DAmodel.layers[5].output
             new_model = Model(XX, YY)
 
-            predictedDAWeights_DANN = new_model.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures])
+            if bit:
+                predictedDAWeights_DANN = new_model.predict_on_batch(
+                                [batch[bit_z0],WeightFeatures,trackFeatures])
 
 
-            predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures]
-                        )
+                predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
+                                [batch[bit_z0],WeightFeatures,trackFeatures]
+                            )
+
+            else:
+
+                predictedDAWeights_DANN = new_model.predict_on_batch(
+                                [batch[z0],WeightFeatures,trackFeatures])
+
+
+                predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
+                                [batch[z0],WeightFeatures,trackFeatures]
+                            )
             predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
 

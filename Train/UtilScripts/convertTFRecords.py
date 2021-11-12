@@ -1,4 +1,4 @@
-import uproot
+import uproot3 as uproot
 import tensorflow as tf
 import numpy as np
 import math
@@ -10,7 +10,8 @@ tf.compat.v1.disable_eager_execution()
 #f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
 
 KFname =sys.argv[1]
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+KFname+"_TTsl_300K_quality.root")
+filename = sys.argv[2]
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+KFname+"_"+filename+".root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -72,7 +73,7 @@ trackFeatures = [
     'trk_chi2rz', 
     'trk_bendchi2',
     'corrected_trk_z0',
-    'trk_fake'
+    'trk_fake',
 ]
 
 
@@ -116,6 +117,18 @@ def _float_feature(value):
         value=np.nan_to_num(value.flatten(), nan=0.0, posinf=0.0, neginf=0.0)
     ))
 
+def splitter(x,granularity,signed):
+    import math
+
+    mult = 1
+
+    if signed: 
+        mult = 2
+      # Get the bin index
+    t = (mult*x)/granularity
+
+    return np.floor(t)
+
 eta_bins = np.array([0.0,0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2,2.2,2.4,np.inf])
 res_bins = np.array([0.0,0.1,0.1,0.12,0.14,0.16,0.18,0.23,0.23,0.3,0.35,0.38,0.42,0.5,1])
 
@@ -145,9 +158,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
     #ad-hoc correction of track z0
     data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
-    
 
-    
     #################################################
     
     tfData = {}
@@ -233,6 +244,45 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['normed_trk_over_eta_squared'] = _float_feature(padArray(np.array(5.76/abs(data['trk_eta'][iev][selectTracksInZ0Range])**2),nMaxTracks))
 
         tfData['trk_over_eta_squared'] = _float_feature(padArray(np.array(1/(0.1+0.2*(data['trk_eta'][iev][selectTracksInZ0Range])**2)),nMaxTracks))
+
+        tanL = abs(np.sinh(data['trk_eta'][iev][selectTracksInZ0Range]))
+        InvR = abs((3.8112*(3e8/1e11))/(2*data['trk_pt'][iev][selectTracksInZ0Range]))
+        bit_InvR = splitter(InvR,5.20424e-07,True)
+        bit_tanL = splitter(tanL,0.000244141,True)
+        #print("#################################")
+        #print(data['trk_eta'][iev][selectTracksInZ0Range])
+        #print(bit_tanL)
+        #print( np.log(np.sqrt(0.000244141**2*bit_tanL**2 + 1) + 0.000244141*bit_tanL))
+        #print( np.log(np.sqrt(0.000244141**2*bit_tanL**2 + 1) + 0.000244141*bit_tanL)/0.000244141)
+        #print("#################################")
+        #print(data['trk_pt'][iev][selectTracksInZ0Range])
+        #print(bit_InvR)
+        #print( abs((3.8112*(3e8/1e11))/(bit_InvR)))
+        #print( (abs((3.8112*(3e8/1e11))/(bit_InvR))/(5.20424e-07))/0.015625)
+
+        bit_trk_invR = bit_InvR
+        bit_trk_pt =  np.floor(abs((3.8112*(3e8/1e11))/(bit_InvR))/((5.20424e-07))/0.030517578125)
+        bit_trk_tanL = bit_tanL
+        bit_trk_eta = np.floor(np.log(np.sqrt(0.000244141**2*bit_tanL**2 + 1) + 0.000244141*bit_tanL)/0.000244141)
+        bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)
+        rescaled_bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)*1024
+ 
+        bit_corrected_trk_z0 = 2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range] + (data['trk_z0'][iev][selectTracksInZ0Range]>0.)*0.03 - (data['trk_z0'][iev][selectTracksInZ0Range]<0.)*0.03),0.00999469,False) 
+        bit_trk_z0 =  2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range]),0.00999469,False)
+        #print(data['trk_z0'][iev][selectTracksInZ0Range])
+        #print(bit_corrected_trk_z0)
+        #print(bit_trk_z0)
+
+        tfData['bit_trk_invR'] = _float_feature(padArray(np.array(bit_trk_invR,np.float32),nMaxTracks))
+        tfData['bit_trk_pt'] =  _float_feature(padArray(np.array(bit_trk_pt,np.float32),nMaxTracks))
+        tfData['bit_trk_tanL'] = _float_feature(padArray(np.array(bit_trk_tanL,np.float32),nMaxTracks))
+        tfData['bit_trk_eta'] = _float_feature(padArray(np.array(bit_trk_eta,np.float32),nMaxTracks))
+        tfData['bit_MVA1'] = _float_feature(padArray(np.array(bit_MVA1,np.float32),nMaxTracks))
+        tfData['rescaled_bit_MVA1'] =_float_feature(padArray(np.array(rescaled_bit_MVA1,np.float32),nMaxTracks))
+
+        tfData['bit_corrected_trk_z0']= _float_feature(padArray(np.array(bit_corrected_trk_z0,np.float32),nMaxTracks))
+        tfData['bit_trk_z0']= _float_feature(padArray(np.array(bit_trk_z0,np.float32),nMaxTracks))
+
 
         #sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectPVTracks])*data['trk_z0'][iev][selectPVTracks])
         #sum2Weights = np.sum(np.square(data['trk_pt'][iev][selectPVTracks]))

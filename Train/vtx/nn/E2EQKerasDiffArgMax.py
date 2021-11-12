@@ -9,6 +9,8 @@ import numpy
 class E2EQKerasDiffArgMax():
     def __init__(self,
         nbins=256,
+        start=-15,
+        end=15,
         ntracks=200, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -26,6 +28,8 @@ class E2EQKerasDiffArgMax():
         qconfig={}
     ):
         self.nbins = nbins
+        self.start = start
+        self.end = end
         self.ntracks = ntracks
         self.nweightfeatures = nweightfeatures
         self.nfeatures = nfeatures
@@ -71,8 +75,8 @@ class E2EQKerasDiffArgMax():
         
         self.kdeLayer = vtx.nn.KDELayer(
             nbins=self.nbins,
-            start=-15,
-            end=15,
+            start=self.start,
+            end=self.end,
             add_overflow=False
         )
         

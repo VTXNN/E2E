@@ -32,8 +32,10 @@ kf = sys.argv[1]
 
 if kf == "NewKF":
     z0 = 'trk_z0'
+    bit_z0 = 'bit_trk_z0'
 elif kf == "OldKF":
     z0 = 'corrected_trk_z0'
+    bit_z0 = 'bit_corrected_trk_z0'
 
 SMALL_SIZE = 15
 MEDIUM_SIZE = 15
@@ -74,12 +76,11 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False,bit=False):
 
     total_steps = 0
     callbacks.on_train_begin()
     old_lr = model.optimizer.learning_rate.numpy()
-    
 
     for epoch in range(epochs):
 
@@ -93,10 +94,15 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(kf+"best_weights.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            batch[z0]=batch[z0]*z0Flip
-            batch['pvz0']=batch['pvz0']*z0Flip
+            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            #if bit:
+            #    z0Shift = np.floor(np.random.normal(0.0,1.0/0.00999469,size=batch['pvz0'].shape))
+            #    batch[bit_z0]=batch[bit_z0]*z0Flip + z0Shift
+            #else:
+            #    z0Shift = np.random.normal(0.0,1)
+            #    batch[bit_z0]=batch[bit_z0]*z0Flip + z0Shift
+
+            #batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
             
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
@@ -105,8 +111,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             nBatch = batch['pvz0'].shape[0]
 
-            result = model.train_on_batch([batch[z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])])   
+            if bit:
+                result = model.train_on_batch([batch[bit_z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])])   
                                               # convs                          #softmax     #binweight                                           
+            else:
+                result = model.train_on_batch([batch[z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])])   
 
             result = dict(zip(model.metrics_names,result))
 
@@ -131,8 +140,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             if step%10==0:
                 predictedZ0_FH = eval.predictFastHisto(batch[z0],batch['trk_pt'])
- 
-                predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
+                if bit:
+                    predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[bit_z0],WeightFeatures,trackFeatures] )
+                else:
+                    predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
+
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
                 qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,32,50,68,95])
 
@@ -174,9 +186,14 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             val_WeightFeatures = np.stack([val_batch[feature] for feature in weightfeat],axis=2)
 
-            temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
-                    [val_batch[z0],val_WeightFeatures,val_trackFeatures]
-            )
+            if bit:
+                temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
+                        [val_batch[bit_z0],val_WeightFeatures,val_trackFeatures]
+                )
+            else:
+                temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
+                        [val_batch[z0],val_WeightFeatures,val_trackFeatures]
+                )
   
             val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
             val_predictedAssoc_NN.append(temp_predictedAssoc_NN.flatten())
@@ -231,8 +248,11 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
         actual_PV.append(batch['pvz0'])
 
         predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
-            
-        predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
+
+        if bit:   
+            predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[bit_z0],WeightFeatures,trackFeatures] )
+        else:
+            predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -283,7 +303,7 @@ if __name__=="__main__":
     trainable = config["trainable"]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
-
+    bit = config["bit_inputs"]
 
     if (trainable == "DiffArgMax") | (trainable == "QDiffArgMax"):
         
@@ -291,6 +311,8 @@ if __name__=="__main__":
 
         network = vtx.nn.E2EDiffArgMax(
             nbins=256,
+            start=0,
+            end = 4095,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -299,7 +321,6 @@ if __name__=="__main__":
             activation='relu',
             regloss=1e-10
         )
-
 
     elif trainable == "FH":
         nlatent = 0
@@ -351,6 +372,7 @@ if __name__=="__main__":
 
     trackFeatures = [
         'trk_z0',
+        'bit_trk_z0',
         'trk_pt',
         'trk_eta',
         'trk_MVA1',
@@ -361,9 +383,14 @@ if __name__=="__main__":
         'binned_trk_chi2rz', 
         'binned_trk_bendchi2',
         'corrected_trk_z0',
+        'bit_corrected_trk_z0',
         'normed_trk_over_eta',
         'normed_trk_over_eta_squared',
-        'trk_over_eta_squared'
+        'trk_over_eta_squared',
+        'bit_trk_pt',
+        'bit_trk_eta',
+        'rescaled_bit_MVA1',
+
     ]
 
     for trackFeature in trackFeatures:
@@ -429,6 +456,6 @@ if __name__=="__main__":
     mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )
     with experiment.train():
-        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,trainable=trainable),
+        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,trainable=trainable,bit=bit),
     with experiment.test():
         test_model(model,experiment,test_files,trackfeat,weightfeat)

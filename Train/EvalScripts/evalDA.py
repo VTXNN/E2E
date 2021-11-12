@@ -251,12 +251,12 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     ax[0].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax[0].set_ylabel('Events',ha="right",y=1)
     ax[0].set_yscale("log")
-    ax[0].legend(loc=2) 
+    ax[0].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95))
 
     ax[1].grid(True)
     ax[1].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax[1].set_ylabel('Events',ha="right",y=1)
-    ax[1].legend(loc=2) 
+    ax[1].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95))
 
     plt.tight_layout()
     return fig
@@ -328,12 +328,12 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     
     ax[0].set_ylabel('Events',ha="right",y=1)
     ax[0].set_yscale("log")
-    ax[0].legend(loc=1) 
+    ax[0].legend(loc='upper right', bbox_to_anchor=(0.95, 0.95)) 
 
     ax[1].grid(True)
     
     ax[1].set_ylabel('Events',ha="right",y=1)
-    ax[1].legend(loc=1) 
+    ax[1].legend(loc='upper right', bbox_to_anchor=(0.95, 0.95))
 
     if relative:
         ax[0].set_xlabel('$E_{T}^{miss}$ Relative Residual',ha="right",x=1)
@@ -440,7 +440,7 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
     ax[0].set_xlabel('Efficiency',ha="right",x=1)
     ax[0].set_ylabel('Purity',ha="right",y=1)
     ax[0].set_xlim([0.75,1])
-    ax[0].legend()
+    ax[0].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95))
 
     ax[1].grid(True)
     ax[1].set_yscale("log")
@@ -448,7 +448,7 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
     ax[1].set_ylabel('False Positive Rate',ha="right",y=1)
     ax[1].set_xlim([0.75,1])
     ax[1].set_ylim([1e-2,1])
-    ax[1].legend()
+    ax[1].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95))
     plt.tight_layout()
     return fig
 
@@ -488,8 +488,6 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     fig,ax = plt.subplots(1,1,figsize=(20,10))
     hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
     
-
-
     fakes = assoc == 0
     PU = assoc == 2
     PV = assoc == 1
@@ -516,7 +514,7 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     ax.plot([genPV, genPV], [0,maxpt], '--g', label='True Vx',linewidth=LINEWIDTH)
 
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
-    ax.set_ylabel('$p_T$ [GeV]',ha="right",y=1)
+    ax.set_ylabel('$\\sum p_T$ [GeV]',ha="right",y=1)
     ax.set_xlim(-15,15)
     ax.set_ylim(2,maxpt)
     ax.set_yscale("log")

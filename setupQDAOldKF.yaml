@@ -4,10 +4,10 @@ comet_experiment_name : QDANN_pretrained
 description : QDANN_pretrained_90_prune
 
 trainable : "QDiffArgMax"
-track_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta']
-weight_features : ['normed_trk_pt','trk_MVA1','trk_over_eta_squared']
-
+track_features : ['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta']
+weight_features : ['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta']
 pretrained : True
+bit_inputs : True
 
 eval_folder : Qplots
 data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
