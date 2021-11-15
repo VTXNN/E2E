@@ -174,8 +174,8 @@ if __name__=="__main__":
 
     qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
-            start=0,
-            end=4095,
+            start=-15,
+            end=15,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -215,8 +215,8 @@ if __name__=="__main__":
 
     DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=256,
-            start=0,
-            end=4095,
+            start=-15,
+            end=15,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -387,19 +387,10 @@ if __name__=="__main__":
             YY = qmodel.layers[5].output
             new_model = Model(XX, YY)
 
-            if bit:
-                predictedQWeights_QNN = new_model.predict_on_batch(
-                            [batch[bit_z0],WeightFeatures,trackFeatures])
-
-                predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
-                            [batch[bit_z0],WeightFeatures,trackFeatures]
-                        )
-
-            else:
-                predictedQWeights_QNN = new_model.predict_on_batch(
+            predictedQWeights_QNN = new_model.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures])
 
-                predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
+            predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
@@ -419,24 +410,15 @@ if __name__=="__main__":
             YY = DAmodel.layers[5].output
             new_model = Model(XX, YY)
 
-            if bit:
-                predictedDAWeights_DANN = new_model.predict_on_batch(
-                                [batch[bit_z0],WeightFeatures,trackFeatures])
 
-
-                predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
-                                [batch[bit_z0],WeightFeatures,trackFeatures]
-                            )
-
-            else:
-
-                predictedDAWeights_DANN = new_model.predict_on_batch(
+            predictedDAWeights_DANN = new_model.predict_on_batch(
                                 [batch[z0],WeightFeatures,trackFeatures])
 
 
-                predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
+            predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
                                 [batch[z0],WeightFeatures,trackFeatures]
                             )
+
             predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
 
@@ -792,6 +774,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] ,ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-assoc.png" %  outputFolder)
     plt.close()
@@ -805,6 +788,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0.png" %  outputFolder)
     plt.close()
@@ -818,6 +802,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track MVA", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-mva.png" %  outputFolder)
     plt.close()
@@ -831,7 +816,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-pt.png" %  outputFolder)
     plt.close()
@@ -845,6 +830,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-abs-eta.png" %  outputFolder)
     plt.close()
@@ -858,6 +844,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-eta.png" %  outputFolder)
     plt.close()
@@ -871,6 +858,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rphi.png" % outputFolder)
     plt.close()
@@ -884,6 +872,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $\\chi^2_{rz}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rz.png" % outputFolder)
     plt.close()
@@ -897,6 +886,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track $\\chi^2_{bend}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2bend.png" % outputFolder)
     plt.close()
@@ -910,6 +900,7 @@ if __name__=="__main__":
     ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qweightvsweight.png" % outputFolder)
     plt.close()
@@ -923,6 +914,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
+    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qassocvsassoc.png" % outputFolder)
     plt.close()
@@ -981,12 +973,12 @@ if __name__=="__main__":
 
     if PVROCs:
 
-        plt.clf()
-        figure=plotPV_roc(assoc_PV_array,[assoc_QNN_array],
-                         [assoc_FH_array,assoc_FHMVA_array,assoc_FHnoFake_array],
-                         ["ArgMax"],
-                         ["Base","BDT Cut","No Fakes"])
-        plt.savefig("%s/PVROC.png" % outputFolder)
+        #plt.clf()
+        #figure=plotPV_roc(assoc_PV_array,[assoc_QNN_array],
+        #                 [assoc_FH_array,assoc_FHMVA_array,assoc_FHnoFake_array],
+        #                 ["ArgMax"],
+        #                 ["Base","BDT Cut","No Fakes"])
+        #plt.savefig("%s/PVROC.png" % outputFolder)
 
         plt.clf()
         figure=plotPV_roc(assoc_PV_array,[assoc_DANN_array,assoc_QNN_array],

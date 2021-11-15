@@ -65,6 +65,26 @@ weightfeat = config["weight_features"]
 max_ntracks = 250
 
 if trainable == "QDiffArgMax":
+        nlatent = config["Nlatent"]
+
+        network = vtx.nn.E2EQKerasDiffArgMax(
+            nbins=256,
+            ntracks=max_ntracks, 
+            nweightfeatures=len(weightfeat), 
+            nfeatures=len(trackfeat), 
+            nweights=1, 
+            nlatent = nlatent,
+            activation='relu',
+            l1regloss = (float)(config['l1regloss']),
+            l2regloss = (float)(config['l2regloss']),
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
+            qconfig = config['QConfig']
+        )
+
+elif trainable == "DiffArgMax":
         
     nlatent = 2
 
@@ -97,17 +117,17 @@ model.compile(
                       0]
 )
 model.summary()
-model.load_weights(kf+"best_weights_unquantised.tf").expect_partial()
+model.load_weights(kf+"best_weights.tf").expect_partial()
 
 
 weightModel = network.createWeightModel()
-weightModel.load_weights(kf+"weightModel_weights_unquantised.hdf5")
+weightModel.load_weights(kf+"weightQModel_weights.hdf5")
 
 patternModel = network.createPatternModel()
-patternModel.load_weights(kf+"patternModel_weights_unquantised.hdf5")
+patternModel.load_weights(kf+"patternQModel_weights.hdf5")
 
 associationModel = network.createAssociationModel()
-associationModel.load_weights(kf+"asociationModel_weights_unquantised.hdf5")
+associationModel.load_weights(kf+"asociationQModel_weights.hdf5")
 
 
 
@@ -121,9 +141,9 @@ print("-----------------------------------")
 random_weight_data = np.random.rand(1000,3)
 hls_weight_model = hls4ml.converters.convert_from_keras_model(weightModel,
                                                        hls_config=weightconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_weight_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_weight_1/hls4ml_prj',
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.77)
 hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=kf+"Weight_model.png")
 plt.clf()
 ap, wp = hls4ml.model.profiling.numerical(model=weightModel, hls_model=hls_weight_model, X=random_weight_data)
@@ -139,9 +159,9 @@ print("-----------------------------------")
 random_pattern_data = np.random.rand(1000,256,1)
 hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
                                                        hls_config=patternconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_pattern_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_pattern_1/hls4ml_prj',
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.77)
 hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=kf+"pattern_model.png")
 plt.clf()
 ap,wp = hls4ml.model.profiling.numerical(model=patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
@@ -157,9 +177,9 @@ print("-----------------------------------")
 random_association_data = np.random.rand(1000,6)
 hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
                                                        hls_config=associationconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1/hls4ml_prj',
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.77)
 hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=kf+"association_model.png")
 plt.clf()
 ap,wp = hls4ml.model.profiling.numerical(model=associationModel, hls_model=hls_association_model, X=random_association_data)
@@ -168,17 +188,17 @@ ap.savefig(kf+"association_model_weights_profile.png")
 #####################################################################################################
 
 
-#hls_weight_model.compile()
-#hls_pattern_model.compile()
-#hls_association_model.compile()
+hls_weight_model.compile()
+hls_pattern_model.compile()
+hls_association_model.compile()
 
-#hls_weight_model.build(csim=False,synth=True,vsynth=True)
-#hls_pattern_model.build(csim=False,synth=True,vsynth=True)
-#hls_association_model.build(csim=False,synth=True,vsynth=True)
+hls_weight_model.build(csim=False,synth=True,vsynth=True)
+hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+hls_association_model.build(csim=False,synth=True,vsynth=True)
 
-hls4ml.report.read_vivado_report(kf+'model_weight_1_unquantised/hls4ml_prj')
-hls4ml.report.read_vivado_report(kf+'model_association_1_unquantised/hls4ml_prj')
-hls4ml.report.read_vivado_report(kf+'model_pattern_1_unquantised/hls4ml_prj')
+hls4ml.report.read_vivado_report(kf+'model_weight_1/hls4ml_prj')
+hls4ml.report.read_vivado_report(kf+'model_association_1/hls4ml_prj')
+hls4ml.report.read_vivado_report(kf+'model_pattern_1/hls4ml_prj')
 
 with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
@@ -200,6 +220,6 @@ experiment = comet_ml.ExistingExperiment(
             log_env_cpu=True,     # to continue CPU logging
         )
 
-experiment.log_asset_folder(kf+"model_weight_1_unquantised", step=None, log_file_name=True)
-experiment.log_asset_folder(kf+"model_association_1_unquantised", step=None, log_file_name=True)
-experiment.log_asset_folder(kf+"model_pattern_1_unquantised", step=None, log_file_name=True)
+experiment.log_asset_folder(kf+"model_weight_1", step=None, log_file_name=True)
+experiment.log_asset_folder(kf+"model_association_1", step=None, log_file_name=True)
+experiment.log_asset_folder(kf+"model_pattern_1", step=None, log_file_name=True)

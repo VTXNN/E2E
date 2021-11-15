@@ -91,18 +91,18 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(kf+"best_weights.tf")
+            model.load_weights(kf+"best_weights_unquantised.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            #if bit:
-            #    z0Shift = np.floor(np.random.normal(0.0,1.0/0.00999469,size=batch['pvz0'].shape))
-            #    batch[bit_z0]=batch[bit_z0]*z0Flip + z0Shift
-            #else:
-            #    z0Shift = np.random.normal(0.0,1)
-            #    batch[bit_z0]=batch[bit_z0]*z0Flip + z0Shift
-
-            #batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            if bit:
+                z0Shift = np.floor(np.random.normal(0.0,1.0,size=batch['pvz0'].shape))
+                batch[bit_z0]=batch[z0] + np.floor(z0Shift/0.00999469)
+                batch['pvz0']=batch['pvz0'] + z0Shift
+            else:
+                z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+                batch[z0]=batch[z0]*z0Flip 
+                batch['pvz0']=batch['pvz0']*z0Flip 
             
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
@@ -223,7 +223,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         experiment.log_metric("Validation_FH_PV_ROC",metrics.roc_auc_score(val_assoc_PV_array,val_assoc_FH_array))
         experiment.log_metric("Validation_FH_PV_ACC",metrics.balanced_accuracy_score(val_assoc_PV_array,val_assoc_FH_array))
 
-        model.save_weights(kf+"best_weights.tf")
+        model.save_weights(kf+"best_weights_unquantised.tf")
         old_lr = callbacks.on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
         
 def test_model(model,experiment,test_files,trackfeat,weightfeat):
@@ -268,8 +268,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(kf+"best_weights.tf.index")
-    experiment.log_asset(kf+"best_weights.tf.data-00000-of-00001")
+    experiment.log_asset(kf+"best_weights_unquantised.tf.index")
+    experiment.log_asset(kf+"best_weights_unquantised.tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -311,8 +311,8 @@ if __name__=="__main__":
 
         network = vtx.nn.E2EDiffArgMax(
             nbins=256,
-            start=0,
-            end = 4095,
+            start=-15,
+            end = 15,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -449,6 +449,8 @@ if __name__=="__main__":
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
     elif trainable == "QDiffArgMax":
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+
+    #model.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
         
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
