@@ -79,6 +79,9 @@ def setup_pipeline(fileList):
 def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False,bit=False):
 
     total_steps = 0
+    early_stop_patience = 100
+    wait = 0
+    best_score = 100000
     callbacks.on_train_begin()
     old_lr = model.optimizer.learning_rate.numpy()
 
@@ -94,18 +97,26 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(kf+"best_weights_unquantised.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
+            z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
             z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            if bit:
-                z0Shift = np.floor(np.random.normal(0.0,1.0,size=batch['pvz0'].shape))
-                batch[bit_z0]=batch[z0] + np.floor(z0Shift/0.00999469)
-                batch['pvz0']=batch['pvz0'] + z0Shift
-            else:
-                z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-                batch[z0]=batch[z0]*z0Flip 
-                batch['pvz0']=batch['pvz0']*z0Flip 
-            
-            
+            batch[z0]=batch[z0]*z0Flip + z0Shift
+            batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
+
+
+            #fig,ax = plt.subplots(1,3,figsize=(30,10))
+
+            #print(np.shape(batch[trackfeat[0]]))
+
+            #ax[0].hist(batch[trackfeat[0]].flatten,bins=100)
+            #ax[0].set_xlabel(trackfeat[0])
+            #ax[1].hist(batch[trackfeat[1]].flatten,bins=100)
+            #ax[1].set_xlabel(trackfeat[1])
+            #ax[2].hist(batch[trackfeat[2]].flatten,bins=100)
+            #ax[2].set_xlabel(trackfeat[2])
+
+            #plt.savefig("inputhists.png")
 
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat ],axis=2)
 
@@ -121,16 +132,22 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             if trainable == "FH":
                 experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['differentiable_argmax_loss'],step=total_steps,epoch=epoch)
+                experiment.log_metric("z0_loss",result['position_final_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
             elif (trainable == "DiffArgMax"):
+                if nlatent > 0:
+                    experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
+                else:
+                    experiment.log_metric("z0_loss",result['position_final_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             elif (trainable == "QDiffArgMax"):
+                if nlatent > 0:
+                    experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
+                else:
+                    experiment.log_metric("z0_loss",result['position_final_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             elif trainable == "FullNetwork":
@@ -151,16 +168,23 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                 if trainable == "FH":
                     print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
                             epoch,step,
-                            result['loss'],result['differentiable_argmax_loss'],result['association_final_loss'],
+                            result['loss'],result['position_final_loss'],result['association_final_loss'],
                             qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
                         ))
                     print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))          
                 elif ((trainable == "DiffArgMax") | (trainable == "QDiffArgMax")) :
-                    print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
-                            epoch,step,
-                            result['loss'],result['split_latent_loss'],result['association_final_loss'],
-                            qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
-                        ))
+                    if nlatent > 0:
+                        print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                                epoch,step,
+                                result['loss'],result['split_latent_loss'],result['association_final_loss'],
+                                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
+                            ))
+                    else:
+                        print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                                epoch,step,
+                                result['loss'],result['position_final_loss'],result['association_final_loss'],
+                                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
+                            ))
                     print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))   
                 elif trainable == "FullNetwork":
                     print ("Step %02i-%02i: loss=%.3f (split latent z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
@@ -223,8 +247,19 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         experiment.log_metric("Validation_FH_PV_ROC",metrics.roc_auc_score(val_assoc_PV_array,val_assoc_FH_array))
         experiment.log_metric("Validation_FH_PV_ACC",metrics.balanced_accuracy_score(val_assoc_PV_array,val_assoc_FH_array))
 
-        model.save_weights(kf+"best_weights_unquantised.tf")
         old_lr = callbacks.on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
+
+        val_loss = metrics.mean_squared_error(val_z0_PV_array,val_z0_NN_array)
+
+        print ("Val_NN_z0_MSE: "+str(val_loss)+" Best_NN_z0_MSE: "+str(best_score)) 
+
+        wait += 1
+        if val_loss < best_score:
+            best_score = val_loss
+            model.save_weights(kf+"best_weights_unquantised.tf")
+            wait = 0
+        if wait >= early_stop_patience:
+            break
         
 def test_model(model,experiment,test_files,trackfeat,weightfeat):
 
@@ -304,10 +339,10 @@ if __name__=="__main__":
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
     bit = config["bit_inputs"]
+    nlatent = config["Nlatent"]
 
     if (trainable == "DiffArgMax") | (trainable == "QDiffArgMax"):
         
-        nlatent = 2
 
         network = vtx.nn.E2EDiffArgMax(
             nbins=256,
@@ -323,7 +358,6 @@ if __name__=="__main__":
         )
 
     elif trainable == "FH":
-        nlatent = 0
 
         network = vtx.nn.E2EFH(
             nbins=256,
@@ -336,7 +370,6 @@ if __name__=="__main__":
         )
 
     elif trainable == "FullNetwork":
-        nlatent = 2
 
         network = vtx.nn.E2Ecomparekernel(
             nbins=256,
@@ -446,9 +479,9 @@ if __name__=="__main__":
         model.layers[4].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
         model.layers[7].set_weights([np.expand_dims(np.arange(256),axis=0)])
     elif trainable == "DiffArgMax":
-        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
     elif trainable == "QDiffArgMax":
-        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
 
     #model.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
         

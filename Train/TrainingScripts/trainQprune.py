@@ -105,8 +105,8 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             callbacks[1].on_train_batch_begin(epoch)
             z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
             z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            batch[z0]=batch[z0]*z0Flip 
-            batch['pvz0']=batch['pvz0']*z0Flip 
+            batch[z0]=batch[z0]*z0Flip + z0Shift
+            batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -119,8 +119,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             result = dict(zip(model.metrics_names,result))
 
+            if nlatent > 0:
+                experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
+            else:
+                experiment.log_metric("z0_loss",result['position_final_loss'],step=total_steps,epoch=epoch)
             experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-            experiment.log_metric("z0_loss",result['split_latent_loss'],step=total_steps,epoch=epoch)
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
 
@@ -131,12 +134,18 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
                 qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,32,50,68,95])
        
-     
-                print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
-                            epoch,step,
-                            result['loss'],result['split_latent_loss'],result['association_final_loss'],
-                            qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
-                        ))
+                if nlatent > 0:
+                    print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                                epoch,step,
+                                result['loss'],result['split_latent_loss'],result['association_final_loss'],
+                                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
+                    ))
+                else:
+                    print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
+                                epoch,step,
+                                result['loss'],result['position_final_loss'],result['association_final_loss'],
+                                qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
+                    ))
                 print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))   
               
 
@@ -346,7 +355,10 @@ if __name__=="__main__":
         'corrected_trk_z0',
         'normed_trk_over_eta',
         'normed_trk_over_eta_squared',
-        'trk_over_eta_squared'
+        'trk_over_eta_squared',
+        'bit_trk_pt',
+        'bit_trk_eta',
+        'rescaled_bit_MVA1',
     ]
 
     for trackFeature in trackFeatures:
@@ -431,14 +443,14 @@ if __name__=="__main__":
         DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
 
         model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-        model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
-        model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
-        model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
-        model.layers[13].set_weights(DAmodel.layers[11].get_weights()) 
-        model.layers[15].set_weights(DAmodel.layers[13].get_weights()) 
-        model.layers[21].set_weights(DAmodel.layers[19].get_weights()) 
-        model.layers[23].set_weights(DAmodel.layers[21].get_weights()) 
-        model.layers[25].set_weights(DAmodel.layers[23].get_weights()) 
+        model.layers[3].set_weights(DAmodel.layers[4].get_weights()) 
+        model.layers[5].set_weights(DAmodel.layers[8].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[10].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[13].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[15].get_weights()) 
+        model.layers[19].set_weights(DAmodel.layers[19].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[22].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[25].get_weights()) 
 
 
     pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=1)}

@@ -66,7 +66,7 @@ max_ntracks = 250
 
 if trainable == "QDiffArgMax":
         
-    nlatent = 2
+    nlatent = config["Nlatent"]
 
     network = vtx.nn.E2EDiffArgMax(
             nbins=256,
@@ -154,7 +154,7 @@ print("-----------------------------------")
 print("Configuration")
 #plotting.print_dict(config)
 print("-----------------------------------")
-random_association_data = np.random.rand(1000,6)
+random_association_data = np.random.rand(1000,4+nlatent)
 hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
                                                        hls_config=associationconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1_unquantised/hls4ml_prj',

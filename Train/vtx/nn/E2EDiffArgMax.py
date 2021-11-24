@@ -47,7 +47,7 @@ class E2EDiffArgMax():
                     name='weight_'+str(ilayer+1)
                 ),
                 tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.BatchNormalization()
+                tf.keras.layers.BatchNormalization(),
             ])
             
         self.weightLayers.append(
@@ -124,6 +124,7 @@ class E2EDiffArgMax():
                     name='association_'+str(ilayer)
                 ),
                 tf.keras.layers.Dropout(0.1),
+                tf.keras.layers.BatchNormalization(),
             ])
             
         self.assocLayers.extend([

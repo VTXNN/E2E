@@ -16,10 +16,10 @@ trainable = config["trainable"]
 trackfeat = config["track_features"] 
 weightfeat = config["weight_features"] 
 max_ntracks = 250
+nlatent = config["Nlatent"]
 
 if trainable == "QDiffArgMax":
-        nlatent = config["Nlatent"]
-
+        
         Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
             ntracks=max_ntracks, 
@@ -37,7 +37,6 @@ if trainable == "QDiffArgMax":
             qconfig = config['QConfig']
         )
 
-        nlatent = 2
 
         network = vtx.nn.E2EDiffArgMax(
             nbins = 256,
@@ -52,8 +51,6 @@ if trainable == "QDiffArgMax":
 
 elif trainable == "DiffArgMax":
         
-        nlatent = 2
-
         network = vtx.nn.E2EDiffArgMax(
             nbins = 256,
             ntracks = max_ntracks, 
@@ -67,7 +64,6 @@ elif trainable == "DiffArgMax":
 
 
 elif trainable == "FH":
-        nlatent = 0
 
         network = vtx.nn.E2EFH(
             nbins=256,
@@ -80,7 +76,6 @@ elif trainable == "FH":
         )
 
 elif trainable == "FullNetwork":
-        nlatent = 2
 
         network = vtx.nn.E2Ecomparekernel(
             nbins=256,

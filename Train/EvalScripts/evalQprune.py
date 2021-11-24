@@ -83,6 +83,8 @@ if __name__=="__main__":
     savingfolder = kf+"SavedArrays/"
     PVROCs = True 
 
+    nlatent = config["Nlatent"]
+
 
     with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
@@ -169,8 +171,6 @@ if __name__=="__main__":
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
-
-    nlatent = 2
 
     qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,

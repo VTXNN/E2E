@@ -61,11 +61,11 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 trainable = config["trainable"]
 trackfeat = config["track_features"] 
 weightfeat = config["weight_features"] 
+nlatent = config["Nlatent"]
 
 max_ntracks = 250
 
 if trainable == "QDiffArgMax":
-        nlatent = config["Nlatent"]
 
         network = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
@@ -85,8 +85,6 @@ if trainable == "QDiffArgMax":
         )
 
 elif trainable == "DiffArgMax":
-        
-    nlatent = 2
 
     network = vtx.nn.E2EDiffArgMax(
             nbins=256,
@@ -129,7 +127,13 @@ patternModel.load_weights(kf+"patternQModel_weights.hdf5")
 associationModel = network.createAssociationModel()
 associationModel.load_weights(kf+"asociationQModel_weights.hdf5")
 
+WeightInput_array = np.load("IntermediateArrays/WeightInputArray.npy")
+ConvInput_array = np.load("IntermediateArrays/ConvInputArray.npy")
+AssocInput_array = np.load("IntermediateArrays/AssocInputArray.npy")
 
+WeightInput_array = WeightInput_array.reshape(-1, WeightInput_array.shape[-1])
+#ConvInput_array   = ConvInput_array.reshape(-1, ConvInput_array.shape[-1])
+AssocInput_array  = AssocInput_array.reshape(-1, AssocInput_array.shape[-1])
 
 import hls4ml
 weightconfig = hls4ml.utils.config_from_keras_model(weightModel, granularity='name')
@@ -138,17 +142,19 @@ print("-----------------------------------")
 print("Configuration")
 #plotting.print_dict(config)
 print("-----------------------------------")
-random_weight_data = np.random.rand(1000,3)
+
 hls_weight_model = hls4ml.converters.convert_from_keras_model(weightModel,
                                                        hls_config=weightconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_weight_1/hls4ml_prj',
-                                                       fpga_part='xcvu9p-flga2104-2L-e',
-                                                       clock_period=2.77)
+                                                       part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
+for layer in weightconfig['LayerName'].keys():
+    weightconfig['LayerName'][layer]['Trace'] = True
 hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=kf+"Weight_model.png")
-plt.clf()
-ap, wp = hls4ml.model.profiling.numerical(model=weightModel, hls_model=hls_weight_model, X=random_weight_data)
-wp.savefig(kf+"Weight_model_activations_profile.png")
-ap.savefig(kf+"Weight_model_weights_profile.png")
+#plt.clf()
+#ap, wp = hls4ml.model.profiling.numerical(model=weightModel, hls_model=hls_weight_model, X=WeightInput_array)
+#wp.savefig(kf+"Weight_model_activations_profile.png")
+#ap.savefig(kf+"Weight_model_weights_profile.png")
 #####################################################################################################
 patternconfig = hls4ml.utils.config_from_keras_model(patternModel, granularity='name')
 patternconfig['Model']['Strategy'] = 'Resource'
@@ -156,17 +162,19 @@ print("-----------------------------------")
 print("Configuration")
 #plotting.print_dict(config)
 print("-----------------------------------")
-random_pattern_data = np.random.rand(1000,256,1)
+
 hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
                                                        hls_config=patternconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_pattern_1/hls4ml_prj',
-                                                       fpga_part='xcvu9p-flga2104-2L-e',
-                                                       clock_period=2.77)
+                                                       part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
+for layer in patternconfig['LayerName'].keys():
+    patternconfig['LayerName'][layer]['Trace'] = True
 hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=kf+"pattern_model.png")
-plt.clf()
-ap,wp = hls4ml.model.profiling.numerical(model=patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-wp.savefig(kf+"pattern_model_activations_profile.png")
-ap.savefig(kf+"pattern_model_weights_profile.png")
+#plt.clf()
+#ap,wp = hls4ml.model.profiling.numerical(model=patternModel, hls_model=hls_pattern_model, X=ConvInput_array)
+#wp.savefig(kf+"pattern_model_activations_profile.png")
+#ap.savefig(kf+"pattern_model_weights_profile.png")
 #####################################################################################################
 associationconfig = hls4ml.utils.config_from_keras_model(associationModel, granularity='name')
 print(associationconfig)
@@ -174,30 +182,36 @@ print("-----------------------------------")
 print("Configuration")
 #plotting.print_dict(config)
 print("-----------------------------------")
-random_association_data = np.random.rand(1000,6)
+
+associationconfig['LayerName']['association_final']['Precision']['weight'] = 'ap_fixed<'+ config['QConfig']["association_final"]["kernel_quantizer"] +'>'
+associationconfig['LayerName']['association_final']['Precision']['bias']   = 'ap_fixed<'+ config['QConfig']["association_final"]["bias_quantizer"] +'>'
+associationconfig['LayerName']['association_final']['Precision']['result'] = 'ap_fixed<'+ config['QConfig']["association_final"]["activation_quantizer"] +'>'
+
 hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
                                                        hls_config=associationconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1/hls4ml_prj',
-                                                       fpga_part='xcvu9p-flga2104-2L-e',
-                                                       clock_period=2.77)
+                                                       part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
 hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=kf+"association_model.png")
-plt.clf()
-ap,wp = hls4ml.model.profiling.numerical(model=associationModel, hls_model=hls_association_model, X=random_association_data)
-wp.savefig(kf+"association_model_activations_profile.png")
-ap.savefig(kf+"association_model_weights_profile.png")
+for layer in associationconfig['LayerName'].keys():
+    associationconfig['LayerName'][layer]['Trace'] = True
+#plt.clf()
+#ap,wp = hls4ml.model.profiling.numerical(model=associationModel, hls_model=hls_association_model, X=AssocInput_array)
+#wp.savefig(kf+"association_model_activations_profile.png")
+#ap.savefig(kf+"association_model_weights_profile.png")
 #####################################################################################################
 
 
 hls_weight_model.compile()
-hls_pattern_model.compile()
+#hls_pattern_model.compile()
 hls_association_model.compile()
 
 hls_weight_model.build(csim=False,synth=True,vsynth=True)
-hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+#hls_pattern_model.build(csim=False,synth=True,vsynth=True)
 hls_association_model.build(csim=False,synth=True,vsynth=True)
 
 hls4ml.report.read_vivado_report(kf+'model_weight_1/hls4ml_prj')
-hls4ml.report.read_vivado_report(kf+'model_association_1/hls4ml_prj')
+#hls4ml.report.read_vivado_report(kf+'model_association_1/hls4ml_prj')
 hls4ml.report.read_vivado_report(kf+'model_pattern_1/hls4ml_prj')
 
 with open(kf+'experimentkey.txt') as f:

@@ -55,9 +55,10 @@ class E2EQKerasDiffArgMax():
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
+                    #activation_quantizer=qconfig['weight_'+str(ilayer+1)]['activation_quantizer'],
                     name='weight_'+str(ilayer+1)
                 ),
-                QActivation(qconfig['weight_'+str(ilayer+1)]['activation'])
+                QActivation(qconfig['weight_'+str(ilayer+1)]['activation']),
             ])
             
         self.weightLayers.extend([
@@ -67,6 +68,7 @@ class E2EQKerasDiffArgMax():
                 trainable=True,
                 kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['weight_final']['bias_quantizer'],
+                #activation_quantizer=qconfig['weight_final']['activation_quantizer'],
                 kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='weight_final'
             ),
@@ -93,6 +95,7 @@ class E2EQKerasDiffArgMax():
                     trainable=True,
                     use_bias= False,
                     kernel_quantizer=qconfig['conv']['kernel_quantizer'],
+                    #activation_quantizer=qconfig['conv']['activation_quantizer'],
                     name='pattern_'+str(ilayer+1)
                 ),
             QActivation(qconfig['conv']['activation'])
@@ -133,6 +136,7 @@ class E2EQKerasDiffArgMax():
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
                     bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    #activation_quantizer=qconfig['association_'+str(ilayer)]['activation_quantizer'],
                     name='association_'+str(ilayer)
                 ),
                 QActivation(qconfig['association_'+str(ilayer)]['activation'])
