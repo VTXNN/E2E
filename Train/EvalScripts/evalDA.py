@@ -336,8 +336,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     ax[1].legend(loc='upper right', bbox_to_anchor=(0.95, 0.95))
 
     if relative:
-        ax[0].set_xlabel('$E_{T}^{miss}$ Relative Residual',ha="right",x=1)
-        ax[1].set_xlabel('$E_{T}^{miss}$ Relative Residual',ha="right",x=1)
+        ax[0].set_xlabel('$E_{T}^{miss}$ Resolution \\Frac{Gen - True}{True}',ha="right",x=1)
+        ax[1].set_xlabel('$E_{T}^{miss}$ Resolution \\Frac{Gen - True}{True}',ha="right",x=1)
     else:
         ax[0].set_xlabel('$E_{T}^{miss}$ Residual [GeV]',ha="right",x=1)
         ax[1].set_xlabel('$E_{T}^{miss}$ Residual [GeV]',ha="right",x=1)
@@ -444,8 +444,8 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
 
     ax[1].grid(True)
     ax[1].set_yscale("log")
-    ax[1].set_xlabel('True Positive Rate',ha="right",x=1)
-    ax[1].set_ylabel('False Positive Rate',ha="right",y=1)
+    ax[1].set_xlabel('Track to Vertex Association True Positive Rate',ha="right",x=1)
+    ax[1].set_ylabel('Track to Vertex Association False Positive Rate',ha="right",y=1)
     ax[1].set_xlim([0.75,1])
     ax[1].set_ylim([1e-2,1])
     ax[1].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95))

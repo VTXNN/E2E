@@ -95,11 +95,13 @@ weightModel = network.createWeightModel()
 with open(kf + 'weightModel_unquantised.json', 'w') as f:
     f.write(weightModel.to_json())
 weightModel.save_weights(kf + "weightModel_weights_unquantised.hdf5")
+weightModel.save('weightModel_unquantised')
 
 patternModel = network.createPatternModel()
 with open(kf + 'patternModel_unquantised.json', 'w') as f:
     f.write(patternModel.to_json())
 patternModel.save_weights(kf + "patternModel_weights_unquantised.hdf5")
+patternModel.save('patternModel_unquantised')
 
 if trainable == "FullNetwork":
     positionModel = network.createPositionModel()
@@ -111,7 +113,7 @@ associationModel = network.createAssociationModel()
 with open(kf + 'asociationModel_unquantised.json', 'w') as f:
     f.write(associationModel.to_json())
 associationModel.save_weights(kf + "asociationModel_weights_unquantised.hdf5")
-
+associationModel.save("asociationModel_unquantised5")
 
 Qmodel = Qnetwork.createE2EModel()
 Qmodel.load_weights(kf + "best_weights.tf")

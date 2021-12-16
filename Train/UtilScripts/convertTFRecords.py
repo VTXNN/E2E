@@ -55,12 +55,22 @@ branches = [
     'trk_unknown',
     'trk_z0',
     'pv_MC',
-    'genMETPx',
-    'genMETPy',
-    'genMET',
-    'genMETPhi',
-    "trk_MVA1"
-
+    #'genMETPx',
+    #'genMETPy',
+    #'genMET',
+    #'genMETPhi',
+    "trk_MVA1",
+    "trk_word_InvR",
+    "trk_word_pT",
+    "trk_word_Phi",
+    "trk_word_TanL",
+    "trk_word_eta",
+    "trk_word_Z0",
+    "trk_word_chi2rphi",
+    "trk_word_chi2rz",
+    "trk_word_bendchi2",
+    "trk_word_hitpattern",
+    "trk_word_MVAquality"
 ]
 
 trackFeatures = [
@@ -74,6 +84,17 @@ trackFeatures = [
     'trk_bendchi2',
     'corrected_trk_z0',
     'trk_fake',
+    "trk_word_InvR",
+    "trk_word_pT",
+    "trk_word_Phi",
+    "trk_word_TanL",
+    "trk_word_eta",
+    "trk_word_Z0",
+    "trk_word_chi2rphi",
+    "trk_word_chi2rz",
+    "trk_word_bendchi2",
+    "trk_word_hitpattern",
+    "trk_word_MVAquality"
 ]
 
 
@@ -131,6 +152,7 @@ def splitter(x,granularity,signed):
 
 eta_bins = np.array([0.0,0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2,2.2,2.4,np.inf])
 res_bins = np.array([0.0,0.1,0.1,0.12,0.14,0.16,0.18,0.23,0.23,0.3,0.35,0.38,0.42,0.5,1])
+bit_res_bins =np.floor(res_bins*1024)
 
 chi2rz_bins   = np.array([0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 8.0, 10.0, 20.0, 50.0,np.inf])
 chi2rphi_bins = np.array([0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 10.0, 15.0, 20.0, 35.0, 60.0, 200.0, np.inf])
@@ -202,10 +224,10 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['pv_trk_met_pt'] = _float_feature(np.array([pv_trk_met_pt],np.float32))
         tfData['pv_trk_met_phi'] = _float_feature(np.array([pv_trk_met_phi],np.float32))
 
-        tfData['true_met_px'] = _float_feature(np.array(data['genMETPx'][iev],np.float32))
-        tfData['true_met_py'] = _float_feature(np.array(data['genMETPy'][iev],np.float32))
-        tfData['true_met_pt'] = _float_feature(np.array(data['genMET'][iev],np.float32))
-        tfData['true_met_phi'] = _float_feature(np.array(data['genMETPhi'][iev],np.float32))
+        #tfData['true_met_px'] = _float_feature(np.array(data['genMETPx'][iev],np.float32))
+        #tfData['true_met_py'] = _float_feature(np.array(data['genMETPy'][iev],np.float32))
+        #tfData['true_met_pt'] = _float_feature(np.array(data['genMET'][iev],np.float32))
+        #tfData['true_met_phi'] = _float_feature(np.array(data['genMETPhi'][iev],np.float32))
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
 
@@ -260,28 +282,32 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         #print( abs((3.8112*(3e8/1e11))/(bit_InvR)))
         #print( (abs((3.8112*(3e8/1e11))/(bit_InvR))/(5.20424e-07))/0.015625)
 
-        bit_trk_invR = bit_InvR
-        bit_trk_pt =  np.floor(abs((3.8112*(3e8/1e11))/(bit_InvR))/((5.20424e-07))/0.030517578125)
-        bit_trk_tanL = bit_tanL
-        bit_trk_eta = np.floor(np.log(np.sqrt(0.000244141**2*bit_tanL**2 + 1) + 0.000244141*bit_tanL)/0.000244141)
-        bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)
-        rescaled_bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)*1024
+        #bit_trk_invR = bit_InvR
+        #bit_trk_pt =  np.floor(abs((3.8112*(3e8/1e11))/(bit_InvR))/((5.20424e-07))/0.030517578125)
+        #bit_trk_tanL = bit_tanL
+        #bit_trk_eta = np.floor(np.log(np.sqrt(0.000244141**2*bit_tanL**2 + 1) + 0.000244141*bit_tanL)/0.000244141)
+        #bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)
+        #rescaled_bit_MVA1 = np.floor(data['trk_MVA1'][iev][selectTracksInZ0Range]*8)*1024
  
-        bit_corrected_trk_z0 = 2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range] + (data['trk_z0'][iev][selectTracksInZ0Range]>0.)*0.03 - (data['trk_z0'][iev][selectTracksInZ0Range]<0.)*0.03),0.00999469,False) 
-        bit_trk_z0 =  2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range]),0.00999469,False)
+        #bit_corrected_trk_z0 = 2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range] + (data['trk_z0'][iev][selectTracksInZ0Range]>0.)*0.03 - (data['trk_z0'][iev][selectTracksInZ0Range]<0.)*0.03),0.00999469,False) 
+        #bit_trk_z0 =  2048 + splitter((data['trk_z0'][iev][selectTracksInZ0Range]),0.00999469,False)
         #print(data['trk_z0'][iev][selectTracksInZ0Range])
         #print(bit_corrected_trk_z0)
         #print(bit_trk_z0)
 
-        tfData['bit_trk_invR'] = _float_feature(padArray(np.array(bit_trk_invR,np.float32),nMaxTracks))
-        tfData['bit_trk_pt'] =  _float_feature(padArray(np.array(bit_trk_pt,np.float32),nMaxTracks))
-        tfData['bit_trk_tanL'] = _float_feature(padArray(np.array(bit_trk_tanL,np.float32),nMaxTracks))
-        tfData['bit_trk_eta'] = _float_feature(padArray(np.array(bit_trk_eta,np.float32),nMaxTracks))
-        tfData['bit_MVA1'] = _float_feature(padArray(np.array(bit_MVA1,np.float32),nMaxTracks))
-        tfData['rescaled_bit_MVA1'] =_float_feature(padArray(np.array(rescaled_bit_MVA1,np.float32),nMaxTracks))
+        #tfData['bit_trk_invR'] = _float_feature(padArray(np.array(bit_trk_invR,np.float32),nMaxTracks))
+        #tfData['bit_trk_pt'] =  _float_feature(padArray(np.array(bit_trk_pt,np.float32),nMaxTracks))
+        #tfData['bit_trk_tanL'] = _float_feature(padArray(np.array(bit_trk_tanL,np.float32),nMaxTracks))
+        #tfData['bit_trk_eta'] = _float_feature(padArray(np.array(bit_trk_eta,np.float32),nMaxTracks))
+        #tfData['bit_MVA1'] = _float_feature(padArray(np.array(bit_MVA1,np.float32),nMaxTracks))
+        #tfData['rescaled_bit_MVA1'] =_float_feature(padArray(np.array(rescaled_bit_MVA1,np.float32),nMaxTracks))
 
-        tfData['bit_corrected_trk_z0']= _float_feature(padArray(np.array(bit_corrected_trk_z0,np.float32),nMaxTracks))
-        tfData['bit_trk_z0']= _float_feature(padArray(np.array(bit_trk_z0,np.float32),nMaxTracks))
+        #rescaled_res = bit_res_bins[np.digitize(abs(data['trk_eta'][iev][selectTracksInZ0Range]),eta_bins)]*2
+
+        #tfData['rescaled_bit_trk_z0_res'] =_float_feature(padArray(np.array(rescaled_res,np.float32),nMaxTracks))
+
+        #tfData['bit_corrected_trk_z0']= _float_feature(padArray(np.array(bit_corrected_trk_z0,np.float32),nMaxTracks))
+        #tfData['bit_trk_z0']= _float_feature(padArray(np.array(bit_trk_z0,np.float32),nMaxTracks))
 
 
         #sum2Z0 = np.sum(np.square(data['trk_pt'][iev][selectPVTracks])*data['trk_z0'][iev][selectPVTracks])

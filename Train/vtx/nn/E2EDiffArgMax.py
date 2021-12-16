@@ -15,8 +15,12 @@ class E2EDiffArgMax():
         npattern=4,
         nlatent=0, 
         activation='relu',
+        nweightnodes = 10,
+        nweightlayers = 2,
+        nassocnodes = 20,
+        nassoclayers = 2,
         regloss=1e-10,
-        temperature=1e2
+        temperature=1e4
     ):
         self.nbins = nbins
         self.start = start
@@ -36,30 +40,33 @@ class E2EDiffArgMax():
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
 
         self.weightLayers = []
-        for ilayer,nodes in enumerate([10,10]):
+        for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
                 tf.keras.layers.Dense(
                     nodes,
-                    activation=self.activation,
+                    activation=None,
                     trainable=True,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.l2(regloss),
                     name='weight_'+str(ilayer+1)
                 ),
+                tf.keras.layers.Activation(self.activation),
                 tf.keras.layers.Dropout(0.1),
-                tf.keras.layers.BatchNormalization(),
+                #tf.keras.layers.BatchNormalization(),
             ])
             
-        self.weightLayers.append(
+        self.weightLayers.extend([
             tf.keras.layers.Dense(
                 self.nweights,
-                activation='relu', #need to use relu here to remove negative weights
+                activation=None, #need to use relu here to remove negative weights
                 kernel_initializer='lecun_normal',
                 trainable=True,
                 kernel_regularizer=tf.keras.regularizers.l2(regloss),
                 name='weight_final'
             ),
-        )
+            tf.keras.layers.Activation(self.activation)
+        ])
+
         
         self.kdeLayer = vtx.nn.KDELayer(
             nbins=self.nbins,
@@ -73,7 +80,7 @@ class E2EDiffArgMax():
         for ilayer,(filterSize,kernelSize) in enumerate([
             [1,3]
         ]):
-            self.patternConvLayers.append(
+            self.patternConvLayers.extend([
                 tf.keras.layers.Conv1D(
                     filterSize,
                     kernelSize,
@@ -82,8 +89,9 @@ class E2EDiffArgMax():
                     trainable=True,
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
-                )
-            )
+                ),
+                tf.keras.layers.Activation(self.activation)
+            ])
 
         
 
@@ -107,6 +115,7 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 1+self.nlatent,
                 activation=None,
+                trainable=False,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(regloss),
                 name='position_final'
@@ -114,17 +123,18 @@ class E2EDiffArgMax():
         ]
           
         self.assocLayers = []
-        for ilayer,filterSize in enumerate([20,20]):
+        for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
             self.assocLayers.extend([
                 tf.keras.layers.Dense(
                     filterSize,
-                    activation=self.activation,
+                    activation=None,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.l2(regloss),
                     name='association_'+str(ilayer)
                 ),
+                tf.keras.layers.Activation(self.activation),
                 tf.keras.layers.Dropout(0.1),
-                tf.keras.layers.BatchNormalization(),
+                #tf.keras.layers.BatchNormalization(),
             ])
             
         self.assocLayers.extend([

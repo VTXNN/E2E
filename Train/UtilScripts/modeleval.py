@@ -79,6 +79,23 @@ if trainable == "QDiffArgMax":
             regloss=1e-10
         )
 
+    Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
+            nbins=256,
+            ntracks=max_ntracks, 
+            nweightfeatures=len(weightfeat), 
+            nfeatures=len(trackfeat), 
+            nweights=1, 
+            nlatent = nlatent,
+            activation='relu',
+            l1regloss = (float)(config['l1regloss']),
+            l2regloss = (float)(config['l2regloss']),
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
+            qconfig = config['QConfig']
+        )
+
 
 model = network.createE2EModel()
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
@@ -96,19 +113,50 @@ model.compile(
                       config['crossentropy_loss_weight'],
                       0]
 )
+
+Qmodel = Qnetwork.createE2EModel()
+Qmodel.compile(
+    optimizer,
+    loss=[
+        tf.keras.losses.MeanAbsoluteError(),
+        tf.keras.losses.BinaryCrossentropy(from_logits=True),
+        lambda y,x: 0.
+    ],
+    metrics=[
+        tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+    ],
+    loss_weights=[config['z0_loss_weight'],
+                      config['crossentropy_loss_weight'],
+                      0]
+)
+
+
 model.summary()
 model.load_weights(kf+"best_weights_unquantised.tf").expect_partial()
 
+weightModel = Qnetwork.createWeightModel()
+patternModel = Qnetwork.createPatternModel()
+associationModel = Qnetwork.createAssociationModel()
 
-weightModel = network.createWeightModel()
-weightModel.load_weights(kf+"weightModel_weights_unquantised.hdf5")
+weightModel.summary()
+patternModel.summary()
+associationModel.summary()
 
-patternModel = network.createPatternModel()
-patternModel.load_weights(kf+"patternModel_weights_unquantised.hdf5")
+weightModel.layers[1].set_weights(model.layers[1].get_weights())
+weightModel.layers[2].set_weights(model.layers[2].get_weights())
+weightModel.layers[3].set_weights(model.layers[5].get_weights())
+weightModel.layers[4].set_weights(model.layers[6].get_weights())
+weightModel.layers[5].set_weights(model.layers[9].get_weights())
+weightModel.layers[6].set_weights(model.layers[11].get_weights())
 
-associationModel = network.createAssociationModel()
-associationModel.load_weights(kf+"asociationModel_weights_unquantised.hdf5")
+patternModel.layers[1].set_weights(model.layers[13].get_weights())
+patternModel.layers[2].set_weights(model.layers[14].get_weights())
 
+associationModel.layers[1].set_weights(model.layers[23].get_weights())
+associationModel.layers[2].set_weights(model.layers[24].get_weights()) 
+associationModel.layers[3].set_weights(model.layers[27].get_weights()) 
+associationModel.layers[4].set_weights(model.layers[28].get_weights()) 
+associationModel.layers[5].set_weights(model.layers[31].get_weights()) 
 
 
 import hls4ml
@@ -122,8 +170,8 @@ random_weight_data = np.random.rand(1000,3)
 hls_weight_model = hls4ml.converters.convert_from_keras_model(weightModel,
                                                        hls_config=weightconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_weight_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
 hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=kf+"Weight_model.png")
 plt.clf()
 ap, wp = hls4ml.model.profiling.numerical(model=weightModel, hls_model=hls_weight_model, X=random_weight_data)
@@ -140,8 +188,8 @@ random_pattern_data = np.random.rand(1000,256,1)
 hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
                                                        hls_config=patternconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_pattern_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
 hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=kf+"pattern_model.png")
 plt.clf()
 ap,wp = hls4ml.model.profiling.numerical(model=patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
@@ -158,8 +206,8 @@ random_association_data = np.random.rand(1000,4+nlatent)
 hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
                                                        hls_config=associationconfig,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1_unquantised/hls4ml_prj',
-                                                       #fpga_part='xcvu9p-flga2104-2L-e',
-                                                       )#clock_period=2.77)
+                                                       fpga_part='xcvu9p-flga2104-2L-e',
+                                                       clock_period=2.5)
 hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=kf+"association_model.png")
 plt.clf()
 ap,wp = hls4ml.model.profiling.numerical(model=associationModel, hls_model=hls_association_model, X=random_association_data)

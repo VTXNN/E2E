@@ -24,7 +24,7 @@ class E2EQKerasDiffArgMax():
         nassoclayers = 2,
         l1regloss=1e-3,
         l2regloss=1e-10,
-        temperature=1e2,
+        temperature=1e4,
         qconfig={}
     ):
         self.nbins = nbins
@@ -121,6 +121,7 @@ class E2EQKerasDiffArgMax():
             tf.keras.layers.Dense(
                 1+self.nlatent,
                 activation=None,
+                trainable=False,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 name='position_final'

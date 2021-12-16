@@ -165,7 +165,10 @@ if __name__=="__main__":
             'corrected_trk_z0',
             'normed_trk_over_eta',
             'normed_trk_over_eta_squared',
-            'trk_over_eta_squared'
+            'trk_over_eta_squared',
+            'bit_trk_pt',
+            'bit_trk_eta',
+            'rescaled_bit_MVA1',
 
         ]
 
@@ -247,8 +250,8 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[0])
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax[1])
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[0])
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[1])
 
     prune_level = []
     for i,layer in enumerate(qmodel.layers):
@@ -407,7 +410,7 @@ if __name__=="__main__":
 
             #### DA NETWORK #########################################################################################################################
             XX = DAmodel.input 
-            YY = DAmodel.layers[5].output
+            YY = DAmodel.layers[9].output
             new_model = Model(XX, YY)
 
 
@@ -713,7 +716,7 @@ if __name__=="__main__":
     #########################################################################################
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
     ax.hist(trk_bendchi2_array[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5, density=True)
@@ -728,7 +731,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
     ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
@@ -751,7 +754,7 @@ if __name__=="__main__":
     
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedQWeightsarray[pv_track_sel]) / assoc_scale)
     ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5)
@@ -767,7 +770,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -781,7 +784,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_z0_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -795,7 +798,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_mva_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -809,7 +812,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hidst2d = ax.hist2d(predictedQWeightsarray, trk_pt_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -823,7 +826,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, np.abs(trk_eta_array), range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -837,7 +840,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_eta_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -851,7 +854,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rphi_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -865,7 +868,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rz_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -879,7 +882,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, trk_bendchi2_array , range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
@@ -893,7 +896,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((Qweightmin,Qweightmax),(Qweightmin,Qweightmax)), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
@@ -907,7 +910,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     hist2d = ax.hist2d(assoc_QNN_array, assoc_DANN_array,range=((0,1),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Quantised Track-to-Vertex Association flag", horizontalalignment='right', x=1.0)
@@ -923,7 +926,7 @@ if __name__=="__main__":
     if (do_scatter):
         plt.clf()
         fig,ax = plt.subplots(1,1,figsize=(10,10))
-        hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+        hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
         ax.scatter(predictedQWeightsarray, trk_z0_array, label="z0")
         ax.set_xlabel("weight")
@@ -935,7 +938,7 @@ if __name__=="__main__":
 
         plt.clf()
         fig,ax = plt.subplots(1,1,figsize=(10,10))
-        hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+        hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
         ax.scatter(predictedQWeightsarray, trk_pt_array, label="pt")
         ax.set_xlabel("weight")
@@ -947,7 +950,7 @@ if __name__=="__main__":
 
         plt.clf()
         fig,ax = plt.subplots(1,1,figsize=(10,10))
-        hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+        hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
         ax.scatter(predictedQWeightsarray, trk_eta_array, label="eta")
         ax.set_xlabel("weight")
@@ -1155,7 +1158,7 @@ if __name__=="__main__":
     #########################################################################################
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
     ax.hist(z0_FHres_array,range=(-15,15),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
@@ -1171,7 +1174,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1183,7 +1186,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1195,7 +1198,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1207,7 +1210,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
@@ -1219,7 +1222,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1231,7 +1234,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1243,7 +1246,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
@@ -1255,7 +1258,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
@@ -1267,7 +1270,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("Reco PV $z_0$ NN [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
@@ -1285,7 +1288,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1297,7 +1300,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1309,7 +1312,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, MET_FH_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T}^{miss,FH}$", horizontalalignment='right', y=1.0)
@@ -1321,7 +1324,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_METphi_array, METphi_QNN_bestQ_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1333,7 +1336,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_METphi_array, METphi_QNN_bestRMS_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T,\\phi}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1345,7 +1348,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_METphi_array, METphi_FH_array, bins=60,range=((-np.pi,np.pi),(-np.pi,np.pi)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T,\\phi}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T,\\phi}^{miss,FH}$", horizontalalignment='right', y=1.0)
@@ -1357,7 +1360,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(MET_DANN_bestQ_array, MET_QNN_bestQ_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1369,7 +1372,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(MET_DANN_bestRMS_array, MET_QNN_bestRMS_array, bins=60,range=((0,300),(0,300)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,NN}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$E_{T}^{miss,QNN}$", horizontalalignment='right', y=1.0)
@@ -1388,7 +1391,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
@@ -1400,7 +1403,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
@@ -1412,7 +1415,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d(actual_MET_array, (MET_FH_array-actual_MET_array)/actual_MET_array, bins=60,range=((0,300),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$(E_{T}^{miss,FH} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
@@ -1424,7 +1427,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d((MET_DANN_bestQ_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestQ_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
@@ -1436,7 +1439,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     hist2d = ax.hist2d((MET_DANN_bestRMS_array-actual_MET_array)/actual_MET_array, (MET_QNN_bestRMS_array-actual_MET_array)/actual_MET_array, bins=60,range=((-1,30),(-1,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("$(E_{T}^{miss,QNN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$(E_{T}^{miss,NN} - E_{T}^{miss,True}) / E_{T}^{miss,True}$", horizontalalignment='right', y=1.0)
@@ -1475,7 +1478,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,MET_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
@@ -1491,7 +1494,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,MET_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
@@ -1507,7 +1510,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,MET_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
@@ -1523,7 +1526,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,METphi_QNN_RMS_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[0]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
@@ -1539,7 +1542,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,METphi_QNN_Quartile_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[1]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)
@@ -1555,7 +1558,7 @@ if __name__=="__main__":
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
-    hep.cms.label(llabel="Phase-2 Simulation",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
     ax.plot(thresholds,METphi_QNN_Centre_array,label="Argmax NN",markersize=10,linewidth=LINEWIDTH,marker='o')
     ax.plot(thresholds,np.full(len(thresholds),FHphiwidths[2]),label="Base FH",linestyle='--',linewidth=LINEWIDTH)

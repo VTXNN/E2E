@@ -1,28 +1,27 @@
 retrain : True
 comet_project_name : Vertex_CNN_FH
-comet_experiment_name : QDANN_pretrained
-description : QDANN_bit_inputs
+comet_experiment_name : DANN_trkWord
+description : QDANN_fixed_point
 
 trainable : "QDiffArgMax"
-track_features : ['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
-weight_features : ['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','trk_over_eta_squared'] #
+weight_features : ['trk_word_pT','trk_word_MVAquality','trk_word_eta','trk_word_chi2rphi','trk_word_chi2rz','trk_word_bendchi2'] #['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','trk_over_eta_squared'] #
+track_features : ['trk_word_pT','trk_word_MVAquality','trk_word_eta','trk_word_chi2rphi','trk_word_chi2rz','trk_word_bendchi2']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
 pretrained : True
 bit_inputs : False
 
 eval_folder : Qplots
-data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/
+data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
 
 Nlatent : 0
 
 starting_lr : 0.005
-qtrain_starting_lr : 0.0001
+qtrain_starting_lr : 0.005
 
-epochs : 50
-qtrain_epochs : 20
+epochs : 100
+qtrain_epochs : 100
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1
-
 qtrain_z0_loss_weight : 1
 qtrain_crossentropy_loss_weight : 2
 
@@ -37,29 +36,108 @@ nassoclayers : 2
 
 Final_Sparsity : 0.3
 Begin_step : 10
-End_step : 60
+End_step : 70
+
+#QConfig:
+#  weight_1: 
+#    kernel_quantizer: quantized_bits(5,4)
+#    bias_quantizer: quantized_bits(7,1)
+#    activation : quantized_relu(7,1)
+#  weight_2:
+#    kernel_quantizer : quantized_bits(6,2)
+#    bias_quantizer : quantized_bits(6,1)
+#    activation : quantized_relu(7,1)
+#  weight_final:
+#    kernel_quantizer : quantized_bits(3,2)
+#    bias_quantizer : quantized_bits(4,1)
+#    activation : quantized_relu(3,2)
+#  conv:
+#    kernel_quantizer : quantized_bits(3,2)
+#    activation : quantized_relu(5,1)
+#  association_0 :
+#    kernel_quantizer : quantized_bits(8,4)
+#    bias_quantizer : quantized_bits(5,1)
+#    activation : quantized_relu(8,2)
+#  association_1 : 
+#    kernel_quantizer : quantized_bits(8,3)
+#    bias_quantizer : quantized_bits(6,1)
+#    activation : quantized_relu(8,3)
+#  association_final : 
+#    kernel_quantizer : 4,1
+#    bias_quantizer : 3,1
+#    activation : 8,3
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(13,3)
-    bias_quantizer: quantized_bits(10,1)
-    activation : quantized_relu(14,3)
+    kernel_quantizer: quantized_bits(16,6)
+    bias_quantizer: quantized_bits(18,8)
+    activation : quantized_relu(18,8)
   weight_2:
-    kernel_quantizer : quantized_bits(10,1)
-    bias_quantizer : quantized_bits(10,1)
-    activation : quantized_relu(14,3)
+    kernel_quantizer : quantized_bits(16,6)
+    bias_quantizer : quantized_bits(18,8)
+    activation : quantized_relu(18,8)
   weight_final:
-    kernel_quantizer : quantized_bits(6,2)
-    bias_quantizer : quantized_bits(10,1)
-    activation : quantized_relu(9,1)
+    kernel_quantizer : quantized_bits(16,6)
+    bias_quantizer : quantized_bits(15,8)
+    activation : quantized_relu(17,7)
   conv:
-    kernel_quantizer : quantized_bits(5,2)
-    activation : quantized_relu(8,2)
+    kernel_quantizer : quantized_bits(3,2)
+    activation : quantized_relu(23,13)
   association_0 :
-    kernel_quantizer : quantized_bits(16,4)
-    bias_quantizer : quantized_bits(7,1)
-    activation : quantized_relu(14,3)
+    kernel_quantizer : quantized_bits(16,6)
+    bias_quantizer : quantized_bits(18,8)
+    activation : quantized_relu(18,8)
   association_1 : 
-    kernel_quantizer : quantized_bits(17,3)
-    bias_quantizer : quantized_bits(12,1)
-    activation : quantized_relu(13,3)
+    kernel_quantizer : quantized_bits(16,6)
+    bias_quantizer : quantized_bits(15,5)
+    activation : quantized_relu(18,18)
+  association_final : 
+    kernel_quantizer : 7,1
+    bias_quantizer : 3,1
+    activation : 20,10
+
+hls4ml_weight :
+  model:
+    quantizer : 20,10 
+  input:
+    quantizer : 20,10
+  weight_1: 
+    kernel_quantizer: 20,10
+    bias_quantizer: 20,10
+    activation : 20,10
+  weight_2:
+    kernel_quantizer : 20,10
+    bias_quantizer : 20,10
+    activation : 20,10
+  weight_final:
+    kernel_quantizer : 20,10
+    bias_quantizer : 20,10
+    activation : 20,10
+
+hls4ml_conv :
+  model:
+      quantizer : 32,16
+  input:
+    quantizer : 32,16
+  conv:
+    kernel_quantizer : 32,16
+    activation : 32,16
+
+hls4ml_assoc :
+  model:
+    quantizer : 20,10 
+  input:
+    quantizer : 20,10
+  assoc_1: 
+    kernel_quantizer: 20,10
+    bias_quantizer: 20,10
+    activation : 20,10
+  assoc_2:
+    kernel_quantizer : 20,10
+    bias_quantizer : 20,10
+    activation : 20,10
+  assoc_final:
+    kernel_quantizer : 20,10
+    bias_quantizer : 20,10
+
+

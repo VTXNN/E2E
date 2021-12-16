@@ -354,7 +354,11 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            regloss=1e-10,
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
         )
 
     elif trainable == "FH":
@@ -383,14 +387,14 @@ if __name__=="__main__":
         )
 
     if kf == "NewKF":
-        train_files = glob.glob(config["data_folder"]+"NewKFData/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"NewKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
         
     elif kf == "OldKF":
-        train_files = glob.glob(config["data_folder"]+"OldKFData/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"OldKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
        
 
     print ("Input Train files: ",len(train_files))
@@ -405,24 +409,19 @@ if __name__=="__main__":
 
     trackFeatures = [
         'trk_z0',
-        'bit_trk_z0',
         'trk_pt',
         'trk_eta',
         'trk_MVA1',
         'trk_z0_res',
-        'normed_trk_pt',
-        'normed_trk_eta', 
-        'binned_trk_chi2rphi', 
-        'binned_trk_chi2rz', 
-        'binned_trk_bendchi2',
         'corrected_trk_z0',
-        'bit_corrected_trk_z0',
-        'normed_trk_over_eta',
-        'normed_trk_over_eta_squared',
-        'trk_over_eta_squared',
-        'bit_trk_pt',
-        'bit_trk_eta',
-        'rescaled_bit_MVA1',
+        'trk_word_pT',
+        'trk_word_MVAquality',
+        'trk_word_TanL',
+        'trk_word_Phi',
+        'trk_word_eta',
+        'trk_word_chi2rphi',
+        'trk_word_chi2rz',
+        'trk_word_bendchi2'
 
     ]
 
@@ -479,9 +478,12 @@ if __name__=="__main__":
         model.layers[4].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
         model.layers[7].set_weights([np.expand_dims(np.arange(256),axis=0)])
     elif trainable == "DiffArgMax":
-        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[15].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+
     elif trainable == "QDiffArgMax":
-        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[15].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     #model.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
         

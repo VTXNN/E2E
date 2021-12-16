@@ -321,14 +321,14 @@ if __name__=="__main__":
         )
 
     if kf == "NewKF":
-        train_files = glob.glob(config["data_folder"]+"NewKFData/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"NewKFData/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"NewKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
         
     elif kf == "OldKF":
-        train_files = glob.glob(config["data_folder"]+"OldKFData/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"OldKFData/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"OldKFData/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
        
 
     print ("Input Train files: ",len(train_files))
@@ -347,18 +347,15 @@ if __name__=="__main__":
         'trk_eta',
         'trk_MVA1',
         'trk_z0_res',
-        'normed_trk_pt',
-        'normed_trk_eta', 
-        'binned_trk_chi2rphi', 
-        'binned_trk_chi2rz', 
-        'binned_trk_bendchi2',
         'corrected_trk_z0',
-        'normed_trk_over_eta',
-        'normed_trk_over_eta_squared',
-        'trk_over_eta_squared',
-        'bit_trk_pt',
-        'bit_trk_eta',
-        'rescaled_bit_MVA1',
+        'trk_word_pT',
+        'trk_word_MVAquality',
+        'trk_word_TanL',
+        'trk_word_Phi',
+        'trk_word_eta',
+        'trk_word_chi2rphi',
+        'trk_word_chi2rz',
+        'trk_word_bendchi2'
     ]
 
     for trackFeature in trackFeatures:
@@ -420,7 +417,11 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            regloss=1e-10,
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
         )
         
         DAmodel = DAnetwork.createE2EModel()
@@ -443,14 +444,45 @@ if __name__=="__main__":
         DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
 
         model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-        model.layers[3].set_weights(DAmodel.layers[4].get_weights()) 
-        model.layers[5].set_weights(DAmodel.layers[8].get_weights()) 
-        model.layers[9].set_weights(DAmodel.layers[10].get_weights()) 
-        model.layers[13].set_weights(DAmodel.layers[13].get_weights()) 
-        model.layers[15].set_weights(DAmodel.layers[15].get_weights()) 
-        model.layers[19].set_weights(DAmodel.layers[19].get_weights()) 
-        model.layers[21].set_weights(DAmodel.layers[22].get_weights()) 
-        model.layers[23].set_weights(DAmodel.layers[25].get_weights()) 
+        model.layers[3].set_weights(DAmodel.layers[5].get_weights()) 
+        model.layers[5].set_weights(DAmodel.layers[9].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[13].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[17].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[19].get_weights()) 
+        model.layers[19].set_weights(DAmodel.layers[23].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[27].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[31].get_weights())
+
+        #model.layers[0].set_weights(DAmodel.layers[0].get_weights())
+        #model.layers[1].set_weights(DAmodel.layers[1].get_weights())
+        #model.layers[2].set_weights(DAmodel.layers[2].get_weights())
+        #model.layers[3].set_weights(DAmodel.layers[5].get_weights())
+        #model.layers[4].set_weights(DAmodel.layers[6].get_weights())
+        #model.layers[5].set_weights(DAmodel.layers[9].get_weights())
+        #model.layers[6].set_weights(DAmodel.layers[10].get_weights())
+        #model.layers[7].set_weights(DAmodel.layers[11].get_weights())
+        #model.layers[8].set_weights(DAmodel.layers[12].get_weights())
+
+        #model.layers[9].set_weights(DAmodel.layers[13].get_weights())
+        #model.layers[10].set_weights(DAmodel.layers[14].get_weights())
+
+        #model.layers[11].set_weights(DAmodel.layers[15].get_weights())
+        #model.layers[12].set_weights(DAmodel.layers[16].get_weights())
+        #model.layers[13].set_weights(DAmodel.layers[17].get_weights())
+        #model.layers[14].set_weights(DAmodel.layers[18].get_weights())
+
+        #model.layers[15].set_weights(DAmodel.layers[19].get_weights())
+
+        #model.layers[16].set_weights(DAmodel.layers[20].get_weights())
+        #model.layers[17].set_weights(DAmodel.layers[21].get_weights())
+        #model.layers[18].set_weights(DAmodel.layers[22].get_weights())
+
+
+        #model.layers[19].set_weights(DAmodel.layers[23].get_weights())
+        #model.layers[20].set_weights(DAmodel.layers[24].get_weights()) 
+        #model.layers[21].set_weights(DAmodel.layers[27].get_weights()) 
+        #model.layers[22].set_weights(DAmodel.layers[28].get_weights()) 
+        #model.layers[23].set_weights(DAmodel.layers[31].get_weights()) 
 
 
     pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=1)}
