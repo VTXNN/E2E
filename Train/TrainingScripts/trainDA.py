@@ -109,12 +109,16 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             #print(np.shape(batch[trackfeat[0]]))
 
-            #ax[0].hist(batch[trackfeat[0]].flatten,bins=100)
+            #ax[0].hist(batch['abs_trk_word_pT'],bins=100)
             #ax[0].set_xlabel(trackfeat[0])
-            #ax[1].hist(batch[trackfeat[1]].flatten,bins=100)
+            #ax[1].hist(batch['abs_trk_word_eta'],bins=100)
             #ax[1].set_xlabel(trackfeat[1])
-            #ax[2].hist(batch[trackfeat[2]].flatten,bins=100)
+            #ax[2].hist(batch['rescaled_trk_word_MVAquality'],bins=100)
             #ax[2].set_xlabel(trackfeat[2])
+
+            #ax[0].scatter(batch['trk_pt'],batch['abs_trk_word_pT'])
+            #ax[1].scatter(batch['trk_eta'],batch['abs_trk_word_eta'])
+            #ax[2].scatter(batch['trk_MVA1'],batch['rescaled_trk_word_MVAquality'])
 
             #plt.savefig("inputhists.png")
 
@@ -132,7 +136,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             if trainable == "FH":
                 experiment.log_metric("loss",result['loss'],step=total_steps,epoch=epoch)
-                experiment.log_metric("z0_loss",result['position_final_loss'],step=total_steps,epoch=epoch)
+                experiment.log_metric("z0_loss",result['binto_vertex_loss'],step=total_steps,epoch=epoch)
                 experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
             elif (trainable == "DiffArgMax"):
                 if nlatent > 0:
@@ -168,7 +172,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                 if trainable == "FH":
                     print ("Step %02i-%02i: loss=%.3f (z0=%.3f, assoc=%.3f), q68=(%.4f,%.4f), [FH: q68=(%.4f,%.4f)]"%(
                             epoch,step,
-                            result['loss'],result['position_final_loss'],result['association_final_loss'],
+                            result['loss'],result['binto_vertex_loss'],result['association_final_loss'],
                             qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
                         ))
                     print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))          
@@ -354,7 +358,8 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10,
+            l2regloss=1e-10,
+            temperature=1e-4,
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -409,20 +414,20 @@ if __name__=="__main__":
 
     trackFeatures = [
         'trk_z0',
+        'normed_trk_pt',
+        'normed_trk_eta',
         'trk_pt',
         'trk_eta',
         'trk_MVA1',
         'trk_z0_res',
         'corrected_trk_z0',
-        'trk_word_pT',
-        'trk_word_MVAquality',
-        'trk_word_TanL',
-        'trk_word_Phi',
-        'trk_word_eta',
-        'trk_word_chi2rphi',
-        'trk_word_chi2rz',
-        'trk_word_bendchi2'
-
+        'normed_trk_over_eta'
+        #'abs_trk_word_pT',
+        #'rescaled_trk_word_MVAquality',
+        #'abs_trk_word_eta',
+        #'trk_word_pT',
+        #'trk_word_eta',
+        #'trk_word_MVAquality'
     ]
 
     for trackFeature in trackFeatures:
@@ -474,16 +479,18 @@ if __name__=="__main__":
     model.summary()
 
     if trainable == "FH":
+
         model.layers[2].set_weights([np.array([[1]], dtype=np.float32)])
         model.layers[4].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
         model.layers[7].set_weights([np.expand_dims(np.arange(256),axis=0)])
     elif trainable == "DiffArgMax":
-        model.layers[15].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-        model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+        model.layers[17].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[19].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     elif trainable == "QDiffArgMax":
-        model.layers[15].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-        model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+        #model.layers[11].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
+        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        #model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     #model.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
         

@@ -19,8 +19,8 @@ class E2EDiffArgMax():
         nweightlayers = 2,
         nassocnodes = 20,
         nassoclayers = 2,
-        regloss=1e-10,
-        temperature=1e4
+        l2regloss=1e-10,
+        temperature=1e-4
     ):
         self.nbins = nbins
         self.start = start
@@ -33,6 +33,8 @@ class E2EDiffArgMax():
         self.nlatent = nlatent
         self.activation = activation
 
+        self.l2regloss = l2regloss
+
         self.temperature = temperature
         
         self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
@@ -42,29 +44,30 @@ class E2EDiffArgMax():
         self.weightLayers = []
         for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
+                #tf.keras.layers.BatchNormalization(),
                 tf.keras.layers.Dense(
                     nodes,
-                    activation=None,
+                    activation=self.activation,
                     trainable=True,
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                    kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='weight_'+str(ilayer+1)
                 ),
-                tf.keras.layers.Activation(self.activation),
                 tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.BatchNormalization(),
+                #tf.keras.layers.Activation(self.activation),
+                
             ])
             
         self.weightLayers.extend([
             tf.keras.layers.Dense(
                 self.nweights,
-                activation=None, #need to use relu here to remove negative weights
+                activation=self.activation, #need to use relu here to remove negative weights
                 kernel_initializer='lecun_normal',
                 trainable=True,
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='weight_final'
             ),
-            tf.keras.layers.Activation(self.activation)
+            #tf.keras.layers.Activation(self.activation)
         ])
 
         
@@ -90,7 +93,7 @@ class E2EDiffArgMax():
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
                 ),
-                tf.keras.layers.Activation(self.activation)
+                #tf.keras.layers.Activation(self.activation)
             ])
 
         
@@ -100,7 +103,7 @@ class E2EDiffArgMax():
         self.binWeightLayer = tf.keras.layers.Dense(
                     self.nbins,
                     activation='linear',
-                    trainable=False,
+                    trainable=True,
                     use_bias= False,
                     name='Bin_weight'
                 )
@@ -117,7 +120,7 @@ class E2EDiffArgMax():
                 activation=None,
                 trainable=False,
                 kernel_initializer='lecun_normal',
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='position_final'
             )
         ]
@@ -127,13 +130,13 @@ class E2EDiffArgMax():
             self.assocLayers.extend([
                 tf.keras.layers.Dense(
                     filterSize,
-                    activation=None,
+                    activation=self.activation,
                     kernel_initializer='lecun_normal',
-                    kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                    kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='association_'+str(ilayer)
                 ),
-                tf.keras.layers.Activation(self.activation),
                 tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.Activation(self.activation),
                 #tf.keras.layers.BatchNormalization(),
             ])
             
@@ -142,7 +145,7 @@ class E2EDiffArgMax():
                 1,
                 activation=None,
                 kernel_initializer='lecun_normal',
-                kernel_regularizer=tf.keras.regularizers.l2(regloss),
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='association_final'
             )
         ])
@@ -184,7 +187,7 @@ class E2EDiffArgMax():
         weights = self.applyLayerList(self.inputWeightFeatures,self.weightLayers)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
         convs = self.applyLayerList(hists,self.patternConvLayers)
-        temp = tf.keras.layers.Lambda(lambda x: x / 1e-2)(convs)
+        temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
         softmax = self.softMaxLayer(temp)
         binweight = self.binWeightLayer(softmax)
         argmax = self.ArgMaxLayer(binweight)
@@ -221,5 +224,5 @@ class E2EDiffArgMax():
             )
             return tf.reduce_mean(0.1*tf.square(wq90-1.))
         
-        #model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
+        model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model

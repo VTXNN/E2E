@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import vtx
 from qkeras import QActivation
-from qkeras import QDense, QConv1D
+from qkeras import QDense, QConv1D, QBatchNormalization
 from qkeras.quantizers import quantized_bits, quantized_relu
 import numpy
 
@@ -24,7 +24,7 @@ class E2EQKerasDiffArgMax():
         nassoclayers = 2,
         l1regloss=1e-3,
         l2regloss=1e-10,
-        temperature=1e4,
+        temperature=1e-4,
         qconfig={}
     ):
         self.nbins = nbins
@@ -48,6 +48,7 @@ class E2EQKerasDiffArgMax():
         self.weightLayers = []
         for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
+                #QBatchNormalization(),
                 QDense(
                     nodes,
                     trainable=True,
@@ -121,7 +122,7 @@ class E2EQKerasDiffArgMax():
             tf.keras.layers.Dense(
                 1+self.nlatent,
                 activation=None,
-                trainable=False,
+                trainable=True,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 name='position_final'
@@ -140,7 +141,8 @@ class E2EQKerasDiffArgMax():
                     #activation_quantizer=qconfig['association_'+str(ilayer)]['activation_quantizer'],
                     name='association_'+str(ilayer)
                 ),
-                QActivation(qconfig['association_'+str(ilayer)]['activation'])
+                QActivation(qconfig['association_'+str(ilayer)]['activation']),
+                #QBatchNormalization(),
             ])
             
         self.assocLayers.extend([
@@ -194,7 +196,7 @@ class E2EQKerasDiffArgMax():
         weights = self.applyLayerList(self.inputWeightFeatures,self.weightLayers)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
         convs = self.applyLayerList(hists,self.patternConvLayers)
-        temp = tf.keras.layers.Lambda(lambda x: x / 1e-2)(convs)
+        temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
         softmax = self.softMaxLayer(temp)
         binweight = self.binWeightLayer(softmax)
         argmax = self.ArgMaxLayer(binweight)

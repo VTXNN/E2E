@@ -103,10 +103,10 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             callbacks[1].on_train_batch_begin(epoch)
-            z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            batch[z0]=batch[z0]*z0Flip + z0Shift
-            batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+            #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            #batch[z0]=batch[z0]*z0Flip + z0Shift
+            #batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -317,6 +317,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
+            temperature = 1000,
             qconfig = config['QConfig']
         )
 
@@ -348,14 +349,9 @@ if __name__=="__main__":
         'trk_MVA1',
         'trk_z0_res',
         'corrected_trk_z0',
-        'trk_word_pT',
-        'trk_word_MVAquality',
-        'trk_word_TanL',
-        'trk_word_Phi',
-        'trk_word_eta',
-        'trk_word_chi2rphi',
-        'trk_word_chi2rz',
-        'trk_word_bendchi2'
+        'abs_trk_word_pT',
+        'rescaled_trk_word_MVAquality',
+        'abs_trk_word_eta'
     ]
 
     for trackFeature in trackFeatures:
@@ -444,14 +440,14 @@ if __name__=="__main__":
         DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
 
         model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-        model.layers[3].set_weights(DAmodel.layers[5].get_weights()) 
-        model.layers[5].set_weights(DAmodel.layers[9].get_weights()) 
-        model.layers[9].set_weights(DAmodel.layers[13].get_weights()) 
-        model.layers[13].set_weights(DAmodel.layers[17].get_weights()) 
-        model.layers[15].set_weights(DAmodel.layers[19].get_weights()) 
-        model.layers[19].set_weights(DAmodel.layers[23].get_weights()) 
-        model.layers[21].set_weights(DAmodel.layers[27].get_weights()) 
-        model.layers[23].set_weights(DAmodel.layers[31].get_weights())
+        model.layers[3].set_weights(DAmodel.layers[4].get_weights()) 
+        model.layers[6].set_weights(DAmodel.layers[6].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[11].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[15].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[17].get_weights()) 
+        model.layers[19].set_weights(DAmodel.layers[21].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[24].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[27].get_weights())
 
         #model.layers[0].set_weights(DAmodel.layers[0].get_weights())
         #model.layers[1].set_weights(DAmodel.layers[1].get_weights())
@@ -484,6 +480,9 @@ if __name__=="__main__":
         #model.layers[22].set_weights(DAmodel.layers[28].get_weights()) 
         #model.layers[23].set_weights(DAmodel.layers[31].get_weights()) 
 
+    else:
+        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        #model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=1)}
 
@@ -518,7 +517,7 @@ if __name__=="__main__":
     model_for_pruning.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(),
+            tf.keras.losses.Huber(delta = config["Huber_delta"]),
             #tf.keras.losses.MeanAbsoluteError(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,

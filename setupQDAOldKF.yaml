@@ -4,30 +4,30 @@ comet_experiment_name : DANN_trkWord
 description : QDANN_fixed_point
 
 trainable : "QDiffArgMax"
-weight_features : ['trk_word_pT','trk_word_MVAquality','trk_word_eta','trk_word_chi2rphi','trk_word_chi2rz','trk_word_bendchi2'] #['bit_trk_pt','rescaled_bit_MVA1','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','trk_over_eta_squared'] #
-track_features : ['trk_word_pT','trk_word_MVAquality','trk_word_eta','trk_word_chi2rphi','trk_word_chi2rz','trk_word_bendchi2']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
+weight_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
+track_features : ['normed_trk_pt','trk_MVA1','normed_trk_over_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
 pretrained : True
 bit_inputs : False
 
 eval_folder : Qplots
 data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
 
-Nlatent : 0
+Nlatent : 2
 
-starting_lr : 0.005
-qtrain_starting_lr : 0.005
+starting_lr : 0.01
+qtrain_starting_lr : 0.001
 
-epochs : 100
-qtrain_epochs : 100
+epochs : 150
+qtrain_epochs : 150
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1
 qtrain_z0_loss_weight : 1
 qtrain_crossentropy_loss_weight : 2
 
-Huber_delta : 5
+Huber_delta : 0.1
 
-l1regloss : 1e-5
+l1regloss : 1e-3
 l2regloss : 1e-10
 nweightnodes : 10
 nweightlayers : 2

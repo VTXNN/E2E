@@ -4,6 +4,9 @@ import numpy as np
 import math
 from math import isnan
 import sys
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 tf.compat.v1.disable_eager_execution()
 
@@ -106,8 +109,8 @@ def unpackbits(x, num_bits):
     mask = 2**np.arange(num_bits, dtype=x.dtype).reshape([1, num_bits]) # decode as little endian
     return (x & mask).astype(bool).astype(int).reshape(xshape + [num_bits])[::-1] #flip for big endian
     
-def padArray(x,n):
-    arr = np.zeros((n,),dtype=np.float32)
+def padArray(x,n,num=0):
+    arr = num*np.ones((n,),dtype=np.float32)
     for i in range(min(n,len(x))):
         arr[i] = x[i]
     return arr
@@ -167,7 +170,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     print ('processing batch:',ibatch+1,'/',math.ceil(1.*len(f['L1TrackNtuple']['eventTree'])/chunkread))
     
     tfwriter = tf.io.TFRecordWriter(
-        '/home/cebrown/Documents/Datasets/VertexDatasets/%sData/%s%i.tfrecord'%(KFname,KFname,ibatch),
+        '/home/cebrown/Documents/Datasets/VertexDatasets/%sGTTData/%s%i.tfrecord'%(KFname,KFname,ibatch),
         options=tf.io.TFRecordOptions(
             compression_type='GZIP',
             compression_level = 4,
@@ -188,6 +191,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
     for iev in range(len(data['trk_pt'])):
         selectPVTPs = (data['tp_eventid'][iev]==0)
+        selectPromptPVS =  ((data['tp_eventid'][iev]==0) & (abs(data['tp_d0'][iev]) < 0.01))
         #tp met
         tp_met_px = np.sum(data['tp_pt'][iev][selectPVTPs]*np.cos(data['tp_phi'][iev][selectPVTPs]))
         tp_met_py = np.sum(data['tp_pt'][iev][selectPVTPs]*np.sin(data['tp_phi'][iev][selectPVTPs]))
@@ -237,7 +241,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['PVpt_hist'] = _float_feature(np.array(hist2,np.float32))
         #sumZ0 = np.sum(data['trk_pt'][iev][selectPVTracks]*data['trk_z0'][iev][selectPVTracks])
         #sumWeights = np.sum(data['trk_pt'][iev][selectPVTracks])
-        pvz0 = data["pv_MC"][iev]
+        pvz0 = np.mean(data['tp_z0'][iev][selectPromptPVS])
+        #pvz0 = data["pv_MC"][iev]
 
         res = res_bins[np.digitize(abs(data['trk_eta'][iev][selectTracksInZ0Range]),eta_bins)]*2
         binned_trk_chi2rphi = np.digitize(data['trk_chi2rphi'][iev][selectTracksInZ0Range],chi2rphi_bins)/16
@@ -266,11 +271,30 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['normed_trk_over_eta_squared'] = _float_feature(padArray(np.array(5.76/abs(data['trk_eta'][iev][selectTracksInZ0Range])**2),nMaxTracks))
 
         tfData['trk_over_eta_squared'] = _float_feature(padArray(np.array(1/(0.1+0.2*(data['trk_eta'][iev][selectTracksInZ0Range])**2)),nMaxTracks))
+        abs_trk_word_pT = np.where(data['trk_word_pT'][iev][selectTracksInZ0Range] < 16383, (data['trk_word_pT'][iev][selectTracksInZ0Range]), (data['trk_word_pT'][iev][selectTracksInZ0Range] - 16384))
+        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 4096)/4096
+        abs_trk_word_eta = np.where(data['trk_word_eta'][iev][selectTracksInZ0Range] < 32767, (data['trk_word_eta'][iev][selectTracksInZ0Range]+32767)/2, (data['trk_word_eta'][iev][selectTracksInZ0Range] - 32767)/2)
+        abs_trk_word_eta = abs_trk_word_eta/32767
+        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]/8
 
-        tanL = abs(np.sinh(data['trk_eta'][iev][selectTracksInZ0Range]))
-        InvR = abs((3.8112*(3e8/1e11))/(2*data['trk_pt'][iev][selectTracksInZ0Range]))
-        bit_InvR = splitter(InvR,5.20424e-07,True)
-        bit_tanL = splitter(tanL,0.000244141,True)
+        #rescaled_trk_word_Phi = trk_word_Phi*
+
+        #fig,ax = plt.subplots(1,3,figsize=(30,10))
+        #ax[0].scatter(data['trk_pt'][iev],abs_trk_word_pT)
+        #ax[1].scatter(data['trk_eta'][iev],abs_trk_word_eta)
+        #ax[2].scatter(data['trk_MVA1'][iev],data['trk_word_MVAquality'][iev]/8)
+        #plt.savefig("inputhists.png")
+        #break
+
+
+        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=-1))
+        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=-1))
+        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=-1))
+
+        #tanL = abs(np.sinh(data['trk_eta'][iev][selectTracksInZ0Range]))
+        #InvR = abs((3.8112*(3e8/1e11))/(2*data['trk_pt'][iev][selectTracksInZ0Range]))
+        #bit_InvR = splitter(InvR,5.20424e-07,True)
+        #bit_tanL = splitter(tanL,0.000244141,True)
         #print("#################################")
         #print(data['trk_eta'][iev][selectTracksInZ0Range])
         #print(bit_tanL)

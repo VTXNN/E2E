@@ -169,6 +169,9 @@ if __name__=="__main__":
             'bit_trk_pt',
             'bit_trk_eta',
             'rescaled_bit_MVA1',
+            'abs_trk_word_pT',
+            'rescaled_trk_word_MVAquality',
+            'abs_trk_word_eta'
 
         ]
 
