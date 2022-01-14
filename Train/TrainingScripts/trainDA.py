@@ -76,7 +76,7 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False,bit=False):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,trainable=False,bit=False,model_name=None):
 
     total_steps = 0
     early_stop_patience = 100
@@ -94,7 +94,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(kf+"best_weights_unquantised.tf")
+            model.load_weights(model_name+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
@@ -103,24 +103,6 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
-
-
-            #fig,ax = plt.subplots(1,3,figsize=(30,10))
-
-            #print(np.shape(batch[trackfeat[0]]))
-
-            #ax[0].hist(batch['abs_trk_word_pT'],bins=100)
-            #ax[0].set_xlabel(trackfeat[0])
-            #ax[1].hist(batch['abs_trk_word_eta'],bins=100)
-            #ax[1].set_xlabel(trackfeat[1])
-            #ax[2].hist(batch['rescaled_trk_word_MVAquality'],bins=100)
-            #ax[2].set_xlabel(trackfeat[2])
-
-            #ax[0].scatter(batch['trk_pt'],batch['abs_trk_word_pT'])
-            #ax[1].scatter(batch['trk_eta'],batch['abs_trk_word_eta'])
-            #ax[2].scatter(batch['trk_MVA1'],batch['rescaled_trk_word_MVAquality'])
-
-            #plt.savefig("inputhists.png")
 
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat ],axis=2)
 
@@ -260,12 +242,12 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         wait += 1
         if val_loss < best_score:
             best_score = val_loss
-            model.save_weights(kf+"best_weights_unquantised.tf")
+            model.save_weights(model_name+".tf")
             wait = 0
         if wait >= early_stop_patience:
             break
         
-def test_model(model,experiment,test_files,trackfeat,weightfeat):
+def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None):
 
     predictedZ0_FH = []
     predictedZ0_NN = []
@@ -307,8 +289,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(kf+"best_weights_unquantised.tf.index")
-    experiment.log_asset(kf+"best_weights_unquantised.tf.data-00000-of-00001")
+    experiment.log_asset(model_name+".tf.index")
+    experiment.log_asset(model_name+".tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -344,10 +326,12 @@ if __name__=="__main__":
     weightfeat = config["weight_features"] 
     bit = config["bit_inputs"]
     nlatent = config["Nlatent"]
+    PretrainedModelName = config["PretrainedModelName"] 
+    UnQuantisedModelName = config["UnQuantisedModelName"] 
+    pretrain_DA = config["pretrain_DA"]
 
     if (trainable == "DiffArgMax") | (trainable == "QDiffArgMax"):
         
-
         network = vtx.nn.E2EDiffArgMax(
             nbins=256,
             start=-15,
@@ -359,7 +343,7 @@ if __name__=="__main__":
             nlatent = nlatent,
             activation='relu',
             l2regloss=1e-10,
-            temperature=1e-4,
+            temperature=1e-2,
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -421,13 +405,10 @@ if __name__=="__main__":
         'trk_MVA1',
         'trk_z0_res',
         'corrected_trk_z0',
-        'normed_trk_over_eta'
-        #'abs_trk_word_pT',
-        #'rescaled_trk_word_MVAquality',
-        #'abs_trk_word_eta',
-        #'trk_word_pT',
-        #'trk_word_eta',
-        #'trk_word_MVAquality'
+        'normed_trk_over_eta',
+        'abs_trk_word_pT',
+        'rescaled_trk_word_MVAquality',
+        'abs_trk_word_eta',
     ]
 
     for trackFeature in trackFeatures:
@@ -464,7 +445,7 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(delta=0.5),
+            tf.keras.losses.Huber(config['Huber_delta']),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -488,11 +469,10 @@ if __name__=="__main__":
         model.layers[19].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     elif trainable == "QDiffArgMax":
-        #model.layers[11].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)])
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-        #model.layers[17].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
-    #model.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
+    if pretrain_DA:
+        model.load_weights(PretrainedModelName+".tf")
         
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
@@ -500,6 +480,6 @@ if __name__=="__main__":
     mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )
     with experiment.train():
-        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,trainable=trainable,bit=bit),
+        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,trainable=trainable,bit=bit,model_name=UnQuantisedModelName),
     with experiment.test():
-        test_model(model,experiment,test_files,trackfeat,weightfeat)
+        test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=UnQuantisedModelName)

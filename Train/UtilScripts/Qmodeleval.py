@@ -94,7 +94,7 @@ elif trainable == "DiffArgMax":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            l2regloss=1e-10
         )
 
 

@@ -20,7 +20,7 @@ class E2EDiffArgMax():
         nassocnodes = 20,
         nassoclayers = 2,
         l2regloss=1e-10,
-        temperature=1e-4
+        temperature=1e-2
     ):
         self.nbins = nbins
         self.start = start
@@ -44,7 +44,6 @@ class E2EDiffArgMax():
         self.weightLayers = []
         for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
-                #tf.keras.layers.BatchNormalization(),
                 tf.keras.layers.Dense(
                     nodes,
                     activation=self.activation,
@@ -55,6 +54,8 @@ class E2EDiffArgMax():
                 ),
                 tf.keras.layers.Dropout(0.1),
                 #tf.keras.layers.Activation(self.activation),
+                #tf.keras.layers.BatchNormalization(),
+
                 
             ])
             
@@ -103,7 +104,7 @@ class E2EDiffArgMax():
         self.binWeightLayer = tf.keras.layers.Dense(
                     self.nbins,
                     activation='linear',
-                    trainable=True,
+                    trainable=False,
                     use_bias= False,
                     name='Bin_weight'
                 )
@@ -224,5 +225,5 @@ class E2EDiffArgMax():
             )
             return tf.reduce_mean(0.1*tf.square(wq90-1.))
         
-        model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
+        #model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model

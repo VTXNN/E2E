@@ -69,11 +69,11 @@ if __name__=="__main__":
             config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"NewKFData/MET/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"NewKFGTTData/Test/*.tfrecord")
         z0 = 'trk_z0'
         bit_z0 = 'bit_trk_z0'
     elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"OldKFData/MET/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"OldKFGTTData/Test/*.tfrecord")
         z0 = 'corrected_trk_z0'
         bit_z0 = 'bit_corrected_trk_z0'
 
@@ -84,7 +84,6 @@ if __name__=="__main__":
     PVROCs = True 
 
     nlatent = config["Nlatent"]
-
 
     with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
@@ -106,12 +105,13 @@ if __name__=="__main__":
             log_env_cpu=True,     # to continue CPU logging
         )
 
-
     outputFolder = kf+config['eval_folder']
     trainable = config["trainable"]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
+    QuantisedModelName = config["QuantisedModelName"] 
+    UnQuantisedModelName = config["UnQuantisedModelName"] 
 
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
@@ -163,12 +163,7 @@ if __name__=="__main__":
             'trk_MVA1',
             'trk_fake',
             'corrected_trk_z0',
-            'normed_trk_over_eta',
-            'normed_trk_over_eta_squared',
-            'trk_over_eta_squared',
-            'bit_trk_pt',
-            'bit_trk_eta',
-            'rescaled_bit_MVA1',
+            'corrected_trk_z0',
             'abs_trk_word_pT',
             'rescaled_trk_word_MVAquality',
             'abs_trk_word_eta'
@@ -197,9 +192,6 @@ if __name__=="__main__":
             qconfig = config['QConfig']
     )
 
-
-
-
     qmodel = qnetwork.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
     qmodel.compile(
@@ -217,7 +209,7 @@ if __name__=="__main__":
                       0]
     )
     qmodel.summary()
-    qmodel.load_weights(kf+"best_weights.tf")
+    qmodel.load_weights(QuantisedModelName+".tf")
 
     DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=256,
@@ -249,7 +241,7 @@ if __name__=="__main__":
                         0]
     )
     DAmodel.summary()
-    DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
+    DAmodel.load_weights(UnQuantisedModelName+".tf")
 
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
@@ -271,7 +263,6 @@ if __name__=="__main__":
 
 
     prune = 100-np.mean(prune_level)*100
-
 
     ax[0].set_title("QKeras Weights with " + "%.1f"%prune + "% Prune",loc='left')
     ax[0].grid(True)
@@ -381,12 +372,11 @@ if __name__=="__main__":
             FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[z0],batch['trk_pt'],batch['trk_fake']),batch[z0],batch['trk_eta'],batch['trk_fake'],kf)
             predictedAssoc_FHnoFake.append(FHassocnoFake)
 
-            for i,event in enumerate(batch[z0]):
-                if abs(FH[i] - batch['pvz0'][i]) > 0:
-                    figure = plotKDEandTracks(batch['trk_z0'][i],batch['trk_fake'][i],batch['pvz0'][i],FH[i],batch['trk_pt'][i],weight_label="Baseline",threshold=0.5)
-                    plt.savefig("%s/event.png" % outputFolder)
-                    break
-
+            #for i,event in enumerate(batch[z0]):
+            #    if abs(FH[i] - batch['pvz0'][i]) > 100:
+            #        figure = plotKDEandTracks(batch['trk_z0'][i],batch['trk_fake'][i],batch['pvz0'][i],FH[i],batch['trk_pt'][i],weight_label="Baseline",threshold=0.5)
+            #        plt.savefig("%s/event.png" % outputFolder)
+            #        break
 
             #### Q NETWORK #########################################################################################################################
             XX = qmodel.input 
@@ -400,8 +390,6 @@ if __name__=="__main__":
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
-
-            
             predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
 
@@ -409,13 +397,10 @@ if __name__=="__main__":
             predictedAssoc_QNN.append(predictedAssoc_QNN_temp)
             predictedQWeights.append(predictedQWeights_QNN)
 
-            
-
             #### DA NETWORK #########################################################################################################################
             XX = DAmodel.input 
             YY = DAmodel.layers[9].output
             new_model = Model(XX, YY)
-
 
             predictedDAWeights_DANN = new_model.predict_on_batch(
                                 [batch[z0],WeightFeatures,trackFeatures])
@@ -489,7 +474,6 @@ if __name__=="__main__":
         trk_chi2rz_array = np.concatenate(trk_chi2rz).ravel()
         trk_bendchi2_array = np.concatenate(trk_bendchi2).ravel()
 
-
         assoc_QNN_array = np.concatenate(predictedAssoc_QNN).ravel()
         assoc_DANN_array = np.concatenate(predictedAssoc_DANN).ravel()
 
@@ -498,7 +482,6 @@ if __name__=="__main__":
         assoc_FHMVA_array = np.concatenate(predictedAssoc_FHMVA).ravel()
         assoc_FHnoFake_array = np.concatenate(predictedAssoc_FHnoFake).ravel()
         assoc_PV_array = np.concatenate(actual_Assoc).ravel()
-
 
         actual_MET_array = np.concatenate(actual_MET).ravel()
         actual_METphi_array = np.concatenate(actual_METphi).ravel()
@@ -526,7 +509,6 @@ if __name__=="__main__":
         METphi_DANN_RMS_array = np.zeros([num_threshold])
         METphi_DANN_Quartile_array = np.zeros([num_threshold])
         METphi_DANN_Centre_array = np.zeros([num_threshold])
-        
 
         for i in range(0,num_threshold):
             MET_QNN_array = np.concatenate(predictedMET_QNN[str(i/num_threshold)]).ravel()
@@ -564,7 +546,6 @@ if __name__=="__main__":
 
             MET_DANN_Centre_array[i] = qMET[1]
             METphi_DANN_Centre_array[i] = qMETphi[1]
-
 
         MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[str(np.argmin(MET_QNN_Quartile_array)/num_threshold)]).ravel()
         METphi_QNN_bestQ_array = np.concatenate(predictedMETphi_QNN[str(np.argmin(MET_QNN_Quartile_array)/num_threshold)]).ravel()

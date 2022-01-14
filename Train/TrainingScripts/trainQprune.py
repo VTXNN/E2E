@@ -78,7 +78,7 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=[None,None],nlatent=0,trainable=False):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=[None,None],nlatent=0,trainable=False,model_name = None):
 
     total_steps = 0
     early_stop_patience = 100
@@ -89,24 +89,24 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
     
     old_lr = model.optimizer.learning_rate.numpy()
     
-
     for epoch in range(epochs):
+        #callbacks[1].on_epoch_begin(epoch)
 
         new_lr = old_lr
         tf.keras.backend.set_value(model.optimizer.learning_rate, new_lr)
         experiment.log_metric("learning_rate",model.optimizer.learning_rate,step=total_steps,epoch=epoch)
-        callbacks[1].on_train_begin()
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(kf+"best_weights.tf")
+            model.load_weight(model_name+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            callbacks[1].on_train_batch_begin(epoch)
-            #z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            #z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            #batch[z0]=batch[z0]*z0Flip + z0Shift
-            #batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+            callbacks[1].on_train_batch_begin(-1)
+            
+            z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+            z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            batch[z0]=batch[z0]*z0Flip + z0Shift
+            batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
             
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -151,6 +151,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
 
             total_steps += 1
+            #callbacks[1].on_train_batch_end(total_steps)
         prune_level = []
         for i,layer in enumerate(model.layers):
             get_weights = layer.get_weights()
@@ -208,7 +209,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         experiment.log_metric("Validation_Prune_Level",np.mean(prune_level))
 
         old_lr = callbacks[0].on_epoch_end(epoch=epoch,logs=result,lr=new_lr)
-        callbacks[1].on_epoch_end(batch=epoch)
+        callbacks[1].on_epoch_end(-1)
 
         val_loss = metrics.mean_squared_error(val_z0_PV_array,val_z0_NN_array)
 
@@ -218,12 +219,12 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         if val_loss < best_score:
             best_score = val_loss
             model_for_export = tfmot.sparsity.keras.strip_pruning(model)
-            model_for_export.save_weights(kf+"best_weights.tf")
+            model_for_export.save_weights(model_name+".tf")
             wait = 0
         if wait >= early_stop_patience:
             break
         
-def test_model(model,experiment,test_files,trackfeat,weightfeat):
+def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None):
 
     predictedZ0_FH = []
     predictedZ0_NN = []
@@ -262,8 +263,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat):
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(kf+"best_weights.tf.index")
-    experiment.log_asset(kf+"best_weights.tf.data-00000-of-00001")
+    experiment.log_asset(model_name+".tf.index")
+    experiment.log_asset(model_name+".tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -300,6 +301,8 @@ if __name__=="__main__":
 
     pretrained = config["pretrained"]
 
+    model_name = config['QuantisedModelName']
+
     if trainable == "QDiffArgMax":
         nlatent = config["Nlatent"]
 
@@ -317,7 +320,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1000,
+            temperature = 1e-2,
             qconfig = config['QConfig']
         )
 
@@ -389,8 +392,7 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(),
-            #tf.keras.losses.MeanAbsoluteError(),
+            tf.keras.losses.Huber(config['Huber_delta']),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -413,7 +415,7 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10,
+            l2regloss=1e-10,
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -425,7 +427,7 @@ if __name__=="__main__":
         DAmodel.compile(
             optimizer,
             loss=[
-                tf.keras.losses.MeanAbsoluteError(),
+                tf.keras.losses.Huber(config['Huber_delta']),
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.
             ],
@@ -437,54 +439,23 @@ if __name__=="__main__":
                         0]
         )
         DAmodel.summary()
-        DAmodel.load_weights(kf + "best_weights_unquantised.tf").expect_partial()
+        DAmodel.load_weights(config["UnQuantisedModelName"])
 
         model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-        model.layers[3].set_weights(DAmodel.layers[4].get_weights()) 
-        model.layers[6].set_weights(DAmodel.layers[6].get_weights()) 
-        model.layers[9].set_weights(DAmodel.layers[11].get_weights()) 
-        model.layers[13].set_weights(DAmodel.layers[15].get_weights()) 
-        model.layers[15].set_weights(DAmodel.layers[17].get_weights()) 
-        model.layers[19].set_weights(DAmodel.layers[21].get_weights()) 
-        model.layers[21].set_weights(DAmodel.layers[24].get_weights()) 
-        model.layers[23].set_weights(DAmodel.layers[27].get_weights())
-
-        #model.layers[0].set_weights(DAmodel.layers[0].get_weights())
-        #model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-        #model.layers[2].set_weights(DAmodel.layers[2].get_weights())
-        #model.layers[3].set_weights(DAmodel.layers[5].get_weights())
-        #model.layers[4].set_weights(DAmodel.layers[6].get_weights())
-        #model.layers[5].set_weights(DAmodel.layers[9].get_weights())
-        #model.layers[6].set_weights(DAmodel.layers[10].get_weights())
-        #model.layers[7].set_weights(DAmodel.layers[11].get_weights())
-        #model.layers[8].set_weights(DAmodel.layers[12].get_weights())
-
-        #model.layers[9].set_weights(DAmodel.layers[13].get_weights())
-        #model.layers[10].set_weights(DAmodel.layers[14].get_weights())
-
-        #model.layers[11].set_weights(DAmodel.layers[15].get_weights())
-        #model.layers[12].set_weights(DAmodel.layers[16].get_weights())
-        #model.layers[13].set_weights(DAmodel.layers[17].get_weights())
-        #model.layers[14].set_weights(DAmodel.layers[18].get_weights())
-
-        #model.layers[15].set_weights(DAmodel.layers[19].get_weights())
-
-        #model.layers[16].set_weights(DAmodel.layers[20].get_weights())
-        #model.layers[17].set_weights(DAmodel.layers[21].get_weights())
-        #model.layers[18].set_weights(DAmodel.layers[22].get_weights())
-
-
-        #model.layers[19].set_weights(DAmodel.layers[23].get_weights())
-        #model.layers[20].set_weights(DAmodel.layers[24].get_weights()) 
-        #model.layers[21].set_weights(DAmodel.layers[27].get_weights()) 
-        #model.layers[22].set_weights(DAmodel.layers[28].get_weights()) 
-        #model.layers[23].set_weights(DAmodel.layers[31].get_weights()) 
+        model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
+        model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[11].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[13].get_weights()) 
+        model.layers[19].set_weights(DAmodel.layers[17].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[19].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[21].get_weights())
 
     else:
         model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
         #model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
-    pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(0, config["Final_Sparsity"], config["Begin_step"], config["End_step"], power=3, frequency=1)}
+    pruning_params = {"pruning_schedule" : tfmot.sparsity.keras.PolynomialDecay(initial_sparsity=0.5, final_sparsity=config["Final_Sparsity"], begin_step=config["Begin_step"], end_step=config["End_step"], power=3, frequency=100)}
 
         # Helper function uses `prune_low_magnitude` to make only the 
         # Dense layers train with pruning.
@@ -518,7 +489,6 @@ if __name__=="__main__":
         optimizer,
         loss=[
             tf.keras.losses.Huber(delta = config["Huber_delta"]),
-            #tf.keras.losses.MeanAbsoluteError(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -533,6 +503,6 @@ if __name__=="__main__":
     model_for_pruning.summary()
 
     with experiment.train():
-        train_model(model_for_pruning,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR,pruning_callback],nlatent=nlatent,trainable=trainable),
+        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR,pruning_callback],nlatent=nlatent,trainable=trainable,model_name=model_name),
     with experiment.test():
-        test_model(model_for_pruning,experiment,test_files,trackfeat,weightfeat)
+        test_model(model,experiment,test_files,trackfeat,weightfeat,model_name)

@@ -287,9 +287,9 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         #break
 
 
-        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=-1))
-        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=-1))
-        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=-1))
+        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
+        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=0))
 
         #tanL = abs(np.sinh(data['trk_eta'][iev][selectTracksInZ0Range]))
         #InvR = abs((3.8112*(3e8/1e11))/(2*data['trk_pt'][iev][selectTracksInZ0Range]))

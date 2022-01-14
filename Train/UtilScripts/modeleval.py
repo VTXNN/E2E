@@ -76,7 +76,7 @@ if trainable == "QDiffArgMax":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            l2regloss=1e-10
         )
 
     Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
@@ -131,36 +131,27 @@ Qmodel.compile(
 )
 
 
-model.summary()
-model.load_weights(kf+"best_weights_unquantised.tf").expect_partial()
+Qmodel.summary()
+Qmodel.load_weights(kf+"best_weights_unpruned.tf")
+
 
 weightModel = Qnetwork.createWeightModel()
+weightModel.load_weights(kf+"weightQModel_weights.hdf5")
+
 patternModel = Qnetwork.createPatternModel()
+patternModel.load_weights(kf+"patternQModel_weights.hdf5")
+
 associationModel = Qnetwork.createAssociationModel()
+associationModel.load_weights(kf+"asociationQModel_weights.hdf5")
+
 
 weightModel.summary()
 patternModel.summary()
 associationModel.summary()
 
-weightModel.layers[1].set_weights(model.layers[1].get_weights())
-weightModel.layers[2].set_weights(model.layers[2].get_weights())
-weightModel.layers[3].set_weights(model.layers[5].get_weights())
-weightModel.layers[4].set_weights(model.layers[6].get_weights())
-weightModel.layers[5].set_weights(model.layers[9].get_weights())
-weightModel.layers[6].set_weights(model.layers[11].get_weights())
-
-patternModel.layers[1].set_weights(model.layers[13].get_weights())
-patternModel.layers[2].set_weights(model.layers[14].get_weights())
-
-associationModel.layers[1].set_weights(model.layers[23].get_weights())
-associationModel.layers[2].set_weights(model.layers[24].get_weights()) 
-associationModel.layers[3].set_weights(model.layers[27].get_weights()) 
-associationModel.layers[4].set_weights(model.layers[28].get_weights()) 
-associationModel.layers[5].set_weights(model.layers[31].get_weights()) 
-
-
 import hls4ml
-weightconfig = hls4ml.utils.config_from_keras_model(weightModel, granularity='name')
+
+weightconfig = hls4ml.utils.config_from_keras_model(weightModel, granularity='model')
 print(weightconfig)
 print("-----------------------------------")
 print("Configuration")
@@ -224,9 +215,9 @@ ap.savefig(kf+"association_model_weights_profile.png")
 #hls_pattern_model.build(csim=False,synth=True,vsynth=True)
 #hls_association_model.build(csim=False,synth=True,vsynth=True)
 
-hls4ml.report.read_vivado_report(kf+'model_weight_1_unquantised/hls4ml_prj')
-hls4ml.report.read_vivado_report(kf+'model_association_1_unquantised/hls4ml_prj')
-hls4ml.report.read_vivado_report(kf+'model_pattern_1_unquantised/hls4ml_prj')
+#hls4ml.report.read_vivado_report(kf+'model_weight_1_unquantised/hls4ml_prj')
+#hls4ml.report.read_vivado_report(kf+'model_association_1_unquantised/hls4ml_prj')
+#hls4ml.report.read_vivado_report(kf+'model_pattern_1_unquantised/hls4ml_prj')
 
 with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
