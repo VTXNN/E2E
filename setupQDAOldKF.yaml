@@ -12,7 +12,7 @@ pretrain_DA : True
 
 QuantisedModelName : Quantised_model
 UnQuantisedModelName : UnQuantised_model
-PreTrainedModelName : NewKF_UnQuantised_model
+PretrainedModelName : NewKF_UnQuantised_model
 
 eval_folder : Qplots
 data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData

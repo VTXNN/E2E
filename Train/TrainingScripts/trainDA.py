@@ -379,11 +379,38 @@ if __name__=="__main__":
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
         test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+
+        trackFeatures = [
+            'trk_z0',
+            'normed_trk_pt',
+            'normed_trk_eta',
+            'trk_pt',
+            'trk_eta',
+            'trk_MVA1',
+            'trk_z0_res',
+            'corrected_trk_z0',
+            'normed_trk_over_eta',
+    ]
         
     elif kf == "OldKF":
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
         test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+
+        trackFeatures = [
+            'trk_z0',
+            'normed_trk_pt',
+            'normed_trk_eta',
+            'trk_pt',
+            'trk_eta',
+            'trk_MVA1',
+            'trk_z0_res',
+            'corrected_trk_z0',
+            'normed_trk_over_eta',
+            'abs_trk_word_pT',
+            'rescaled_trk_word_MVAquality',
+            'abs_trk_word_eta',
+    ]
        
 
     print ("Input Train files: ",len(train_files))
@@ -395,21 +422,6 @@ if __name__=="__main__":
         "trk_fromPV":tf.io.FixedLenFeature([max_ntracks], tf.float32) ,
         "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
     }
-
-    trackFeatures = [
-        'trk_z0',
-        'normed_trk_pt',
-        'normed_trk_eta',
-        'trk_pt',
-        'trk_eta',
-        'trk_MVA1',
-        'trk_z0_res',
-        'corrected_trk_z0',
-        'normed_trk_over_eta',
-        'abs_trk_word_pT',
-        'rescaled_trk_word_MVAquality',
-        'abs_trk_word_eta',
-    ]
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([max_ntracks], tf.float32)

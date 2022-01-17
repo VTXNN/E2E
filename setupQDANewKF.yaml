@@ -13,7 +13,7 @@ pretrain_DA : False
 
 QuantisedModelName : Quantised_model
 UnQuantisedModelName : NewKF_UnQuantised_model
-PreTrainedModelName : NewKF_UnQuantised_model
+PretrainedModelName : NewKF_UnQuantised_model
 
 
 eval_folder : Qplots
@@ -24,8 +24,8 @@ Nlatent : 0
 starting_lr : 0.005
 qtrain_starting_lr : 0.0001
 
-epochs : 175
-qtrain_epochs : 175
+epochs : 150
+qtrain_epochs : 150
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1

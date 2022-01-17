@@ -1556,5 +1556,3 @@ if __name__=="__main__":
     plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
     plt.close()
     
-    experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
-    experiment.log_asset(sys.argv[2]+'.yaml')

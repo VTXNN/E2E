@@ -2,7 +2,6 @@ import glob
 import sys
 from textwrap import wrap
 
-import comet_ml
 import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -131,18 +130,22 @@ Qmodel.compile(
 )
 
 
+
+QuantisedModelName = config["QuantisedModelName"] 
+UnQuantisedModelName = config["UnQuantisedModelName"] 
+
 Qmodel.summary()
-Qmodel.load_weights(kf+"best_weights_unpruned.tf")
+Qmodel.load_weights(QuantisedModelName+".tf")
 
 
 weightModel = Qnetwork.createWeightModel()
-weightModel.load_weights(kf+"weightQModel_weights.hdf5")
+weightModel.load_weights(QuantisedModelName+".weightModel_weights.hdf5")
 
 patternModel = Qnetwork.createPatternModel()
-patternModel.load_weights(kf+"patternQModel_weights.hdf5")
+patternModel.load_weights(QuantisedModelName+".patternModel_weights.hdf5")
 
 associationModel = Qnetwork.createAssociationModel()
-associationModel.load_weights(kf+"asociationQModel_weights.hdf5")
+associationModel.load_weights(QuantisedModelName+".associationModel_weights.hdf5")
 
 
 weightModel.summary()
@@ -160,7 +163,7 @@ print("-----------------------------------")
 random_weight_data = np.random.rand(1000,3)
 hls_weight_model = hls4ml.converters.convert_from_keras_model(weightModel,
                                                        hls_config=weightconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_weight_1_unquantised/hls4ml_prj',
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_weight/hls4ml_prj',
                                                        fpga_part='xcvu9p-flga2104-2L-e',
                                                        clock_period=2.5)
 hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=kf+"Weight_model.png")
@@ -178,7 +181,7 @@ print("-----------------------------------")
 random_pattern_data = np.random.rand(1000,256,1)
 hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
                                                        hls_config=patternconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_pattern_1_unquantised/hls4ml_prj',
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_pattern/hls4ml_prj',
                                                        fpga_part='xcvu9p-flga2104-2L-e',
                                                        clock_period=2.5)
 hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=kf+"pattern_model.png")
@@ -196,7 +199,7 @@ print("-----------------------------------")
 random_association_data = np.random.rand(1000,4+nlatent)
 hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
                                                        hls_config=associationconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+kf+'model_association_1_unquantised/hls4ml_prj',
+                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_association/hls4ml_prj',
                                                        fpga_part='xcvu9p-flga2104-2L-e',
                                                        clock_period=2.5)
 hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=kf+"association_model.png")
@@ -219,26 +222,3 @@ ap.savefig(kf+"association_model_weights_profile.png")
 #hls4ml.report.read_vivado_report(kf+'model_association_1_unquantised/hls4ml_prj')
 #hls4ml.report.read_vivado_report(kf+'model_pattern_1_unquantised/hls4ml_prj')
 
-with open(kf+'experimentkey.txt') as f:
-        first_line = f.readline()
-
-EXPERIMENT_KEY = first_line
-
-if (EXPERIMENT_KEY is not None):
-        # There is one, but the experiment might not exist yet:
-        api = comet_ml.API() # Assumes API key is set in config/env
-        try:
-            api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
-        except Exception:
-            api_experiment = None
-
-experiment = comet_ml.ExistingExperiment(
-            previous_experiment=EXPERIMENT_KEY,
-            log_env_details=True, # to continue env logging
-            log_env_gpu=True,     # to continue GPU logging
-            log_env_cpu=True,     # to continue CPU logging
-        )
-
-experiment.log_asset_folder(kf+"model_weight_1_unquantised", step=None, log_file_name=True)
-experiment.log_asset_folder(kf+"model_association_1_unquantised", step=None, log_file_name=True)
-experiment.log_asset_folder(kf+"model_pattern_1_unquantised", step=None, log_file_name=True)

@@ -18,6 +18,9 @@ weightfeat = config["weight_features"]
 max_ntracks = 250
 nlatent = config["Nlatent"]
 
+QuantisedModelName = config["QuantisedModelName"] 
+UnQuantisedModelName = config["UnQuantisedModelName"] 
+
 if trainable == "QDiffArgMax":
         
         Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
@@ -87,55 +90,46 @@ elif trainable == "FullNetwork":
             activation='relu',
             regloss=1e-10
         )
-'''
+
 model = network.createE2EModel()
-model.load_weights(kf + "best_weights.tf").expect_partial()
+model.load_weights(UnQuantisedModelName+".tf")
 
 weightModel = network.createWeightModel()
-with open(kf + 'weightModel.json', 'w') as f:
+with open(UnQuantisedModelName+"_weightModel.json", 'w') as f:
     f.write(weightModel.to_json())
-weightModel.save_weights(kf + "weightModel_weights.hdf5")
-weightModel.save('weightModel')
+weightModel.save_weights(UnQuantisedModelName+"_weightModel_weights.hdf5")
+weightModel.save(UnQuantisedModelName+"_weightModel")
 
 patternModel = network.createPatternModel()
-with open(kf + 'patternModel.json', 'w') as f:
+with open(UnQuantisedModelName+"_patternModel.json", 'w') as f:
     f.write(patternModel.to_json())
-patternModel.save_weights(kf + "patternModel_weights.hdf5")
-patternModel.save('patternModel')
-
-if trainable == "FullNetwork":
-    positionModel = network.createPositionModel()
-    with open(kf + 'positionModel.json', 'w') as f:
-        f.write(positionModel.to_json())
-    positionModel.save_weights(kf + "positionModel_weights.hdf5")
+patternModel.save_weights(UnQuantisedModelName+"_patternModel_weights.hdf5")
+patternModel.save(UnQuantisedModelName+"_patternModel")
 
 associationModel = network.createAssociationModel()
-with open(kf + 'asociationModel.json', 'w') as f:
+with open(UnQuantisedModelName+"_associationModel.json", 'w') as f:
     f.write(associationModel.to_json())
-associationModel.save_weights(kf + "asociationModel_weights.hdf5")
-associationModel.save("asociationModel")
-'''
+associationModel.save_weights(UnQuantisedModelName+"_associationModel_weights.hdf5")
+associationModel.save(UnQuantisedModelName+"_associationModel")
+
 Qmodel = Qnetwork.createE2EModel()
-Qmodel.load_weights(kf + "best_weights_unpruned.tf")
+Qmodel.load_weights(QuantisedModelName+".tf")
 
 weightQModel = Qnetwork.createWeightModel()
-with open(kf + 'weightQModel.json', 'w') as f:
+with open(QuantisedModelName+"_weightModel.json", 'w') as f:
     f.write(weightQModel.to_json())
-weightQModel.save_weights(kf + "weightQModel_weights.hdf5")
+weightQModel.save_weights(QuantisedModelName+"_weightModel_weights.hdf5")
+weightQModel.save(QuantisedModelName+"_weightModel")
 
 patternQModel = Qnetwork.createPatternModel()
-with open(kf + 'patternQModel.json', 'w') as f:
+with open(QuantisedModelName+"_patternModel.json", 'w') as f:
     f.write(patternQModel.to_json())
-patternQModel.save_weights(kf + "patternQModel_weights.hdf5")
-
-if trainable == "FullNetwork":
-    positionQModel = Qnetwork.createPositionModel()
-    with open(kf + 'positionQModel.json', 'w') as f:
-        f.write(positionQModel.to_json())
-    positionQModel.save_weights(kf + "positionQModel_weights.hdf5")
+patternQModel.save_weights(QuantisedModelName+"_patternModel_weights.hdf5")
+patternQModel.save(QuantisedModelName+"_patternModel")
 
 associationQModel = Qnetwork.createAssociationModel()
-with open(kf + 'asociationQModel.json', 'w') as f:
+with open(QuantisedModelName+"_associationModel.json", 'w') as f:
     f.write(associationQModel.to_json())
-associationQModel.save_weights(kf + "asociationQModel_weights.hdf5")
+associationQModel.save_weights(QuantisedModelName+"_associationModel_weights.hdf5")
+associationQModel.save(QuantisedModelName+"_associationModel")
 
