@@ -13,7 +13,7 @@ import tensorflow as tf
 import yaml
 
 import vtx
-from TrainingScripts.train import *
+#from TrainingScripts.train import *
 plt.style.use(hep.style.CMS)
 
 SMALL_SIZE = 20

@@ -98,7 +98,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weight(model_name+".tf")
+            model.load_weights(model_name+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             callbacks[1].on_train_batch_begin(-1)
@@ -183,7 +183,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(eval.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta']).flatten())
+            val_predictedAssoc_FH.append(eval.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta'],kf=kf).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -245,7 +245,7 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None)
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
+        predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta'],kf=kf))
             
         predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
@@ -375,7 +375,7 @@ if __name__=="__main__":
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
-    epochs = config['epochs']
+    epochs = config['qtrain_epochs']
 
     experiment.log_parameter("nbins",256)
     experiment.log_parameter("ntracks",max_ntracks)
@@ -439,7 +439,7 @@ if __name__=="__main__":
                         0]
         )
         DAmodel.summary()
-        DAmodel.load_weights(config["UnQuantisedModelName"])
+        DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
 
         model.layers[1].set_weights(DAmodel.layers[1].get_weights())
         model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 

@@ -154,30 +154,11 @@ associationModel.summary()
 
 import hls4ml
 
-weightconfig = hls4ml.utils.config_from_keras_model(weightModel, granularity='name')
-print(weightconfig)
-print("-----------------------------------")
-print("Configuration")
-#plotting.print_dict(config)
-print("-----------------------------------")
-random_weight_data = np.random.rand(1000,3)
-hls_weight_model = hls4ml.converters.convert_from_keras_model(weightModel,
-                                                       hls_config=weightconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_weight/hls4ml_prj',
-                                                       fpga_part='xcvu9p-flga2104-2L-e',
-                                                       clock_period=2.5)
-hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=kf+"Weight_model.png")
-plt.clf()
-ap, wp = hls4ml.model.profiling.numerical(model=weightModel, hls_model=hls_weight_model, X=random_weight_data)
-wp.savefig(kf+"Weight_model_activations_profile.png")
-ap.savefig(kf+"Weight_model_weights_profile.png")
-
 #####################################################################################################
 patternconfig = hls4ml.utils.config_from_keras_model(patternModel, granularity='name')
 patternconfig['Model']['Strategy'] = 'Resource'
 print("-----------------------------------")
 print("Configuration")
-#plotting.print_dict(config)
 print("-----------------------------------")
 random_pattern_data = np.random.rand(1000,256,1)
 hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
@@ -185,37 +166,9 @@ hls_pattern_model = hls4ml.converters.convert_from_keras_model(patternModel,
                                                        output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_pattern/hls4ml_prj',
                                                        fpga_part='xcvu9p-flga2104-2L-e',
                                                        clock_period=2.5)
-hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=kf+"pattern_model.png")
-plt.clf()
-ap,wp = hls4ml.model.profiling.numerical(model=patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-wp.savefig(kf+"pattern_model_activations_profile.png")
-ap.savefig(kf+"pattern_model_weights_profile.png")
 #####################################################################################################
 
-#####################################################################################################
-associationconfig = hls4ml.utils.config_from_keras_model(associationModel, granularity='name')
-print(associationconfig)
-print("-----------------------------------")
-print("Configuration")
-#plotting.print_dict(config)
-print("-----------------------------------")
-random_association_data = np.random.rand(1000,4+nlatent)
-hls_association_model = hls4ml.converters.convert_from_keras_model(associationModel,
-                                                       hls_config=associationconfig,
-                                                       output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+QuantisedModelName+'_association/hls4ml_prj',
-                                                       fpga_part='xcvu9p-flga2104-2L-e',
-                                                       clock_period=2.5)
-hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=kf+"association_model.png")
-plt.clf()
-ap,wp = hls4ml.model.profiling.numerical(model=associationModel, hls_model=hls_association_model, X=random_association_data)
-wp.savefig(kf+"association_model_activations_profile.png")
-ap.savefig(kf+"association_model_weights_profile.png")
-#####################################################################################################
+hls_pattern_model.compile()
+hls_pattern_model.build(csim=False,synth=True,vsynth=True)
 
-
-hls_weight_model.compile()
-hls_association_model.compile()
-
-hls_weight_model.build(csim=False,synth=True,vsynth=True)
-hls_association_model.build(csim=False,synth=True,vsynth=True)
 

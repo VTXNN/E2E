@@ -9,7 +9,7 @@ with open(sys.argv[2]+'.yaml', 'r') as f:
 
 
 QuantisedModelName = config["QuantisedModelName"] 
-UnQuantisedModelName = config["UnQuantisedModelName"] 
+UnQuantisedModelName = config["UnquantisedModelName"] 
 
 weightModel = tf.keras.models.load_model(UnQuantisedModelName+'_weightModel')
 patternModel = tf.keras.models.load_model(UnQuantisedModelName+'_patternModel')

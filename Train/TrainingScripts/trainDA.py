@@ -210,7 +210,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(eval.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta']).flatten())
+            val_predictedAssoc_FH.append(eval.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta'],kf=kf).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -238,6 +238,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_loss = metrics.mean_squared_error(val_z0_PV_array,val_z0_NN_array)
 
         print ("Val_NN_z0_MSE: "+str(val_loss)+" Best_NN_z0_MSE: "+str(best_score)) 
+        
 
         wait += 1
         if val_loss < best_score:
@@ -268,7 +269,7 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None)
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta']))
+        predictedAssoc_FH.append(eval.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta'],kf=kf))
 
         if bit:   
             predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[bit_z0],WeightFeatures,trackFeatures] )
@@ -327,7 +328,7 @@ if __name__=="__main__":
     bit = config["bit_inputs"]
     nlatent = config["Nlatent"]
     PretrainedModelName = config["PretrainedModelName"] 
-    UnQuantisedModelName = config["UnQuantisedModelName"] 
+    UnQuantisedModelName = config["UnquantisedModelName"] 
     pretrain_DA = config["pretrain_DA"]
 
     if (trainable == "DiffArgMax") | (trainable == "QDiffArgMax"):

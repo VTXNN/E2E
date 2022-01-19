@@ -19,7 +19,7 @@ max_ntracks = 250
 nlatent = config["Nlatent"]
 
 QuantisedModelName = config["QuantisedModelName"] 
-UnQuantisedModelName = config["UnQuantisedModelName"] 
+UnQuantisedModelName = config["UnquantisedModelName"] 
 
 if trainable == "QDiffArgMax":
         
@@ -92,7 +92,7 @@ elif trainable == "FullNetwork":
         )
 
 model = network.createE2EModel()
-model.load_weights(UnQuantisedModelName+".tf")
+model.load_weights(UnQuantisedModelName+".tf").expect_partial()
 
 weightModel = network.createWeightModel()
 with open(UnQuantisedModelName+"_weightModel.json", 'w') as f:
@@ -113,7 +113,7 @@ associationModel.save_weights(UnQuantisedModelName+"_associationModel_weights.hd
 associationModel.save(UnQuantisedModelName+"_associationModel")
 
 Qmodel = Qnetwork.createE2EModel()
-Qmodel.load_weights(QuantisedModelName+".tf")
+Qmodel.load_weights(QuantisedModelName+".tf").expect_partial()
 
 weightQModel = Qnetwork.createWeightModel()
 with open(QuantisedModelName+"_weightModel.json", 'w') as f:

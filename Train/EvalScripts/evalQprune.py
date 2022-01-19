@@ -15,8 +15,8 @@ import yaml
 from tensorflow.keras.models import Model
 
 import vtx
-from TrainingScripts.train import *
-from EvalScripts.evalDA import *
+#from TrainingScripts.train import *
+from EvalScripts.eval import *
 
 from qkeras.qlayers import QDense, QActivation
 from qkeras.quantizers import quantized_bits, quantized_relu
@@ -69,11 +69,11 @@ if __name__=="__main__":
             config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"NewKFGTTData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'trk_z0'
         bit_z0 = 'bit_trk_z0'
     elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"OldKFGTTData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
         bit_z0 = 'bit_corrected_trk_z0'
 
@@ -111,7 +111,7 @@ if __name__=="__main__":
     weightfeat = config["weight_features"] 
 
     QuantisedModelName = config["QuantisedModelName"] 
-    UnQuantisedModelName = config["UnQuantisedModelName"] 
+    UnQuantisedModelName = config["UnquantisedModelName"] 
 
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
@@ -221,7 +221,7 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            l2regloss=1e-10
         )
         
     DAmodel = DAnetwork.createE2EModel()
