@@ -46,11 +46,11 @@ End_step : 12000
 QConfig:
   weight_1: 
     kernel_quantizer: quantized_bits(2,1,alpha=1)
-    bias_quantizer: quantized_bits(5,1,alpha=1)
+    bias_quantizer: quantized_bits(4,1,alpha=1)
     activation : quantized_relu(9,1)
   weight_2:
     kernel_quantizer : quantized_bits(2,1,alpha=1)
-    bias_quantizer : quantized_bits(5,1,alpha=1)
+    bias_quantizer : quantized_bits(4,1,alpha=1)
     activation : quantized_relu(9,1)
   weight_final:
     kernel_quantizer : quantized_bits(2,1,alpha=1)
@@ -58,15 +58,18 @@ QConfig:
     activation : quantized_relu(9,1)
   conv:
     kernel_quantizer : quantized_bits(2,1,alpha=1)
-    activation : quantized_relu(7,1)
+    activation : quantized_relu(5,1)
   association_0 :
-    kernel_quantizer : quantized_bits(6,3,alpha=1)
-    bias_quantizer : quantized_bits(4,1,alpha=1)
-    activation : quantized_relu(13,3)
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(3,1,alpha=1)
+    activation : quantized_relu(10,2)
   association_1 : 
-    kernel_quantizer : quantized_bits(5,2,alpha=1)
-    bias_quantizer : quantized_bits(4,1,alpha=1)
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(3,1,alpha=1)
     activation : quantized_relu(6,2)
+  association_final : 
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(3,1,alpha=1)
     
 hls4ml_weight :
   model:

@@ -132,12 +132,12 @@ class E2EQKerasDiffArgMax():
         self.assocLayers = []
         for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
             self.assocLayers.extend([
-                QDense(
+                tf.keras.layers.Dense(
                     filterSize,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-                    kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
-                    bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    #kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
+                    #bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
                     activation=None,
                     name='association_'+str(ilayer)
                 ),
@@ -151,15 +151,15 @@ class E2EQKerasDiffArgMax():
                 activation=None,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
-                kernel_quantizer=qconfig['association_weight_final']['kernel_quantizer'],
-                bias_quantizer=qconfig['association_weight_final']['bias_quantizer'],
-                name='association_weight_final'
+                kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
+                bias_quantizer=qconfig['association_final']['bias_quantizer'],
+                name='association_final'
             )
         ])
 
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
 
-        self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
+        #self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
                 
     def applyLayerList(self, inputs, layerList):
         outputs = inputs
@@ -188,7 +188,7 @@ class E2EQKerasDiffArgMax():
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
         assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        assocProbability = self.outputSoftmax(assocProbability)
+        #assocProbability = self.outputSoftmax(assocProbability)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -218,7 +218,7 @@ class E2EQKerasDiffArgMax():
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
         assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
-        assocProbability = self.outputSoftmax(assocProbability)
+        #assocProbability = self.outputSoftmax(assocProbability)
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],

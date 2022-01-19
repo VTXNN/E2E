@@ -147,11 +147,11 @@ class E2EDiffArgMax():
                 activation=None,
                 kernel_initializer='lecun_normal',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
-                name='association_weight_final'
+                name='association_final'
             )
         ])
 
-        self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
+        #self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
 
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
 
@@ -183,7 +183,7 @@ class E2EDiffArgMax():
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
         assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        assocProbability = self.outputSoftmax(assocProbability)
+        #assocProbability = self.outputSoftmax(assocProbability)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -213,7 +213,7 @@ class E2EDiffArgMax():
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
         assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
-        assocProbability = self.outputSoftmax(assocProbability)
+        #assocProbability = self.outputSoftmax(assocProbability)
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
