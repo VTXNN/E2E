@@ -12,7 +12,10 @@ pretrain_DA : True
 
 QuantisedModelName : Quantised_model
 UnquantisedModelName : Unquantised_model
+QuantisedPrunedModelName : Quantised_model_prune_iteration_2
 PretrainedModelName : NewKF_Unquantised_model
+
+prune_iterations : 2
 
 eval_folder : Qplots
 data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
@@ -22,8 +25,8 @@ Nlatent : 0
 starting_lr : 0.0001
 qtrain_starting_lr : 0.00001
 
-epochs : 75
-qtrain_epochs : 50
+epochs : 1
+qtrain_epochs : 1
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1
@@ -39,80 +42,32 @@ nweightlayers : 2
 nassocnodes : 20
 nassoclayers : 2
 
-Final_Sparsity : 0.7
-Begin_step : 2000
-End_step : 12000
+relative_weight_max : [0.0,0.001,0.005,0.01,0.05,0.06,0.08,0.1]
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(2,1,alpha=1)
-    bias_quantizer: quantized_bits(4,1,alpha=1)
-    activation : quantized_relu(9,1)
+    kernel_quantizer: quantized_bits(3,1,alpha=1)
+    bias_quantizer: quantized_bits(5,1,alpha=1)
+    activation : quantized_relu(8,1)
   weight_2:
-    kernel_quantizer : quantized_bits(2,1,alpha=1)
-    bias_quantizer : quantized_bits(4,1,alpha=1)
-    activation : quantized_relu(9,1)
+    kernel_quantizer : quantized_bits(3,1,alpha=1)
+    bias_quantizer : quantized_bits(5,1,alpha=1)
+    activation : quantized_relu(8,1)
   weight_final:
-    kernel_quantizer : quantized_bits(2,1,alpha=1)
-    bias_quantizer : quantized_bits(2,1,alpha=1)
-    activation : quantized_relu(9,1)
+    kernel_quantizer : quantized_bits(3,1,alpha=1)
+    bias_quantizer : quantized_bits(5,1,alpha=1)
+    activation : quantized_relu(8,1)
   conv:
-    kernel_quantizer : quantized_bits(2,1,alpha=1)
+    kernel_quantizer : quantized_bits(3,1,alpha=1)
     activation : quantized_relu(5,1)
   association_0 :
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
     bias_quantizer : quantized_bits(3,1,alpha=1)
-    activation : quantized_relu(10,2)
+    activation : quantized_relu(12,2)
   association_1 : 
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
     bias_quantizer : quantized_bits(3,1,alpha=1)
-    activation : quantized_relu(6,2)
+    activation : quantized_relu(8,2)
   association_final : 
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
     bias_quantizer : quantized_bits(3,1,alpha=1)
-    
-hls4ml_weight :
-  model:
-    quantizer : 20,10 
-  input:
-    quantizer : 20,10
-  weight_1: 
-    kernel_quantizer: 20,10
-    bias_quantizer: 20,10
-    activation : 20,10
-  weight_2:
-    kernel_quantizer : 20,10
-    bias_quantizer : 20,10
-    activation : 20,10
-  weight_final:
-    kernel_quantizer : 20,10
-    bias_quantizer : 20,10
-    activation : 20,10
-
-hls4ml_conv :
-  model:
-      quantizer : 32,16
-  input:
-    quantizer : 32,16
-  conv:
-    kernel_quantizer : 32,16
-    activation : 32,16
-
-hls4ml_assoc :
-  model:
-    quantizer : 20,10 
-  input:
-    quantizer : 20,10
-  assoc_1: 
-    kernel_quantizer: 20,10
-    bias_quantizer: 20,10
-    activation : 20,10
-  assoc_2:
-    kernel_quantizer : 20,10
-    bias_quantizer : 20,10
-    activation : 20,10
-  assoc_final:
-    kernel_quantizer : 20,10
-    bias_quantizer : 20,10
-
-

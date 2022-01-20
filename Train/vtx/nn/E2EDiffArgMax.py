@@ -36,6 +36,10 @@ class E2EDiffArgMax():
         self.l2regloss = l2regloss
 
         self.temperature = temperature
+
+        self.weightModel = None
+        self.patternModel = None
+        self.associationModel = None
         
         self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
         self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_PV_track_features')
@@ -231,3 +235,133 @@ class E2EDiffArgMax():
         
         #model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model
+
+
+    def load_weights(self,largerModel):
+        self.weightModel = self.createWeightModel()
+        self.patternModel = self.createPatternModel()
+        self.associationModel = self.createAssociationModel()
+
+        self.weightModel.layers[1].set_weights(largerModel.layers[1].get_weights())
+        self.weightModel.layers[2].set_weights(largerModel.layers[2].get_weights())
+        self.weightModel.layers[3].set_weights(largerModel.layers[3].get_weights())
+        self.weightModel.layers[4].set_weights(largerModel.layers[4].get_weights())
+        self.weightModel.layers[5].set_weights(largerModel.layers[6].get_weights())
+
+        self.patternModel.layers[1].set_weights(largerModel.layers[8].get_weights())
+
+        self.associationModel.layers[1].set_weights(largerModel.layers[17].get_weights())
+        self.associationModel.layers[2].set_weights(largerModel.layers[18].get_weights()) 
+        self.associationModel.layers[3].set_weights(largerModel.layers[19].get_weights()) 
+        self.associationModel.layers[4].set_weights(largerModel.layers[20].get_weights()) 
+        self.associationModel.layers[5].set_weights(largerModel.layers[21].get_weights()) 
+
+    def write_model_graph(self,modelName):
+        import cmsml
+
+        cmsml.tensorflow.save_graph(modelName+"_weightModelgraph.pb", self.weightModel, variables_to_constants=True)
+        cmsml.tensorflow.save_graph(modelName+"_patternModelgraph.pb", self.patternModel, variables_to_constants=True)
+        cmsml.tensorflow.save_graph(modelName+"_associationModelgraph.pb", self.associationModel, variables_to_constants=True)
+
+    def export_individual_models(self,modelName):
+
+        with open(modelName+"_weightModel.json", 'w') as f:
+            f.write(self.weightModel.to_json())
+        self.weightModel.save_weights(modelName+"_weightModel_weights.hdf5")
+        self.weightModel.save(modelName+"_weightModel")
+
+        with open(modelName+"_patternModel.json", 'w') as f:
+            f.write(self.patternModel.to_json())
+        self.patternModel.save_weights(modelName+"_patternModel_weights.hdf5")
+        self.patternModel.save(modelName+"_patternModel")
+
+        with open(modelName+"_associationModel.json", 'w') as f:
+            f.write(self.associationModel.to_json())
+        self.associationModel.save_weights(modelName+"_associationModel_weights.hdf5")
+        self.associationModel.save(modelName+"_associationModel")
+
+    def export_hls_weight_model(self,modelName):
+        import hls4ml
+        import numpy as np
+        import matplotlib
+        #matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
+        print(weightconfig)
+        print("-----------------------------------")
+        print("Configuration")
+        #plotting.print_dict(config)
+        print("-----------------------------------")
+        random_weight_data = np.random.rand(1000,3)
+        hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
+                                                            hls_config=weightconfig,
+                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_weight/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            clock_period=2.5)
+        hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
+        plt.clf()
+        ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
+        wp.savefig(modelName+"_Weight_model_activations_profile.png")
+        ap.savefig(modelName+"_Weight_model_weights_profile.png")
+
+        hls_weight_model.compile()
+        hls_weight_model.build(csim=False,synth=True,vsynth=True)
+
+
+
+    def export_hls_pattern_model(self,modelName):
+        import hls4ml
+        import numpy as np
+        import matplotlib
+        #matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
+        patternconfig['Model']['Strategy'] = 'Resource'
+        print("-----------------------------------")
+        print("Configuration")
+        #plotting.print_dict(config)
+        print("-----------------------------------")
+        random_pattern_data = np.random.rand(1000,256,1)
+        hls_pattern_model = hls4ml.converters.convert_from_keras_model(self.patternModel,
+                                                            hls_config=patternconfig,
+                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_pattern/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            clock_period=2.5)
+        hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
+        plt.clf()
+        ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
+        wp.savefig(modelName+"_pattern_model_activations_profile.png")
+        ap.savefig(modelName+"_pattern_model_weights_profile.png")
+
+        hls_pattern_model.compile()
+        hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+
+    def export_hls_assoc_model(self,modelName):
+        import hls4ml
+        import numpy as np
+        import matplotlib
+        #matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
+        print(associationconfig)
+        print("-----------------------------------")
+        print("Configuration")
+        #plotting.print_dict(config)
+        print("-----------------------------------")
+        random_association_data = np.random.rand(1000,4+self.nlatent)
+        hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
+                                                            hls_config=associationconfig,
+                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_association/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            clock_period=2.5)
+        hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
+        plt.clf()
+        ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
+        wp.savefig(modelName+"_association_model_activations_profile.png")
+        ap.savefig(modelName+"_association_model_weights_profile.png")
+
+        hls_association_model.compile()
+        hls_association_model.build(csim=False,synth=True,vsynth=True)

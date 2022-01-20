@@ -5,8 +5,10 @@ from qkeras import QActivation
 from qkeras import QDense, QConv1D, QBatchNormalization
 from qkeras.quantizers import quantized_bits, quantized_relu
 import numpy
+from vtx.nn.constraints import *
+import h5py
 
-class E2EQKerasDiffArgMax():
+class E2EQKerasDiffArgMaxConstraint():
     def __init__(self,
         nbins=256,
         start=-15,
@@ -25,7 +27,8 @@ class E2EQKerasDiffArgMax():
         l1regloss=1e-3,
         l2regloss=1e-10,
         temperature=1e-4,
-        qconfig={}
+        qconfig={},
+        h5fName= None
     ):
         self.nbins = nbins
         self.start = start
@@ -40,16 +43,19 @@ class E2EQKerasDiffArgMax():
         self.activation = 'relu'#quantized_relu(self.bits)
 
         self.temperature = temperature
-
-        self.weightModel = None
-        self.patternModel = None
-        self.associationModel = None
         
         self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
         self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_PV_track_features')
         self.inputTrackZ0 = tf.keras.layers.Input(shape=(self.ntracks),name='input_track_z0')
 
         self.weightLayers = []
+
+        self.weightModel = None
+        self.patternModel = None
+        self.associationModel = None
+
+        h5f = h5py.File(h5fName)
+
         for ilayer,nodes in enumerate([nweightnodes]*nweightlayers):
             self.weightLayers.extend([
                 #QBatchNormalization(),
@@ -60,6 +66,7 @@ class E2EQKerasDiffArgMax():
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
+                    kernel_constraint = zero_some_weights(binary_tensor=h5f['weight_'+str(ilayer+1)][()].tolist()),
                     activation=None,
                     name='weight_'+str(ilayer+1)
                 ),
@@ -73,6 +80,7 @@ class E2EQKerasDiffArgMax():
                 trainable=True,
                 kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['weight_final']['bias_quantizer'],
+                kernel_constraint = zero_some_weights(binary_tensor=h5f['weight_final'][()].tolist()),
                 activation=None,
                 kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='weight_final'
@@ -132,16 +140,17 @@ class E2EQKerasDiffArgMax():
                 name='position_final'
             )
         ]
-          
+
         self.assocLayers = []
         for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
             self.assocLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     filterSize,
                     kernel_initializer='lecun_normal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-                    #kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
-                    #bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
+                    bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    kernel_constraint = zero_some_weights(binary_tensor=h5f['association_'+str(ilayer)][()].tolist()),
                     activation=None,
                     name='association_'+str(ilayer)
                 ),
@@ -157,6 +166,7 @@ class E2EQKerasDiffArgMax():
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['association_final']['bias_quantizer'],
+                kernel_constraint = zero_some_weights(binary_tensor=h5f['association_final'][()].tolist()),
                 name='association_final'
             )
         ])

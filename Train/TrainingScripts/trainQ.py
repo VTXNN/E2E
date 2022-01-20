@@ -85,10 +85,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
     wait = 0
     best_score = 100000
     callbacks[0].on_train_begin()
-
+    
     old_lr = model.optimizer.learning_rate.numpy()
     
     for epoch in range(epochs):
+
 
         new_lr = old_lr
         tf.keras.backend.set_value(model.optimizer.learning_rate, new_lr)
@@ -96,7 +97,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(model_name+"_prune_iteration_"+str(int(sys.argv[3])+1)+".tf")
+            model.load_weights(model_name+"_prune_iteration_0.tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             
@@ -214,7 +215,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         wait += 1
         if val_loss < best_score:
             best_score = val_loss
-            model.save_weights(model_name+"_prune_iteration_"+str(int(sys.argv[3])+1)+".tf")
+            model.save_weights(model_name+"_prune_iteration_0.tf")
             wait = 0
         if wait >= early_stop_patience:
             break
@@ -258,8 +259,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None)
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(model_name+"_prune_iteration_"+str(int(sys.argv[3])+1)+".tf.index")
-    experiment.log_asset(model_name+"_prune_iteration_"+str(int(sys.argv[3])+1)+".tf.data-00000-of-00001")
+    experiment.log_asset(model_name+"_prune_iteration_0.tf.index")
+    experiment.log_asset(model_name+"_prune_iteration_0.tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -301,7 +302,7 @@ if __name__=="__main__":
     if trainable == "QDiffArgMax":
         nlatent = config["Nlatent"]
 
-        network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
+        network = vtx.nn.E2EQKerasDiffArgMax(
             nbins=256,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
@@ -316,8 +317,7 @@ if __name__=="__main__":
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
             temperature = 1e-2,
-            qconfig = config['QConfig'],
-            h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[3]+'.h5'
+            qconfig = config['QConfig']
         )
 
     if kf == "NewKF":
@@ -373,6 +373,16 @@ if __name__=="__main__":
     startingLR = config['starting_lr']
     epochs = config['qtrain_epochs']
 
+    experiment.log_parameter("nbins",256)
+    experiment.log_parameter("ntracks",max_ntracks)
+    experiment.log_parameter("nfeatures",len(weightfeat))
+    experiment.log_parameter("nlatent",nlatent)
+    experiment.log_parameter("activation",'relu')
+    experiment.log_parameter("L1regloss",config['l1regloss'])
+    experiment.log_parameter("L2regloss",config['l2regloss'])
+    experiment.log_parameter("Start LR",startingLR)
+    experiment.log_parameter("Epochs",epochs)
+
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(lr=startingLR)
     model.compile(
@@ -392,12 +402,58 @@ if __name__=="__main__":
     )
     model.summary()
 
+    if pretrained:
+        DAnetwork = vtx.nn.E2EDiffArgMax(
+            nbins=256,
+            ntracks=max_ntracks, 
+            nweightfeatures=len(weightfeat), 
+            nfeatures=len(trackfeat), 
+            nweights=1, 
+            nlatent = nlatent,
+            activation='relu',
+            l2regloss=1e-10,
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
+        )
+        
+        DAmodel = DAnetwork.createE2EModel()
+        optimizer = tf.keras.optimizers.Adam(lr=0.01)
+        DAmodel.compile(
+            optimizer,
+            loss=[
+                tf.keras.losses.Huber(config['Huber_delta']),
+                tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                lambda y,x: 0.
+            ],
+            metrics=[
+                tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+            ],
+            loss_weights=[config['z0_loss_weight'],
+                        config['crossentropy_loss_weight'],
+                        0]
+        )
+        DAmodel.summary()
+        DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
+
+        model.layers[1].set_weights(DAmodel.layers[1].get_weights())
+        model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
+        model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
+        model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
+        model.layers[13].set_weights(DAmodel.layers[11].get_weights()) 
+        model.layers[15].set_weights(DAmodel.layers[13].get_weights()) 
+        model.layers[19].set_weights(DAmodel.layers[17].get_weights()) 
+        model.layers[21].set_weights(DAmodel.layers[19].get_weights()) 
+        model.layers[23].set_weights(DAmodel.layers[21].get_weights())
+
+    else:
+        model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
         monitor='loss', factor=0.1, patience=6, verbose=1,
         mode='auto', min_delta=0.005, cooldown=0, min_lr=0
     )
-
-    model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[3]+".tf").expect_partial()
 
     with experiment.train():
         train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=[reduceLR],nlatent=nlatent,trainable=trainable,model_name=model_name),
