@@ -365,7 +365,7 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    experiment.set_name(kf+config['comet_experiment_name'])
+    experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[3]))
     experiment.log_other("description",kf + config["description"])
     with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())
@@ -378,7 +378,8 @@ if __name__=="__main__":
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(config['Huber_delta']),
+            #tf.keras.losses.Huber(config['Huber_delta']),
+            tf.keras.losses.MeanAbsoluteError(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],

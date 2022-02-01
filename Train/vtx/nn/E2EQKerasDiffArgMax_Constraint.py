@@ -347,11 +347,11 @@ class E2EQKerasDiffArgMaxConstraint():
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_pattern/hls4ml_prj',
                                                             fpga_part='xcvu9p-flga2104-2L-e',
                                                             clock_period=2.5)
-        hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
-        plt.clf()
-        ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-        wp.savefig(modelName+"_pattern_model_activations_profile.png")
-        ap.savefig(modelName+"_pattern_model_weights_profile.png")
+        #hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
+        #plt.clf()
+        #ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
+        #wp.savefig(modelName+"_pattern_model_activations_profile.png")
+        #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
         hls_pattern_model.build(csim=False,synth=True,vsynth=True)

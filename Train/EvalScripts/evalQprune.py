@@ -79,9 +79,9 @@ if __name__=="__main__":
 
     nMaxTracks = 250
 
-    save = True
+    save = False
     savingfolder = kf+"SavedArrays/"
-    PVROCs = True 
+    PVROCs = False 
     met = False
 
     nlatent = config["Nlatent"]
@@ -668,6 +668,7 @@ if __name__=="__main__":
         z0_FHnoFake_array = np.load(savingfolder+"z0_FHnoFake_array.npy")
         z0_PV_array = np.load(savingfolder+"z0_PV_array.npy")
         predictedQWeightsarray = np.load(savingfolder+"predictedQWeightsarray.npy")
+        predictedQPWeightsarray = np.load(savingfolder+"predictedQPWeightsarray.npy")
         predictedDAWeightsarray = np.load(savingfolder+"predictedDAWeightsarray.npy")
         trk_z0_array = np.load(savingfolder+"trk_z0_array.npy")
         trk_mva_array = np.load(savingfolder+"trk_mva_array.npy")
@@ -804,8 +805,8 @@ if __name__=="__main__":
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[0])
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[1])
     
-    hist2d = ax[0].hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
-    hist2dp = ax[1].hist2d(predictedQPWeightsarray, assoc_QPNN_array, range=((QPweightmin,QPweightmax),(0,1)),bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax[0].hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50,cmap=colormap)
+    hist2dp = ax[1].hist2d(predictedQPWeightsarray, assoc_QPNN_array, range=((QPweightmin,QPweightmax),(0,1)),bins=50,cmap=colormap)
     ax[0].set_xlabel("Quantised Weights", horizontalalignment='right', x=1.0)
     ax[0].set_ylabel("Quantised Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
     ax[0].set_xlabel("Pruned Weights", horizontalalignment='right', x=1.0)
@@ -936,15 +937,15 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((Qweightmin,Qweightmax),(Qweightmin,Qweightmax)), norm=matplotlib.colors.LogNorm(),cmap=colormap)
-    ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
-    ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3] , ax=ax)
-    cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
-    plt.tight_layout()
-    plt.savefig("%s/Qweightvsweight.png" % outputFolder)
-    plt.close()
+    #hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((0,1),(0,1)), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    #ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
+    #ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
+    #cbar = plt.colorbar(hist2d[3] , ax=ax)
+    #cbar.set_label('# Tracks')
+    #ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    #plt.tight_layout()
+    #plt.savefig("%s/Qweightvsweight.png" % outputFolder)
+    #plt.close()
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))

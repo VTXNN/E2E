@@ -423,7 +423,8 @@ if __name__=="__main__":
         DAmodel.compile(
             optimizer,
             loss=[
-                tf.keras.losses.Huber(config['Huber_delta']),
+                #tf.keras.losses.Huber(config['Huber_delta']),
+                tf.keras.losses.MeanAbsoluteError(),
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.
             ],
