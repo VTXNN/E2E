@@ -1,14 +1,14 @@
 retrain : True
-comet_project_name : Vertex_CNN_FH
-comet_experiment_name : QDANN_pretrained
-description : QDANN_Bit_inputs
+comet_project_name : Vertex_CNN_Prune
+comet_experiment_name : QDANN_trkWord_NewKF
+description : QDANN_fixed_point
 
 trainable : "QDiffArgMax"
 weight_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
 track_features : ['normed_trk_pt','trk_MVA1','normed_trk_over_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
 pretrained : True
 bit_inputs : False
-pretrain_DA : False
+pretrain_DA : True
 
 
 QuantisedModelName : Quantised_model
@@ -24,14 +24,14 @@ Nlatent : 0
 starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
-epochs : 75
+epochs : 40
 qtrain_epochs : 1
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 1
 
 qtrain_z0_loss_weight : 1
-qtrain_crossentropy_loss_weight : 2
+qtrain_crossentropy_loss_weight : 1
 
 Huber_delta : 0.5
 

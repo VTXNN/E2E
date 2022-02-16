@@ -305,13 +305,13 @@ class E2EQKerasDiffArgMax():
         hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
                                                             hls_config=weightconfig,
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_weight/hls4ml_prj',
-                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            part='xcvu9p-flga2104-2L-e',
                                                             clock_period=2.5)
-        hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
-        plt.clf()
-        ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
-        wp.savefig(modelName+"_Weight_model_activations_profile.png")
-        ap.savefig(modelName+"_Weight_model_weights_profile.png")
+        #hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
+        #plt.clf()
+        #ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
+        #wp.savefig(modelName+"_Weight_model_activations_profile.png")
+        #ap.savefig(modelName+"_Weight_model_weights_profile.png")
 
         hls_weight_model.compile()
         hls_weight_model.build(csim=False,synth=True,vsynth=True)
@@ -363,13 +363,13 @@ class E2EQKerasDiffArgMax():
         hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
                                                             hls_config=associationconfig,
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_association/hls4ml_prj',
-                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            part='xcvu9p-flga2104-2L-e',
                                                             clock_period=2.5)
-        hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
-        plt.clf()
-        ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
-        wp.savefig(modelName+"_association_model_activations_profile.png")
-        ap.savefig(modelName+"_association_model_weights_profile.png")
+        #hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
+        #plt.clf()
+        #ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
+        #wp.savefig(modelName+"_association_model_activations_profile.png")
+        #ap.savefig(modelName+"_association_model_weights_profile.png")
 
         hls_association_model.compile()
         hls_association_model.build(csim=False,synth=True,vsynth=True)

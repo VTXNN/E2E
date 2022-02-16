@@ -138,29 +138,29 @@ QuantisedModelName = config["QuantisedModelName"] + "_prune_iteration_"+str(int(
 UnQuantisedModelName = config["UnquantisedModelName"] 
 
 
-#DAmodel.load_weights(UnQuantisedModelName+".tf").expect_partial()
-#Qmodel.load_weights(QuantisedModelName+".tf").expect_partial()
+DAmodel.load_weights(UnQuantisedModelName+".tf").expect_partial()
+Qmodel.load_weights(QuantisedModelName+".tf").expect_partial()
 QPmodel.load_weights(QuantisedPrunedModelName+".tf").expect_partial()
 
-#DAnetwork.load_weights(DAmodel)
-#Qnetwork.load_weights(Qmodel)
+DAnetwork.load_weights(DAmodel)
+Qnetwork.load_weights(Qmodel)
 QPnetwork.load_weights(QPmodel)
 
 if cnn == 'False':
     #DAnetwork.export_individual_models(UnQuantisedModelName)
     #Qnetwork.export_individual_models(QuantisedModelName)
-    QPnetwork.export_individual_models(QuantisedPrunedModelName)
+    #QPnetwork.export_individual_models(QuantisedPrunedModelName)
 
     #DAnetwork.write_model_graph(UnQuantisedModelName)
     #Qnetwork.write_model_graph(QuantisedModelName)
-    QPnetwork.write_model_graph(QuantisedPrunedModelName)
+    #QPnetwork.write_model_graph(QuantisedPrunedModelName)
 
     #DAnetwork.export_hls_weight_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_weight_model(QuantisedModelName)
+    Qnetwork.export_hls_weight_model(QuantisedModelName)
     QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
 
     #DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_assoc_model(QuantisedModelName)
+    Qnetwork.export_hls_assoc_model(QuantisedModelName)
     QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
 
 if cnn == 'True':

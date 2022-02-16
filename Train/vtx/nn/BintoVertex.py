@@ -10,7 +10,7 @@ class BintoVertex(Layer):
         self.nbins = nbins
         self.start = start
         self.end = end
-        
+
     def call(self, x):
         start = tf.cast(self.start ,tf.float32)
         end =  tf.cast(self.end,tf.float32)
@@ -21,5 +21,6 @@ class BintoVertex(Layer):
 
         z0Index = tf.expand_dims(z0Index,axis=1)
         z0 = start+(end-start)*z0Index/nbins+halfBinWidth
+
 
         return z0

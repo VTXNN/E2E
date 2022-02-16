@@ -78,6 +78,7 @@ branches = [
 
 trackFeatures = [
     'trk_z0',
+    'int_z0',
     "trk_MVA1",
     'trk_pt',
     'trk_phi',
@@ -86,6 +87,7 @@ trackFeatures = [
     'trk_chi2rz', 
     'trk_bendchi2',
     'corrected_trk_z0',
+    'corrected_int_z0',
     'trk_fake',
     "trk_word_InvR",
     "trk_word_pT",
@@ -183,6 +185,11 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
     #ad-hoc correction of track z0
     data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
+    data['corrected_round_z0'] = round(((data['corrected_trk_z0']+15 )*256/30),2)
+    data['corrected_int_z0'] = np.floor(data['corrected_round_z0'] )
+
+    data['round_z0'] = round(((data['trk_z0']+15 )*256/30),2)
+    data['int_z0'] = np.floor(data['round_z0'] )
 
     #################################################
     
@@ -258,7 +265,11 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         sumZ0 = np.sum(data['trk_pt'][iev][selectPVTracks]*data['trk_z0'][iev][selectPVTracks])
         sumWeights = np.sum(data['trk_pt'][iev][selectPVTracks])
 
+        round_pV = round(((pvz0+15 )*256/30),2)
+        int_PV = np.floor(round_pV )
+
         tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
+        tfData['int_pvz0'] = _float_feature(np.array(int_PV,np.float32))
         
 
         clipped_pt = np.clip(data['trk_pt'][iev][selectTracksInZ0Range],0, 512)

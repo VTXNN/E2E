@@ -29,9 +29,9 @@ epochs : 75
 qtrain_epochs : 25
 
 z0_loss_weight : 1
-crossentropy_loss_weight : 1
+crossentropy_loss_weight : 2
 qtrain_z0_loss_weight : 1
-qtrain_crossentropy_loss_weight : 1
+qtrain_crossentropy_loss_weight : 2
 
 Huber_delta : 0.5
 
@@ -42,32 +42,32 @@ nweightlayers : 2
 nassocnodes : 20
 nassoclayers : 2
 
-relative_weight_max : [0.0,0.001,0.01,0.05,0.1,0.2,0.3,0.4,0.2]
+relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.02,0.025,0.03,0.035,0.04]
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(3,1,alpha=1)
-    bias_quantizer: quantized_bits(5,1,alpha=1)
+    kernel_quantizer: quantized_bits(6,2,alpha=1)
+    bias_quantizer: quantized_bits(6,1,alpha=1)
     activation : quantized_relu(8,1)
   weight_2:
-    kernel_quantizer : quantized_bits(3,1,alpha=1)
-    bias_quantizer : quantized_bits(5,1,alpha=1)
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
+    bias_quantizer : quantized_bits(6,1,alpha=1)
     activation : quantized_relu(8,1)
   weight_final:
-    kernel_quantizer : quantized_bits(3,1,alpha=1)
-    bias_quantizer : quantized_bits(5,1,alpha=1)
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
+    bias_quantizer : quantized_bits(6,1,alpha=1)
     activation : quantized_relu(8,1)
   conv:
     kernel_quantizer : quantized_bits(3,1,alpha=1)
     activation : quantized_relu(5,1)
   association_0 :
-    kernel_quantizer : quantized_bits(6,2,alpha=1)
-    bias_quantizer : quantized_bits(3,1,alpha=1)
-    activation : quantized_relu(12,2)
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(2,1,alpha=1)
+    activation : quantized_relu(12,3)
   association_1 : 
-    kernel_quantizer : quantized_bits(6,2,alpha=1)
-    bias_quantizer : quantized_bits(3,1,alpha=1)
-    activation : quantized_relu(8,2)
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(2,1,alpha=1)
+    activation : quantized_relu(10,3)
   association_final : 
-    kernel_quantizer : quantized_bits(6,2,alpha=1)
-    bias_quantizer : quantized_bits(3,1,alpha=1)
+    kernel_quantizer : quantized_bits(4,2,alpha=1)
+    bias_quantizer : quantized_bits(2,1,alpha=1)

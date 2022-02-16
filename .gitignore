@@ -32,4 +32,4 @@ Train/*/hls4ml_prj.tar.gz
 *.npy
 hls4ml_projects/*
 PretrainedModels/**
-Assets/
+Assets_*/
