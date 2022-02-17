@@ -11,8 +11,7 @@ import h5py
 
 import sklearn.metrics as metrics
 import vtx
-import TrainingScripts
-import Train.EvalScripts.eval_funcs as eval_funcs
+import EvalScripts.eval_funcs as eval_funcs
 import pandas as pd
 
 import yaml

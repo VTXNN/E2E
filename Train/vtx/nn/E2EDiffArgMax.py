@@ -20,7 +20,8 @@ class E2EDiffArgMax():
         nassocnodes = 20,
         nassoclayers = 2,
         l2regloss=1e-10,
-        temperature=1e-2
+        temperature=1e-2,
+        return_index = False,
     ):
         self.nbins = nbins
         self.start = start
@@ -36,6 +37,8 @@ class E2EDiffArgMax():
         self.l2regloss = l2regloss
 
         self.temperature = temperature
+
+        self.return_index = return_index
 
         self.weightModel = None
         self.patternModel = None
@@ -198,16 +201,25 @@ class E2EDiffArgMax():
         temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
         softmax = self.softMaxLayer(temp)
         binweight = self.binWeightLayer(softmax)
-        argmax = self.ArgMaxLayer(binweight)
+        pv,argmax = self.ArgMaxLayer(binweight)
 
-        pvFeatures = self.applyLayerList(argmax,self.pvDenseLayers)
+        pvFeatures = self.applyLayerList(pv,self.pvDenseLayers)
+        pvFeatures_argmax = self.applyLayerList(argmax,self.pvDenseLayers)
 
         if self.nlatent>0:
             pvPosition,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent')(pvFeatures)
         else:
             pvPosition = pvFeatures
-        
-        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
+
+        if self.nlatent>0:
+            pvPosition_argmax,latentFeatures_argmax = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent_argmax')(pvFeatures_argmax)
+        else:
+            pvPosition_argmax = pvFeatures_argmax
+
+        if self.return_index:
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])*(30/256),2)),name='z0_diff')([self.inputTrackZ0,pvPosition_argmax])
+        else:
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
         
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 

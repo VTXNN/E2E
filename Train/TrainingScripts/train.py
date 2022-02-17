@@ -9,7 +9,7 @@ import glob
 import sklearn.metrics as metrics
 import vtx
 import TrainingScripts
-import Train.EvalScripts.eval_funcs as eval_funcs
+import EvalScripts.eval_funcs as eval_funcs
 import pandas as pd
 
 import yaml
@@ -32,10 +32,13 @@ kf = sys.argv[1]
 
 if kf == "NewKF":
     z0 = 'trk_z0'
+    FH_z0 = 'trk_z0'
 elif kf == "OldKF":
     z0 = 'corrected_trk_z0'
+    FH_z0 = 'corrected_trk_z0'
 elif kf == "OldKF_intZ":
     z0 = 'corrected_int_z0'
+    FH_z0 = 'corrected_trk_z0'
 
 SMALL_SIZE = 15
 MEDIUM_SIZE = 15
@@ -122,7 +125,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
-                predictedZ0_FH = eval_funcs.predictFastHisto(batch[z0],batch['trk_pt'],return_index=bit)
+                predictedZ0_FH = eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt'])
   
                 predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
@@ -161,7 +164,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(eval_funcs.predictFastHisto(val_batch[z0],val_batch['trk_pt']).flatten())
+            val_predictedZ0_FH.append(eval_funcs.predictFastHisto(val_batch[FH_z0],val_batch['trk_pt']).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
 
@@ -176,7 +179,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(val_batch['pvz0'],val_batch[z0],val_batch['trk_eta'],kf=kf).flatten())
+            val_predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(val_batch['pvz0'],val_batch[FH_z0],val_batch['trk_eta'],kf=kf).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -231,12 +234,12 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
 
-        predictedZ0_FH.append(eval_funcs.predictFastHisto(batch[z0],batch['trk_pt']))
+        predictedZ0_FH.append(eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt']))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(batch['pvz0'],batch[z0],batch['trk_eta'],kf=kf))
+        predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(batch['pvz0'],batch[FH_z0],batch['trk_eta'],kf=kf))
 
         predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
@@ -301,7 +304,7 @@ if __name__=="__main__":
 
     elif (kf == 'OldKF_intZ') :
         start = 0
-        end = 256
+        end = 255
         bit = True
 
     if trainable == 'DA':
@@ -315,6 +318,7 @@ if __name__=="__main__":
             nfeatures=len(trackfeat), 
             nweights=1, 
             nlatent = nlatent,
+            return_index = bit,
             activation='relu',
             l2regloss=1e-10,
             temperature=1e-2,
@@ -335,6 +339,7 @@ if __name__=="__main__":
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
+            return_index = bit,
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
@@ -356,6 +361,7 @@ if __name__=="__main__":
             start = start,
             end = end,
             ntracks=max_ntracks, 
+            return_index = bit,
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
             nweights=1, 
@@ -372,34 +378,45 @@ if __name__=="__main__":
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[4]+'.h5'
         )
 
-        model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[3])+1)]
+        model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[4])+1)]
     
 
     if kf == "NewKF":
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
         test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+
+        trackFeatures = [
+                'trk_z0',
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_pt',
+                'trk_eta',
+                'trk_MVA1',
+                'trk_z0_res',
+                'normed_trk_over_eta',
+        ]
         
     elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
         test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
 
-    trackFeatures = [
-            'trk_z0',
-            'normed_trk_pt',
-            'normed_trk_eta',
-            'trk_pt',
-            'trk_eta',
-            'trk_MVA1',
-            'trk_z0_res',
-            'corrected_trk_z0',
-            'corrected_int_z0',
-            'normed_trk_over_eta',
-            'abs_trk_word_pT',
-            'rescaled_trk_word_MVAquality',
-            'abs_trk_word_eta',
-    ]
+        trackFeatures = [
+                'trk_z0',
+                'normed_trk_pt',
+                'normed_trk_eta',
+                'trk_pt',
+                'trk_eta',
+                'trk_MVA1',
+                'trk_z0_res',
+                'corrected_trk_z0',
+                'corrected_int_z0',
+                'normed_trk_over_eta',
+                'abs_trk_word_pT',
+                'rescaled_trk_word_MVAquality',
+                'abs_trk_word_eta',
+        ]
 
 
     print ("Input Train files: ",len(train_files))
@@ -424,7 +441,7 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    experiment.set_name(kf+config['comet_experiment_name'])
+    
     experiment.log_other("description",kf + config["description"])
     with open(kf+'experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())
@@ -452,12 +469,15 @@ if __name__=="__main__":
     )
     model.summary()
 
-    model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
 
     if trainable == 'DA':
+        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        experiment.set_name(kf+config['comet_experiment_name'])
+
         if pretrain_DA:
             model.load_weights(PretrainedModelName+".tf")
     elif trainable == 'QDA':
+        experiment.set_name(kf+config['comet_experiment_name'])
         if config["pretrained"]:
             DAnetwork = vtx.nn.E2EDiffArgMax(
                 nbins=256,
@@ -508,6 +528,7 @@ if __name__=="__main__":
             model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
 
     elif trainable == 'QDA_prune':
+        experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[3]))
         model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[4]+".tf").expect_partial()
 
 

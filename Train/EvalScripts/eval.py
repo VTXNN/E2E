@@ -16,7 +16,7 @@ from tensorflow.keras.models import Model
 
 import vtx
 #from TrainingScripts.train import *
-from Train.EvalScripts.eval_funcs import *
+from EvalScripts.eval_funcs import *
 
 from qkeras.qlayers import QDense, QActivation
 from qkeras.quantizers import quantized_bits, quantized_relu
@@ -71,6 +71,7 @@ if __name__=="__main__":
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'trk_z0'
+        FH_z0 = 'trk_z0'
         start = -15
         end = 15
         bit = False
@@ -85,8 +86,9 @@ if __name__=="__main__":
     elif kf == "OldKF_intZ":
         test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'corrected_int_z0'
+        FH_z0 = 'corrected_trk_z0'
         start = 0
-        end = 256
+        end = 255
         bit = True
 
 
@@ -360,11 +362,11 @@ if __name__=="__main__":
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
             nBatch = batch['pvz0'].shape[0]
-            FH = predictFastHisto(batch[z0],batch['trk_pt'])
+            FH = predictFastHisto(batch[FH_z0],batch['trk_pt'])
             predictedZ0_FH.append(FH)
-            predictedZ0_FHz0res.append(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']))
-            predictedZ0_FHz0MVA.append(predictFastHistoMVAcut(batch[z0],batch['trk_pt'],batch['trk_MVA1']))
-            predictedZ0_FHnoFake.append(predictFastHistoNoFakes(batch[z0],batch['trk_pt'],batch['trk_fake']))
+            predictedZ0_FHz0res.append(predictFastHistoZ0res(batch[FH_z0],batch['trk_pt'],batch['trk_eta']))
+            predictedZ0_FHz0MVA.append(predictFastHistoMVAcut(batch[FH_z0],batch['trk_pt'],batch['trk_MVA1']))
+            predictedZ0_FHnoFake.append(predictFastHistoNoFakes(batch[FH_z0],batch['trk_pt'],batch['trk_fake']))
 
             trk_z0.append(batch[z0])
             trk_MVA.append(batch["trk_MVA1"])
@@ -378,15 +380,15 @@ if __name__=="__main__":
 
             actual_Assoc.append(batch["trk_fromPV"])
             actual_PV.append(batch['pvz0'])
-            FHassoc = FastHistoAssoc(predictFastHisto(batch[z0],batch['trk_pt']),batch[z0],batch['trk_eta'],kf)
+            FHassoc = FastHistoAssoc(predictFastHisto(batch[FH_z0],batch['trk_pt']),batch[z0],batch['trk_eta'],kf)
             predictedAssoc_FH.append(FHassoc)
-            FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[z0],batch['trk_pt'],batch['trk_eta']),batch[z0],batch['trk_eta'],kf)
+            FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[FH_z0],batch['trk_pt'],batch['trk_eta']),batch[FH_z0],batch['trk_eta'],kf)
             predictedAssoc_FHres.append(FHassocres)
 
-            FHassocMVA = FastHistoAssocMVAcut(predictFastHistoMVAcut(batch[z0],batch['trk_pt'],batch['trk_MVA1']),batch[z0],batch['trk_eta'],batch['trk_MVA1'],kf)
+            FHassocMVA = FastHistoAssocMVAcut(predictFastHistoMVAcut(batch[FH_z0],batch['trk_pt'],batch['trk_MVA1']),batch[FH_z0],batch['trk_eta'],batch['trk_MVA1'],kf)
             predictedAssoc_FHMVA.append(FHassocMVA)
 
-            FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[z0],batch['trk_pt'],batch['trk_fake']),batch[z0],batch['trk_eta'],batch['trk_fake'],kf)
+            FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[FH_z0],batch['trk_pt'],batch['trk_fake']),batch[FH_z0],batch['trk_eta'],batch['trk_fake'],kf)
             predictedAssoc_FHnoFake.append(FHassocnoFake)
 
             #for i,event in enumerate(batch[z0]):

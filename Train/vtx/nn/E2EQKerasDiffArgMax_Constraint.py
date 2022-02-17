@@ -20,6 +20,7 @@ class E2EQKerasDiffArgMaxConstraint():
         npattern=4,
         nlatent=0, 
         activation=None,
+        return_index = False,
         nweightnodes = 5,
         nweightlayers = 2,
         nassocnodes = 10,
@@ -43,6 +44,8 @@ class E2EQKerasDiffArgMaxConstraint():
         self.activation = 'relu'#quantized_relu(self.bits)
 
         self.temperature = temperature
+
+        self.return_index = return_index
         
         self.inputWeightFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nweightfeatures),name='input_weight_features')
         self.inputTrackFeatures = tf.keras.layers.Input(shape=(self.ntracks,self.nfeatures),name='input_PV_track_features')
@@ -213,17 +216,26 @@ class E2EQKerasDiffArgMaxConstraint():
         temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
         softmax = self.softMaxLayer(temp)
         binweight = self.binWeightLayer(softmax)
-        argmax = self.ArgMaxLayer(binweight)
+        pv,argmax = self.ArgMaxLayer(binweight)
 
-        pvFeatures = self.applyLayerList(argmax,self.pvDenseLayers)
+        pvFeatures = self.applyLayerList(pv,self.pvDenseLayers)
+        pvFeatures_argmax = self.applyLayerList(argmax,self.pvDenseLayers)
 
         if self.nlatent>0:
             pvPosition,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent')(pvFeatures)
         else:
             pvPosition = pvFeatures
-        
-        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
-        
+
+        if self.nlatent>0:
+            pvPosition_argmax,latentFeatures_argmax = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent_argmax')(pvFeatures_argmax)
+        else:
+            pvPosition_argmax = pvFeatures_argmax
+
+        if self.return_index:
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])*(30/256),2)),name='z0_diff')([self.inputTrackZ0,pvPosition_argmax])
+        else:
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
+         
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 
         if self.nlatent>0:

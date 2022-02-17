@@ -10,6 +10,7 @@
 *.record
 *.tf.data*
 *.txt
+*.h5
 __pycache__
 Env/env
 Env/install

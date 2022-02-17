@@ -61,13 +61,13 @@ QConfig:
     kernel_quantizer : quantized_bits(3,1,alpha=1)
     activation : quantized_relu(5,1)
   association_0 :
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
-    bias_quantizer : quantized_bits(2,1,alpha=1)
-    activation : quantized_relu(12,3)
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)
+    activation : quantized_relu(14,4)
   association_1 : 
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
-    bias_quantizer : quantized_bits(2,1,alpha=1)
-    activation : quantized_relu(10,3)
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)
+    activation : quantized_relu(12,4)
   association_final : 
-    kernel_quantizer : quantized_bits(4,2,alpha=1)
-    bias_quantizer : quantized_bits(2,1,alpha=1)
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)
