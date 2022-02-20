@@ -16,7 +16,7 @@ import yaml
 
 import vtx
 #from TrainingScripts.train import *
-from EvalScripts.evalDA import *
+from EvalScripts.eval import *
 
 from qkeras.qlayers import QDense, QActivation
 from qkeras.quantizers import quantized_bits, quantized_relu

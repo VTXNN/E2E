@@ -329,6 +329,7 @@ if __name__=="__main__":
         )
 
         model_name = [config["UnquantisedModelName"] ,""]
+        epochs = config['epochs']
 
     if trainable == 'QDA':
 
@@ -354,6 +355,7 @@ if __name__=="__main__":
         )
 
         model_name = [config['QuantisedModelName'],"_prune_iteration_0"]
+        epochs = config['qtrain_epochs']
 
     if trainable == 'QDA_prune':
         network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
@@ -379,7 +381,7 @@ if __name__=="__main__":
         )
 
         model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[4])+1)]
-    
+        epochs = config['qtrain_epochs']
 
     if kf == "NewKF":
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
@@ -447,7 +449,7 @@ if __name__=="__main__":
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
-    epochs = config['epochs']
+    
 
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(lr=startingLR)
@@ -528,7 +530,7 @@ if __name__=="__main__":
             model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
 
     elif trainable == 'QDA_prune':
-        experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[3]))
+        experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[4]))
         model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[4]+".tf").expect_partial()
 
 
@@ -539,4 +541,4 @@ if __name__=="__main__":
     with experiment.train():
         train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,bit=bit,model_name=model_name),
     with experiment.test():
-        test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=model_name,bit=bit)
+        test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=model_name)

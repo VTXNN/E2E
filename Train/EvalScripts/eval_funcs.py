@@ -182,7 +182,7 @@ def FastHistoAssoc(PV,trk_z0,trk_eta,kf):
 def FastHistoAssocMVAcut(PV,trk_z0,trk_eta,MVA,kf,threshold=0.3):
     if kf == "NewKF":
         deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif kf == "OldKF":
+    elif (kf == "OldKF") | (kf == "OldKF_intZ"):
         deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
     eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
     
@@ -197,7 +197,7 @@ def FastHistoAssocMVAcut(PV,trk_z0,trk_eta,MVA,kf,threshold=0.3):
 def FastHistoAssocNoFakes(PV,trk_z0,trk_eta,Fakes,kf):
     if kf == "NewKF":
         deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif kf == "OldKF":
+    elif (kf == "OldKF") | (kf == "OldKF_intZ"):
         deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
     eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
     
@@ -331,6 +331,7 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 
     for i,NN in enumerate(NNdiff):
         if relative:
+            print(len(NN),len(actual))
             NN = (NN - actual)/actual
             temp_actual = actual[~np.isnan(NN)]
             temp_actual = temp_actual[np.isfinite(NN)]

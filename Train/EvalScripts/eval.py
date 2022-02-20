@@ -84,7 +84,7 @@ if __name__=="__main__":
         bit = False
 
     elif kf == "OldKF_intZ":
-        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         z0 = 'corrected_int_z0'
         FH_z0 = 'corrected_trk_z0'
         start = 0
@@ -96,7 +96,7 @@ if __name__=="__main__":
 
     save = True
     savingfolder = kf+"SavedArrays/"
-    PVROCs = True 
+    PVROCs = False 
     met = True
 
     nlatent = config["Nlatent"]
@@ -199,6 +199,7 @@ if __name__=="__main__":
             nfeatures=len(trackfeat), 
             nweights=1, 
             nlatent = nlatent,
+            return_index = bit,
             activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
@@ -230,6 +231,7 @@ if __name__=="__main__":
             nbins=256,
             start=start,
             end=end,
+            return_index = bit,
             ntracks=nMaxTracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -261,6 +263,7 @@ if __name__=="__main__":
             ntracks=nMaxTracks, 
             start=start,
             end=end,
+            return_index = bit,
             nweightfeatures=len(config["weight_features"]),  
             nfeatures=len(config["track_features"]), 
             nweights=1, 
@@ -380,7 +383,7 @@ if __name__=="__main__":
 
             actual_Assoc.append(batch["trk_fromPV"])
             actual_PV.append(batch['pvz0'])
-            FHassoc = FastHistoAssoc(predictFastHisto(batch[FH_z0],batch['trk_pt']),batch[z0],batch['trk_eta'],kf)
+            FHassoc = FastHistoAssoc(predictFastHisto(batch[FH_z0],batch['trk_pt']),batch[FH_z0],batch['trk_eta'],kf)
             predictedAssoc_FH.append(FHassoc)
             FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[FH_z0],batch['trk_pt'],batch['trk_eta']),batch[FH_z0],batch['trk_eta'],kf)
             predictedAssoc_FHres.append(FHassocres)
@@ -596,17 +599,22 @@ if __name__=="__main__":
                 MET_DANN_Centre_array[i] = qMET[1]
                 METphi_DANN_Centre_array[i] = qMETphi[1]
 
-            MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[str(np.argmin(MET_QNN_Quartile_array)/num_threshold)]).ravel()
-            METphi_QNN_bestQ_array = np.concatenate(predictedMETphi_QNN[str(np.argmin(MET_QNN_Quartile_array)/num_threshold)]).ravel()
+            Quartilethreshold_choice = '0.5'#str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
+            RMSthreshold_choice= '0.5'#str(np.argmin(MET_QNN_RMS_array)/num_threshold)
+            Quartilethreshold_choice_DNN = '0.5' #str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
+            RMSthreshold_choice_DNN = '0.5' #str(np.argmin(MET_DANN_RMS_array)/num_threshold)
+            
+            MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[Quartilethreshold_choice]).ravel()
+            METphi_QNN_bestQ_array = np.concatenate(predictedMETphi_QNN[Quartilethreshold_choice]).ravel()
 
-            MET_QNN_bestRMS_array = np.concatenate(predictedMET_QNN[str(np.argmin(MET_QNN_RMS_array)/num_threshold)]).ravel()
-            METphi_QNN_bestRMS_array = np.concatenate(predictedMETphi_QNN[str(np.argmin(MET_QNN_RMS_array)/num_threshold)]).ravel()
+            MET_QNN_bestRMS_array = np.concatenate(predictedMET_QNN[RMSthreshold_choice]).ravel()
+            METphi_QNN_bestRMS_array = np.concatenate(predictedMETphi_QNN[RMSthreshold_choice]).ravel()
 
-            MET_DANN_bestQ_array = np.concatenate(predictedMET_DANN[str(np.argmin(MET_DANN_Quartile_array)/num_threshold)]).ravel()
-            METphi_DANN_bestQ_array = np.concatenate(predictedMETphi_DANN[str(np.argmin(MET_DANN_Quartile_array)/num_threshold)]).ravel()
+            MET_DANN_bestQ_array = np.concatenate(predictedMET_DANN[Quartilethreshold_choice_DNN]).ravel()
+            METphi_DANN_bestQ_array = np.concatenate(predictedMETphi_DANN[Quartilethreshold_choice_DNN]).ravel()
 
-            MET_DANN_bestRMS_array = np.concatenate(predictedMET_DANN[str(np.argmin(MET_DANN_RMS_array)/num_threshold)]).ravel()
-            METphi_DANN_bestRMS_array = np.concatenate(predictedMETphi_DANN[str(np.argmin(MET_DANN_RMS_array)/num_threshold)]).ravel()
+            MET_DANN_bestRMS_array = np.concatenate(predictedMET_DANN[RMSthreshold_choice_DNN]).ravel()
+            METphi_DANN_bestRMS_array = np.concatenate(predictedMETphi_DANN[RMSthreshold_choice_DNN]).ravel()
 
         np.save(savingfolder+"z0_QNN_array",z0_QNN_array)
         np.save(savingfolder+"z0_QPNN_array",z0_QPNN_array)
@@ -795,7 +803,6 @@ if __name__=="__main__":
 
     pv_track_no = np.sum(pv_track_sel)
     pu_track_no = np.sum(pu_track_sel)
-
 
     assoc_scale = (pv_track_no / pu_track_no)
     
@@ -1073,7 +1080,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestQ_array )],
                                 [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
+                                ["ArgMax thresh=" + Quartilethreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/METbestQresidual.png" % outputFolder)
         plt.close()
@@ -1081,7 +1088,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMETphi_residual([(METphi_QNN_bestQ_array )],
                                 [(METphi_FH_array ),(METphi_FHMVA_array ),(METphi_FHnoFake_array ),(actual_trkMETphi_array)],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
+                                ["ArgMax thresh=" + Quartilethreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
         plt.savefig("%s/METphibestQresidual.png" % outputFolder)
         plt.close()
@@ -1089,7 +1096,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
+                                ["ArgMax thresh=" + RMSthreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/METbestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1097,7 +1104,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMETphi_residual([(METphi_QNN_bestRMS_array )],
                                 [(METphi_FH_array ),(METphi_FHMVA_array ),(METphi_FHnoFake_array ),(actual_trkMETphi_array )],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
+                                ["ArgMax thresh=" + RMSthreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
         plt.savefig("%s/METphibestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1105,7 +1112,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"    "],
+                                ["NN thresh =  " + Quartilethreshold_choice_DNN+"    ","QNN thresh = " + Quartilethreshold_choice+"    "],
                                 ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/QcompMETbestQresidual.png" % outputFolder)
         plt.close()
@@ -1113,7 +1120,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"    ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"    "],
+                                ["NN thresh =  " + RMSthreshold_choice_DNN+"    ","QNN thresh = " + RMSthreshold_choice+"    "],
                                 ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/QcompMETbestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1128,7 +1135,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestQ_array )],
                                 [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)],
+                                ["ArgMax thresh=" + Quartilethreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
         plt.savefig("%s/relMETbestQresidual.png" % outputFolder)
         plt.close()
@@ -1136,7 +1143,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + str(np.argmin(MET_QNN_RMS_array)/num_threshold)],
+                                ["ArgMax thresh=" + RMSthreshold_choice],
                                 ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
         plt.savefig("%s/relMETbestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1144,7 +1151,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"         "],
+                                ["NN thresh =  " + Quartilethreshold_choice_DNN+"         ","QNN thresh = " + Quartilethreshold_choice+"         "],
                                 ["Baseline            "],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
         plt.savefig("%s/QcomprelMETbestQresidual.png" % outputFolder)
         plt.close()
@@ -1152,7 +1159,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"         "],
+                                ["NN thresh =  " + RMSthreshold_choice_DNN+"         ","QNN thresh = " + RMSthreshold_choice+"         "],
                                 ["Baseline            "],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
         plt.savefig("%s/QcomprelMETbestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1160,7 +1167,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_Quartile_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_Quartile_array)/num_threshold)+"         "],
+                                ["NN thresh =  " + Quartilethreshold_choice_DNN+"         ","QNN thresh = " + Quartilethreshold_choice+"         "],
                                 ["Baseline            "],range=(-1,2),logrange=(-1,2),relative=True,actual=actual_MET_array,logbins=True)
         plt.savefig("%s/QcomprelMETbestQresidual_logbins.png" % outputFolder)
         plt.close()
@@ -1168,7 +1175,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + str(np.argmin(MET_DANN_RMS_array)/num_threshold)+"         ","QNN thresh = " + str(np.argmin(MET_QNN_RMS_array)/num_threshold)+"         "],
+                                ["NN thresh =  " + RMSthreshold_choice_DNN+"         ","QNN thresh = " + RMSthreshold_choice+"         "],
                                 ["Baseline            "],range=(-1,2),logrange=(-1,2),relative=True,actual=actual_MET_array,logbins=True)
         plt.savefig("%s/QcomprelMETbestRMSresidual_logbins.png" % outputFolder)
         plt.close()
