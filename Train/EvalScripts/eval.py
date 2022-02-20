@@ -84,7 +84,7 @@ if __name__=="__main__":
         bit = False
 
     elif kf == "OldKF_intZ":
-        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'corrected_int_z0'
         FH_z0 = 'corrected_trk_z0'
         start = 0
@@ -275,7 +275,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-2,
+            temperature = 1e-4,
             qconfig = config['QConfig'],
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(config['prune_iterations'])+'.h5'
         )
@@ -599,10 +599,10 @@ if __name__=="__main__":
                 MET_DANN_Centre_array[i] = qMET[1]
                 METphi_DANN_Centre_array[i] = qMETphi[1]
 
-            Quartilethreshold_choice = '0.5'#str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
-            RMSthreshold_choice= '0.5'#str(np.argmin(MET_QNN_RMS_array)/num_threshold)
-            Quartilethreshold_choice_DNN = '0.5' #str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
-            RMSthreshold_choice_DNN = '0.5' #str(np.argmin(MET_DANN_RMS_array)/num_threshold)
+            Quartilethreshold_choice = '0.7'#str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
+            RMSthreshold_choice= '0.6'#str(np.argmin(MET_QNN_RMS_array)/num_threshold)
+            Quartilethreshold_choice_DNN = '0.7' #str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
+            RMSthreshold_choice_DNN = '0.6' #str(np.argmin(MET_DANN_RMS_array)/num_threshold)
             
             MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[Quartilethreshold_choice]).ravel()
             METphi_QNN_bestQ_array = np.concatenate(predictedMETphi_QNN[Quartilethreshold_choice]).ravel()

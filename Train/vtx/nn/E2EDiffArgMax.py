@@ -20,7 +20,7 @@ class E2EDiffArgMax():
         nassocnodes = 20,
         nassoclayers = 2,
         l2regloss=1e-10,
-        temperature=1e-2,
+        temperature=1e-4,
         return_index = False,
     ):
         self.nbins = nbins
@@ -217,7 +217,7 @@ class E2EDiffArgMax():
             pvPosition_argmax = pvFeatures_argmax
 
         if self.return_index:
-            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])*(30/256),2)),name='z0_diff')([self.inputTrackZ0,pvPosition_argmax])
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])*(1/self.nbins),2)),name='z0_diff')([self.inputTrackZ0,pvPosition_argmax])
         else:
             z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
         

@@ -321,7 +321,7 @@ if __name__=="__main__":
             return_index = bit,
             activation='relu',
             l2regloss=1e-10,
-            temperature=1e-2,
+            temperature=1e-4,
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -350,7 +350,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-2,
+            temperature = 1e-4,
             qconfig = config['QConfig']
         )
 
@@ -375,7 +375,7 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-2,
+            temperature = 1e-4,
             qconfig = config['QConfig'],
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[4]+'.h5'
         )
