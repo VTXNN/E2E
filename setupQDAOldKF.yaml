@@ -1,6 +1,6 @@
 retrain : True
 comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : QDANN_trkWord
+comet_experiment_name : QDANN_trkWord_noConv
 description : QDANN_fixed_point
 
 trainable : "QDiffArgMax"
@@ -22,11 +22,11 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
 
 Nlatent : 0
 
-starting_lr : 0.0001
+starting_lr : 0.001
 qtrain_starting_lr : 0.00001
 
-epochs : 75
-qtrain_epochs : 25
+epochs : 25
+qtrain_epochs : 10
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 2
@@ -58,7 +58,7 @@ QConfig:
     bias_quantizer : quantized_bits(6,1,alpha=1)
     activation : quantized_relu(8,1)
   conv:
-    kernel_quantizer : quantized_bits(3,1,alpha=1)
+    kernel_quantizer : quantized_bits(4,1,alpha=1)
     activation : quantized_relu(5,1)
   association_0 :
     kernel_quantizer : quantized_bits(6,3,alpha=1)

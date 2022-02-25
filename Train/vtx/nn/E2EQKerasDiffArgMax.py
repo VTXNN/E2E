@@ -105,7 +105,7 @@ class E2EQKerasDiffArgMax():
                     activation=None,
                     name='pattern_'+str(ilayer+1)
                 ),
-            QActivation(qconfig['conv']['activation'])
+            #QActivation(qconfig['conv']['activation'])
             ])
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
@@ -221,7 +221,7 @@ class E2EQKerasDiffArgMax():
             pvPosition_argmax = pvFeatures_argmax
 
         if self.return_index:
-            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])*(32/self.nbins),2)),name='z0_diff')([self.inputTrackZ0,pvPosition_argmax])
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs((x[0]*(2/self.nbins))-(x[1]*(2/self.nbins))),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
         else:
             z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
         
@@ -316,8 +316,9 @@ class E2EQKerasDiffArgMax():
         hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
                                                             hls_config=weightconfig,
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_weight/hls4ml_prj',
-                                                            part='xcvu9p-flga2104-2L-e',
-                                                            clock_period=2.5)
+                                                            #part='xcvu9p-flga2104-2L-e',
+                                                            part='xcvu13p-flga2577-2-e',
+                                                            clock_period=2.0)
         #hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
         #plt.clf()
         #ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
@@ -347,12 +348,12 @@ class E2EQKerasDiffArgMax():
                                                             hls_config=patternconfig,
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_pattern/hls4ml_prj',
                                                             fpga_part='xcvu9p-flga2104-2L-e',
-                                                            clock_period=2.5)
-        hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
-        plt.clf()
-        ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-        wp.savefig(modelName+"_pattern_model_activations_profile.png")
-        ap.savefig(modelName+"_pattern_model_weights_profile.png")
+                                                            clock_period=2.0)
+        #hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
+        #plt.clf()
+        #ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
+        #wp.savefig(modelName+"_pattern_model_activations_profile.png")
+        #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
         hls_pattern_model.build(csim=False,synth=True,vsynth=True)
@@ -375,7 +376,7 @@ class E2EQKerasDiffArgMax():
                                                             hls_config=associationconfig,
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_association/hls4ml_prj',
                                                             part='xcvu9p-flga2104-2L-e',
-                                                            clock_period=2.5)
+                                                            clock_period=2.0)
         #hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
         #plt.clf()
         #ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)

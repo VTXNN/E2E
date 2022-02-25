@@ -165,7 +165,7 @@ def predictFastHistoNoFakes(value,weight,Fakes):
     return np.array(z0List,dtype=np.float32)
 
 def FastHistoAssoc(PV,trk_z0,trk_eta,kf):
-    if kf == "NewKF":
+    if (kf == "NewKF") | (kf == "NewKF_intZ"):
         deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
     elif (kf == "OldKF") | (kf == "OldKF_intZ"):
         deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])

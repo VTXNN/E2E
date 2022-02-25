@@ -84,7 +84,7 @@ if __name__=="__main__":
         bit = False
 
     elif kf == "OldKF_intZ":
-        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         z0 = 'corrected_int_z0'
         FH_z0 = 'corrected_trk_z0'
         start = 0
@@ -96,8 +96,8 @@ if __name__=="__main__":
 
     save = True
     savingfolder = kf+"SavedArrays/"
-    PVROCs = False 
-    met = True
+    PVROCs = True 
+    met = False
 
     nlatent = config["Nlatent"]
 
@@ -132,17 +132,12 @@ if __name__=="__main__":
 
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
-            "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32),
-            "trk_hitpattern": tf.io.FixedLenFeature([nMaxTracks*11], tf.float32), 
-            "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
-            "tp_met_pt" : tf.io.FixedLenFeature([1], tf.float32),
-            "tp_met_phi" : tf.io.FixedLenFeature([1], tf.float32)
-
+            "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32)
     }
 
     def decode_data(raw_data):
         decoded_data = tf.io.parse_example(raw_data,features)
-        decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,nMaxTracks,11])
+        #decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,nMaxTracks,11])
         return decoded_data
 
     def setup_pipeline(fileList):
@@ -169,7 +164,6 @@ if __name__=="__main__":
             'trk_z0',
             'normed_trk_pt',
             'normed_trk_eta', 
-            'normed_trk_invR',
             'binned_trk_chi2rphi', 
             'binned_trk_chi2rz', 
             'binned_trk_bendchi2',
@@ -458,8 +452,8 @@ if __name__=="__main__":
             predictedAssoc_DANN.append(predictedAssoc_DANN_temp)
             predictedDAWeights.append(predictedDAWeights_DANN)
 
-            actual_MET.append(batch['tp_met_pt'])
-            actual_METphi.append(batch['tp_met_phi'])
+            #actual_MET.append(batch['tp_met_pt'])
+            #actual_METphi.append(batch['tp_met_phi'])
 
             temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],batch['trk_fromPV'],threshold=0.5)
             actual_trkMET.append(temp_met)

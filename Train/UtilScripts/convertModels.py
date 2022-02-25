@@ -155,16 +155,16 @@ if cnn == 'False':
     #Qnetwork.write_model_graph(QuantisedModelName)
     #QPnetwork.write_model_graph(QuantisedPrunedModelName)
 
-    #DAnetwork.export_hls_weight_model(UnQuantisedModelName)
+    DAnetwork.export_hls_weight_model(UnQuantisedModelName)
     Qnetwork.export_hls_weight_model(QuantisedModelName)
     QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
 
-    #DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
+    DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
     Qnetwork.export_hls_assoc_model(QuantisedModelName)
     QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
 
 if cnn == 'True':
-    #DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_pattern_model(QuantisedModelName)
+    DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
+    Qnetwork.export_hls_pattern_model(QuantisedModelName)
     QPnetwork.export_hls_pattern_model(QuantisedPrunedModelName)
 

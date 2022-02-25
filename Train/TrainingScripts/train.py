@@ -39,6 +39,10 @@ elif kf == "OldKF":
 elif kf == "OldKF_intZ":
     z0 = 'corrected_int_z0'
     FH_z0 = 'corrected_trk_z0'
+elif kf == "NewKF_intZ":
+    z0 = 'int_z0'
+    FH_z0 = 'trk_z0'
+
 
 SMALL_SIZE = 15
 MEDIUM_SIZE = 15
@@ -101,11 +105,11 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         
         for step,batch in enumerate(setup_pipeline(train_files)):
 
-            if not bit:
-                z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-                z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-                batch[z0]=batch[z0]*z0Flip + z0Shift
-                batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+            #if not bit:
+            #    z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
+            #    z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
+            #    batch[z0]=batch[z0]*z0Flip + z0Shift
+            #    batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -302,7 +306,7 @@ if __name__=="__main__":
         end = 15
         bit = False
 
-    elif (kf == 'OldKF_intZ') :
+    elif (kf == 'OldKF_intZ') | (kf == 'NewKF_intZ'):
         start = 0
         end = 255
         bit = True
@@ -383,10 +387,14 @@ if __name__=="__main__":
         model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[4])+1)]
         epochs = config['qtrain_epochs']
 
-    if kf == "NewKF":
-        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+    if (kf == "NewKF")  | (kf == 'NewKF_intZ'):
+        #train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        #test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        #val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+
+        train_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Train/*.tfrecord")
+        test_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Test/*.tfrecord")
+        val_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Val/*.tfrecord")
 
         trackFeatures = [
                 'trk_z0',
@@ -397,6 +405,7 @@ if __name__=="__main__":
                 'trk_MVA1',
                 'trk_z0_res',
                 'normed_trk_over_eta',
+                'int_z0'
         ]
         
     elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
@@ -427,8 +436,7 @@ if __name__=="__main__":
 
     features = {
         "pvz0": tf.io.FixedLenFeature([1], tf.float32),  
-        "trk_fromPV":tf.io.FixedLenFeature([max_ntracks], tf.float32) ,
-        "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
+        "trk_fromPV":tf.io.FixedLenFeature([max_ntracks], tf.float32) 
     }
 
     for trackFeature in trackFeatures:
@@ -473,11 +481,37 @@ if __name__=="__main__":
 
 
     if trainable == 'DA':
+        model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+        model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
         if pretrain_DA:
+            loadedmodel = network.createE2EModel()
+            loadedmodel.compile(
+                optimizer,
+                loss=[
+                    tf.keras.losses.Huber(config['Huber_delta']),
+                    #tf.keras.losses.MeanAbsoluteError(),
+                    tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                    lambda y,x: 0.,
+                ],
+                metrics=[
+                    tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+                ],
+                loss_weights=[config['z0_loss_weight'],
+                            config['crossentropy_loss_weight'],
+                            0
+                            ]
+            )
+        
             model.load_weights(PretrainedModelName+".tf")
+            model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+            model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+
+
+
     elif trainable == 'QDA':
         experiment.set_name(kf+config['comet_experiment_name'])
         if config["pretrained"]:
@@ -519,15 +553,18 @@ if __name__=="__main__":
             model.layers[1].set_weights(DAmodel.layers[1].get_weights())
             model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
             model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
+            #model.layers[9].set_weights([np.array([[1],[1],[1]], dtype=np.float32), np.array([0], dtype=np.float32)]) 
             model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
-            model.layers[13].set_weights(DAmodel.layers[11].get_weights()) 
-            model.layers[15].set_weights(DAmodel.layers[13].get_weights()) 
-            model.layers[19].set_weights(DAmodel.layers[17].get_weights()) 
-            model.layers[21].set_weights(DAmodel.layers[19].get_weights()) 
-            model.layers[23].set_weights(DAmodel.layers[21].get_weights())
+            model.layers[12].set_weights(DAmodel.layers[11].get_weights()) 
+            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.layers[18].set_weights(DAmodel.layers[17].get_weights()) 
+            model.layers[20].set_weights(DAmodel.layers[19].get_weights()) 
+            model.layers[22].set_weights(DAmodel.layers[21].get_weights())
 
         else:
-            model.layers[13].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+
 
     elif trainable == 'QDA_prune':
         experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[4]))
