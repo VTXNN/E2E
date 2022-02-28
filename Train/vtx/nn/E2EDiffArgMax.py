@@ -22,6 +22,7 @@ class E2EDiffArgMax():
         l2regloss=1e-10,
         temperature=1e-4,
         return_index = False,
+        train_cnn = True,
     ):
         self.nbins = nbins
         self.start = start
@@ -39,6 +40,8 @@ class E2EDiffArgMax():
         self.temperature = temperature
 
         self.return_index = return_index
+
+        self.train_cnn = train_cnn
 
         self.weightModel = None
         self.patternModel = None
@@ -91,18 +94,20 @@ class E2EDiffArgMax():
         for ilayer,(filterSize,kernelSize) in enumerate([
             [1,3]
         ]):
-            self.patternConvLayers.extend([
+            self.patternConvLayers.append(
                 tf.keras.layers.Conv1D(
                     filterSize,
                     kernelSize,
                     padding='same',
                     activation='linear',#self.activation,
-                    trainable=False,
+                    trainable=train_cnn,
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
-                ),
-                #tf.keras.layers.Activation(self.activation)
-            ])
+                )  
+            )
+
+            if self.train_cnn:
+                self.patternConvLayers.append(tf.keras.layers.Activation(self.activation))
 
         
 

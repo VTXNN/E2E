@@ -21,6 +21,7 @@ class E2EQKerasDiffArgMaxConstraint():
         nlatent=0, 
         activation=None,
         return_index = False,
+        train_cnn = True,
         nweightnodes = 5,
         nweightlayers = 2,
         nassocnodes = 10,
@@ -40,6 +41,8 @@ class E2EQKerasDiffArgMaxConstraint():
         self.nweights = nweights
         self.npattern = npattern
         self.nlatent = nlatent
+
+        self.train_cnn = train_cnn
 
         self.activation = 'relu'#quantized_relu(self.bits)
 
@@ -103,7 +106,7 @@ class E2EQKerasDiffArgMaxConstraint():
         for ilayer,(filterSize,kernelSize) in enumerate([
             [1,3]
         ]):
-            self.patternConvLayers.extend([
+            self.patternConvLayers.append(
                 QConv1D(
                     filterSize,
                     kernelSize,
@@ -114,8 +117,9 @@ class E2EQKerasDiffArgMaxConstraint():
                     activation=None,
                     name='pattern_'+str(ilayer+1)
                 ),
-            #QActivation(qconfig['conv']['activation'])
-            ])
+            )
+            if self.train_cnn:
+                self.patternConvLayers.append(QActivation(qconfig['conv']['activation']))
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
 
