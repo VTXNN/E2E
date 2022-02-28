@@ -296,6 +296,8 @@ if __name__=="__main__":
     trainable = sys.argv[3]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
+
+    train_cnn = config["train_cnn"]
     
     nlatent = config["Nlatent"]
     PretrainedModelName = config["PretrainedModelName"] 
@@ -323,6 +325,7 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             return_index = bit,
+            train_cnn = train_cnn,
             activation='relu',
             l2regloss=1e-10,
             temperature=1e-4,
@@ -347,6 +350,7 @@ if __name__=="__main__":
             return_index = bit,
             nweights=1, 
             nlatent = nlatent,
+            train_cnn = train_cnn,
             activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
@@ -372,6 +376,7 @@ if __name__=="__main__":
             nfeatures=len(trackfeat), 
             nweights=1, 
             nlatent = nlatent,
+            train_cnn = train_cnn,
             activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
@@ -481,7 +486,8 @@ if __name__=="__main__":
 
 
     if trainable == 'DA':
-        model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+        if train_cnn:
+            model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
         model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
         model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
@@ -506,7 +512,8 @@ if __name__=="__main__":
             )
         
             model.load_weights(PretrainedModelName+".tf")
-            model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+            if train_cnn:
+                model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
             model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
             model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
@@ -553,7 +560,6 @@ if __name__=="__main__":
             model.layers[1].set_weights(DAmodel.layers[1].get_weights())
             model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
             model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
-            #model.layers[9].set_weights([np.array([[1],[1],[1]], dtype=np.float32), np.array([0], dtype=np.float32)]) 
             model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
             model.layers[12].set_weights(DAmodel.layers[11].get_weights()) 
             model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
