@@ -393,13 +393,13 @@ if __name__=="__main__":
         epochs = config['qtrain_epochs']
 
     if (kf == "NewKF")  | (kf == 'NewKF_intZ'):
-        #train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
-        #test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
-        #val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
 
-        train_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Train/*.tfrecord")
-        test_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Test/*.tfrecord")
-        val_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Val/*.tfrecord")
+        #train_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Train/*.tfrecord")
+        #test_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Test/*.tfrecord")
+        #val_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Val/*.tfrecord")
 
         trackFeatures = [
                 'trk_z0',
@@ -486,10 +486,13 @@ if __name__=="__main__":
 
 
     if trainable == 'DA':
-        if train_cnn:
+        if not train_cnn:
             model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-        model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-        model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+        else:
+            model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
         if pretrain_DA:
@@ -512,10 +515,13 @@ if __name__=="__main__":
             )
         
             model.load_weights(PretrainedModelName+".tf")
-            if train_cnn:
+            if not train_cnn:
                 model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-            model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+                model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            else:
+                model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+                model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
 
 
@@ -556,16 +562,25 @@ if __name__=="__main__":
             )
             DAmodel.summary()
             DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
-
             model.layers[1].set_weights(DAmodel.layers[1].get_weights())
             model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
             model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
             model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
-            model.layers[12].set_weights(DAmodel.layers[11].get_weights()) 
-            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
-            model.layers[18].set_weights(DAmodel.layers[17].get_weights()) 
-            model.layers[20].set_weights(DAmodel.layers[19].get_weights()) 
-            model.layers[22].set_weights(DAmodel.layers[21].get_weights())
+
+            if not train_cnn:
+                model.layers[13].set_weights(DAmodel.layers[12].get_weights()) 
+                model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.layers[19].set_weights(DAmodel.layers[18].get_weights()) 
+                model.layers[21].set_weights(DAmodel.layers[20].get_weights()) 
+                model.layers[23].set_weights(DAmodel.layers[22].get_weights())
+            else:
+                
+                model.layers[13].set_weights(DAmodel.layers[12].get_weights()) 
+                model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.layers[19].set_weights(DAmodel.layers[18].get_weights()) 
+                model.layers[21].set_weights(DAmodel.layers[20].get_weights()) 
+                model.layers[23].set_weights(DAmodel.layers[22].get_weights())
+
 
         else:
             model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
