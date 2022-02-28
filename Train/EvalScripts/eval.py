@@ -84,7 +84,7 @@ if __name__=="__main__":
         bit = False
 
     elif kf == "OldKF_intZ":
-        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'corrected_int_z0'
         FH_z0 = 'corrected_trk_z0'
         start = 0

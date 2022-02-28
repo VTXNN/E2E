@@ -366,7 +366,7 @@ class E2EQKerasDiffArgMaxConstraint():
         #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
-        #hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+        hls_pattern_model.build(csim=False,synth=True,vsynth=True)
 
     def export_hls_assoc_model(self,modelName):
         import hls4ml
