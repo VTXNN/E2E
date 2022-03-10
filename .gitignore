@@ -25,6 +25,7 @@ Train/Data/*
 Train/NewKFData/*
 Train/OldKFData/*
 Train/NewKFQplots/*
+Train/ConvertFolder/*
 checkpoint
 Train/*.yaml
 Train/*.py

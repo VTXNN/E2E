@@ -14,7 +14,7 @@ tf.compat.v1.disable_eager_execution()
 
 KFname =sys.argv[1]
 filename = sys.argv[2]
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+KFname+"_"+filename+".root")
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_NN_TTsl.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [

@@ -1,5 +1,12 @@
+from re import L, X
 import tensorflow as tf
 import numpy as np
+
+import matplotlib
+#matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import mplhep as hep
+#hep.set_style("CMSTex")
 
 import glob
 import sklearn.metrics as metrics
@@ -7,13 +14,6 @@ import vtx
 import math
 from textwrap import wrap
 
-#from TrainingScripts.train import *
-
-import matplotlib
-#matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import mplhep as hep
-#hep.set_style("CMSTex")
 hep.cms.label()
 hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
@@ -49,6 +49,44 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 
 colours=["red","green","blue","orange","purple","yellow"]
 
+from TrainingScripts.train import *
+
+def linear_res_function(x,return_bool = False):
+        if return_bool:
+            return np.full_like(x,True)
+
+        else:
+            return np.ones_like(x)
+
+def eta_res_function(eta):
+        res = 0.1 + 0.2*eta**2
+        return 1/res
+    
+def MVA_res_function(MVA,threshold=0.3,return_bool = False):
+        res = MVA > threshold
+        if return_bool:
+            return res
+        else:
+            return tf.cast(res,tf.float32)
+
+def chi_res_function(chi2rphi,chi2rz,bendchi2,return_bool = False):
+        qrphi = chi2rphi < 12 
+        qrz =  chi2rz < 9 
+        qbend = bendchi2 < 4
+        q = np.logical_and(qrphi,qrz)
+        q = np.logical_and(q,qbend)
+        if return_bool:
+            return q
+        else:
+            return tf.cast(q,tf.float32)
+
+def fake_res_function(fakes,return_bool = False):
+        res = fakes != 0
+        if return_bool:
+            return res
+        else:
+            return tf.cast(res,tf.float32)
+
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
     #decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,max_ntracks,11])
@@ -74,11 +112,12 @@ def setup_pipeline(fileList):
     
     return ds
 
-def predictFastHisto(value,weight,return_index = False):
+def predictFastHisto(value,weight, res_func, return_index = False):
     z0List = []
     halfBinWidth = 0.5*30./256.
+
     for ibatch in range(value.shape[0]):
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch])
+        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch]*res_func[ibatch])
         hist = np.convolve(hist,[1,1,1],mode='same')
         z0Index= np.argmax(hist)
         if return_index:
@@ -88,83 +127,7 @@ def predictFastHisto(value,weight,return_index = False):
             z0List.append([z0])
     return np.array(z0List,dtype=np.float32)
 
-def predictFastHistoZ0res(value,weight,eta):
-
-    def res_function(eta):
-        res = 0.1 + 0.2*eta**2
-        return res
-    
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        res = res_function(eta[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch]/res)
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoMVAcut(value,weight,MVA):
-
-    def res_function(MVA):
-        res = MVA > 0.3
-        return res
-
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        
-        res = res_function(MVA[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch][res],256,range=(-15,15),weights=(weight[ibatch][res]))
-        #hist,bin_edges = np.histogram(value[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]],256,range=(-15,15),weights=(weight[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]]))
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoZ0MVA(value,weight,eta,MVA):
-
-    def res_function(eta):
-        res = 0.1 + 0.2*eta**2
-        return res
-    
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        res = res_function(eta[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=(weight[ibatch]*MVA[ibatch])/res)
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def predictFastHistoNoFakes(value,weight,Fakes):
-
-    def res_function(fakes):
-        res = fakes != 0
-        return res
-
-    z0List = []
-    halfBinWidth = 0.5*30./256.
-    for ibatch in range(value.shape[0]):
-        #res = res_bins[np.digitize(abs(eta[ibatch]),eta_bins)]
-        
-        res = res_function(Fakes[ibatch])
-        hist,bin_edges = np.histogram(value[ibatch][res],256,range=(-15,15),weights=(weight[ibatch][res]))
-        #hist,bin_edges = np.histogram(value[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]],256,range=(-15,15),weights=(weight[ibatch][MVA[ibatch][MVA[ibatch] > 0.08]]))
-        hist = np.convolve(hist,[1,1,1],mode='same')
-        z0Index= np.argmax(hist)
-        z0 = -15.+30.*z0Index/256.+halfBinWidth
-        z0List.append([z0])
-    return np.array(z0List,dtype=np.float32)
-
-def FastHistoAssoc(PV,trk_z0,trk_eta,kf):
+def FastHistoAssoc(PV,trk_z0,trk_eta, res_func, kf):
     if (kf == "NewKF") | (kf == "NewKF_intZ"):
         deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
     elif (kf == "OldKF") | (kf == "OldKF_intZ"):
@@ -175,41 +138,11 @@ def FastHistoAssoc(PV,trk_z0,trk_eta,kf):
     eta_bin = np.digitize(abs(trk_eta),eta_bins)
     deltaz = abs(trk_z0 - PV)
 
-    assoc = (deltaz < deltaz_bins[eta_bin])
+    assoc = (deltaz < deltaz_bins[eta_bin]) & res_func
 
     return np.array(assoc,dtype=np.float32)
 
-def FastHistoAssocMVAcut(PV,trk_z0,trk_eta,MVA,kf,threshold=0.3):
-    if kf == "NewKF":
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif (kf == "OldKF") | (kf == "OldKF_intZ"):
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
-    eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
-    
-
-    eta_bin = np.digitize(abs(trk_eta),eta_bins)
-    deltaz = abs(trk_z0 - PV)
-
-    assoc = (deltaz < deltaz_bins[eta_bin]) & (MVA > threshold)
-
-    return np.array(assoc,dtype=np.float32)
-
-def FastHistoAssocNoFakes(PV,trk_z0,trk_eta,Fakes,kf):
-    if kf == "NewKF":
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif (kf == "OldKF") | (kf == "OldKF_intZ"):
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
-    eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
-    
-
-    eta_bin = np.digitize(abs(trk_eta),eta_bins)
-    deltaz = abs(trk_z0 - PV)
-
-    assoc = (deltaz < deltaz_bins[eta_bin]) & (Fakes != 0)
-
-    return np.array(assoc,dtype=np.float32)
-
-def predictMET(pt,phi,predictedAssoc,threshold,quality=False,chi2rphi=None,chi2rz=None,bendchi2=None):
+def predictMET(pt,phi,predictedAssoc,threshold,quality_func):
     met_pt_list = []
     met_phi_list = []
 
@@ -217,26 +150,12 @@ def predictMET(pt,phi,predictedAssoc,threshold,quality=False,chi2rphi=None,chi2r
         res = Assoc > threshold
         return res
 
-    def quality_function(chi2rphi,chi2rz,bendchi2):
-        qrphi = chi2rphi < 12 
-        qrz =  chi2rz < 9 
-        qbend = bendchi2 < 4
-        q = np.logical_and(qrphi,qrz)
-        q = np.logical_and(q,qbend)
-        return q
-
-
     for ibatch in range(pt.shape[0]):
         assoc = assoc_function(predictedAssoc[ibatch])
-        if quality:
-            quality_s = quality_function(chi2rphi[ibatch],chi2rz[ibatch],bendchi2[ibatch])
-            selection = np.logical_and(assoc,quality_s)
-        else:
-            selection = assoc
+        selection = np.logical_and(assoc,quality_func[ibatch])
+
         newpt = pt[ibatch][selection]
         newphi = phi[ibatch][selection]
-
-
 
         met_px = np.sum(newpt*np.cos(newphi))
         met_py = np.sum(newpt*np.sin(newphi))

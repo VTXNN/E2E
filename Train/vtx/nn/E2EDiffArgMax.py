@@ -92,9 +92,10 @@ class E2EDiffArgMax():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
+#            [1,5],
             [1,3]
         ]):
-            self.patternConvLayers.append(
+            self.patternConvLayers.extend([
                 tf.keras.layers.Conv1D(
                     filterSize,
                     kernelSize,
@@ -103,12 +104,9 @@ class E2EDiffArgMax():
                     trainable=train_cnn,
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
-                )  
-            )
-
-            if self.train_cnn:
-                self.patternConvLayers.append(tf.keras.layers.Activation(self.activation))
-
+                ) ,
+                tf.keras.layers.Activation(self.activation), 
+            ])
         
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
@@ -229,7 +227,10 @@ class E2EDiffArgMax():
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 
         if self.nlatent>0:
-            assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))  
+            if self.return_index:
+                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))  
+            else:
+                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures_argmax))  
             
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
@@ -259,19 +260,20 @@ class E2EDiffArgMax():
         self.patternModel = self.createPatternModel()
         self.associationModel = self.createAssociationModel()
 
-        self.weightModel.layers[1].set_weights(largerModel.layers[1].get_weights())
-        self.weightModel.layers[2].set_weights(largerModel.layers[2].get_weights())
-        self.weightModel.layers[3].set_weights(largerModel.layers[3].get_weights())
-        self.weightModel.layers[4].set_weights(largerModel.layers[4].get_weights())
-        self.weightModel.layers[5].set_weights(largerModel.layers[6].get_weights())
+        self.weightModel.get_layer('weight_1').set_weights    (largerModel.get_layer('weight_1').get_weights())
+        self.weightModel.get_layer('dropout').set_weights     (largerModel.get_layer('dropout').get_weights())
+        self.weightModel.get_layer('weight_2').set_weights     (largerModel.get_layer('weight_2').get_weights())
+        self.weightModel.get_layer('dropout_1').set_weights   (largerModel.get_layer('dropout_1').get_weights())
+        self.weightModel.get_layer('weight_final').set_weights(largerModel.get_layer('weight_final').get_weights())
 
-        self.patternModel.layers[1].set_weights(largerModel.layers[8].get_weights())
+        self.patternModel.get_layer('pattern_1').set_weights(largerModel.get_layer('pattern_1').get_weights())
 
-        self.associationModel.layers[1].set_weights(largerModel.layers[17].get_weights())
-        self.associationModel.layers[2].set_weights(largerModel.layers[18].get_weights()) 
-        self.associationModel.layers[3].set_weights(largerModel.layers[19].get_weights()) 
-        self.associationModel.layers[4].set_weights(largerModel.layers[20].get_weights()) 
-        self.associationModel.layers[5].set_weights(largerModel.layers[21].get_weights()) 
+        self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
+        self.associationModel.get_layer('dropout_2').set_weights        (largerModel.get_layer('dropout_2').get_weights()) 
+        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
+        self.associationModel.get_layer('dropout_3').set_weights        (largerModel.get_layer('dropout_3').get_weights()) 
+        self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
+
 
     def write_model_graph(self,modelName):
         import cmsml
@@ -324,7 +326,7 @@ class E2EDiffArgMax():
         #ap.savefig(modelName+"_Weight_model_weights_profile.png")
 
         hls_weight_model.compile()
-        hls_weight_model.build(csim=False,synth=True,vsynth=True)
+        hls_weight_model.build(csim=True,synth=True,vsynth=True)
 
 
 
@@ -355,7 +357,7 @@ class E2EDiffArgMax():
         #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
-        hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+        hls_pattern_model.build(csim=True,synth=True,vsynth=True)
 
     def export_hls_assoc_model(self,modelName):
         import hls4ml
@@ -384,4 +386,4 @@ class E2EDiffArgMax():
         #ap.savefig(modelName+"_association_model_weights_profile.png")
 
         hls_association_model.compile()
-        hls_association_model.build(csim=False,synth=True,vsynth=True)
+        hls_association_model.build(csim=True,synth=True,vsynth=True)

@@ -104,22 +104,22 @@ class E2EQKerasDiffArgMaxConstraint():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
+            #[1,5],
             [1,3]
         ]):
-            self.patternConvLayers.append(
+            self.patternConvLayers.extend([
                 QConv1D(
                     filterSize,
                     kernelSize,
                     padding='same',
                     trainable=True,
                     use_bias= False,
-                    kernel_quantizer=qconfig['conv']['kernel_quantizer'],
-                    activation=None,
+                    kernel_quantizer=qconfig['conv_'+str(ilayer+1)]['kernel_quantizer'],
+                    activation='linear',
                     name='pattern_'+str(ilayer+1)
                 ),
-            )
-            if self.train_cnn:
-                self.patternConvLayers.append(QActivation(qconfig['conv']['activation']))
+                QActivation(qconfig['conv_'+str(ilayer+1)]['activation'])
+            ])
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
 
@@ -243,7 +243,10 @@ class E2EQKerasDiffArgMaxConstraint():
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 
         if self.nlatent>0:
-            assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))  
+            if self.return_index:
+                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))  
+            else:
+                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures_argmax))  
             
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
@@ -272,21 +275,27 @@ class E2EQKerasDiffArgMaxConstraint():
         self.patternModel = self.createPatternModel()
         self.associationModel = self.createAssociationModel()
 
-        self.weightModel.layers[1].set_weights(largerModel.layers[1].get_weights())
-        self.weightModel.layers[2].set_weights(largerModel.layers[2].get_weights())
-        self.weightModel.layers[3].set_weights(largerModel.layers[3].get_weights())
-        self.weightModel.layers[4].set_weights(largerModel.layers[4].get_weights())
-        self.weightModel.layers[5].set_weights(largerModel.layers[5].get_weights())
-        self.weightModel.layers[6].set_weights(largerModel.layers[7].get_weights())
+        largerModel.summary()
+        self.patternModel.summary()
+        self.weightModel.summary()
+        self.associationModel.summary()
 
-        self.patternModel.layers[1].set_weights(largerModel.layers[9].get_weights())
-        self.patternModel.layers[2].set_weights(largerModel.layers[10].get_weights())
+        self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
+        self.weightModel.get_layer('q_activation_6').set_weights   (largerModel.get_layer('q_activation_6').get_weights())
+        self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
+        self.weightModel.get_layer('q_activation_7').set_weights (largerModel.get_layer('q_activation_7').get_weights())
+        self.weightModel.get_layer('weight_final').set_weights   (largerModel.get_layer('weight_final').get_weights())
+        self.weightModel.get_layer('q_activation_8').set_weights (largerModel.get_layer('q_activation_8').get_weights())
 
-        self.associationModel.layers[1].set_weights(largerModel.layers[19].get_weights())
-        self.associationModel.layers[2].set_weights(largerModel.layers[20].get_weights()) 
-        self.associationModel.layers[3].set_weights(largerModel.layers[21].get_weights()) 
-        self.associationModel.layers[4].set_weights(largerModel.layers[22].get_weights()) 
-        self.associationModel.layers[5].set_weights(largerModel.layers[23].get_weights()) 
+        self.patternModel.get_layer('pattern_1').set_weights     (largerModel.get_layer('pattern_1').get_weights())
+        self.patternModel.get_layer('q_activation_9').set_weights(largerModel.get_layer('q_activation_9').get_weights())
+
+        self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
+        self.associationModel.get_layer('q_activation_10').set_weights   (largerModel.get_layer('q_activation_10').get_weights()) 
+        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
+        self.associationModel.get_layer('q_activation_11').set_weights   (largerModel.get_layer('q_activation_11').get_weights()) 
+        self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
+
 
     def write_model_graph(self,modelName):
         import cmsml
@@ -370,7 +379,7 @@ class E2EQKerasDiffArgMaxConstraint():
         #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
-        hls_pattern_model.build(csim=False,synth=True,vsynth=True)
+        hls_pattern_model.build(csim=True,synth=True,vsynth=True)
 
     def export_hls_assoc_model(self,modelName):
         import hls4ml
@@ -391,7 +400,7 @@ class E2EQKerasDiffArgMaxConstraint():
                                                             output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_association/hls4ml_prj',
                                                             #part='xcvu9p-flga2104-2L-e',
                                                             part='xcvu13p-flga2577-2-e',
-                                                            clock_period=2.0)
+                                                            clock_period=1.8)
         #hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
         #plt.clf()
         #ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)

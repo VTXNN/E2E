@@ -24,19 +24,19 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-#hep.set_style("CMSTex")
-#plt.style.use([hep.style.ROOT, hep.style.firamath])
-
+hep.cms.label()
+hep.cms.text("Simulation")
 plt.style.use(hep.style.CMS)
-
-colormap = "jet"
 
 SMALL_SIZE = 20
 MEDIUM_SIZE = 25
 BIGGER_SIZE = 30
 
-LEGEND_WIDTH = 31
+LEGEND_WIDTH = 20
 LINEWIDTH = 3
+MARKERSIZE = 20
+
+colormap = "seismic"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
@@ -59,14 +59,13 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 
 colours=["red","green","blue","orange","purple","yellow"]
 
+
+
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
     kf = sys.argv[1]
-
-    with open(sys.argv[2]+'.yaml', 'r') as f:
-            config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
         test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
@@ -359,11 +358,15 @@ if __name__=="__main__":
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
             nBatch = batch['pvz0'].shape[0]
-            FH = predictFastHisto(batch[FH_z0],batch['trk_pt'])
+
+            FH = predictFastHisto(batch[FH_z0],batch['trk_pt'],linear_res_function(batch['trk_pt']))
             predictedZ0_FH.append(FH)
-            predictedZ0_FHz0res.append(predictFastHistoZ0res(batch[FH_z0],batch['trk_pt'],batch['trk_eta']))
-            predictedZ0_FHz0MVA.append(predictFastHistoMVAcut(batch[FH_z0],batch['trk_pt'],batch['trk_MVA1']))
-            predictedZ0_FHnoFake.append(predictFastHistoNoFakes(batch[FH_z0],batch['trk_pt'],batch['trk_fake']))
+            FHeta = predictFastHisto(batch[FH_z0],batch['trk_pt'],eta_res_function(batch['trk_eta']))
+            predictedZ0_FHz0res.append(FHeta)
+            FHz0MVA = predictFastHisto(batch[FH_z0],batch['trk_pt'],MVA_res_function(batch['trk_MVA1']))
+            predictedZ0_FHz0MVA.append(FHz0MVA)
+            FHnoFake = predictFastHisto(batch[FH_z0],batch['trk_pt'],fake_res_function(batch['trk_fake']))
+            predictedZ0_FHnoFake.append(FHnoFake)
 
             trk_z0.append(batch[z0])
             trk_MVA.append(batch["trk_MVA1"])
@@ -377,15 +380,17 @@ if __name__=="__main__":
 
             actual_Assoc.append(batch["trk_fromPV"])
             actual_PV.append(batch['pvz0'])
-            FHassoc = FastHistoAssoc(predictFastHisto(batch[FH_z0],batch['trk_pt']),batch[FH_z0],batch['trk_eta'],kf)
+
+            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_eta'],linear_res_function(batch['trk_eta'],return_bool=True),kf)
             predictedAssoc_FH.append(FHassoc)
-            FHassocres = FastHistoAssoc(predictFastHistoZ0res(batch[FH_z0],batch['trk_pt'],batch['trk_eta']),batch[FH_z0],batch['trk_eta'],kf)
+
+            FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_eta'],linear_res_function(batch['trk_eta'],return_bool=True),kf)
             predictedAssoc_FHres.append(FHassocres)
 
-            FHassocMVA = FastHistoAssocMVAcut(predictFastHistoMVAcut(batch[FH_z0],batch['trk_pt'],batch['trk_MVA1']),batch[FH_z0],batch['trk_eta'],batch['trk_MVA1'],kf)
+            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_eta'],MVA_res_function(batch['trk_MVA1'],return_bool=True),kf)
             predictedAssoc_FHMVA.append(FHassocMVA)
 
-            FHassocnoFake = FastHistoAssocNoFakes(predictFastHistoNoFakes(batch[FH_z0],batch['trk_pt'],batch['trk_fake']),batch[FH_z0],batch['trk_eta'],batch['trk_fake'],kf)
+            FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_eta'],fake_res_function(batch['trk_fake'],return_bool=True),kf)
             predictedAssoc_FHnoFake.append(FHassocnoFake)
 
             #for i,event in enumerate(batch[z0]):
@@ -455,41 +460,39 @@ if __name__=="__main__":
             #actual_MET.append(batch['tp_met_pt'])
             #actual_METphi.append(batch['tp_met_phi'])
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],batch['trk_fromPV'],threshold=0.5)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             actual_trkMET.append(temp_met)
             actual_trkMETphi.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocnoFake,threshold=0.5)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             predictedMET_FHnoFake.append(temp_met)
             predictedMETphi_FHnoFake.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocMVA,threshold=0.5)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_MVA1'],return_bool=True))
             predictedMET_FHMVA.append(temp_met)
             predictedMETphi_FHMVA.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocres,threshold=0.5)
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassocres,
+                                              threshold=0.5, quality_func=chi_res_function(batch['binned_trk_chi2rphi'], batch['binned_trk_chi2rz'], batch['binned_trk_bendchi2'],return_bool=True))
             predictedMET_FHres.append(temp_met)
             predictedMETphi_FHres.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassoc,threshold=0.5,quality=True,
-                                              chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
+            temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],FHassoc,
+                                              threshold=0.5, quality_func=chi_res_function(batch['binned_trk_chi2rphi'], batch['binned_trk_chi2rz'], batch['binned_trk_bendchi2'],return_bool=True))
             predictedMET_FH.append(temp_met)
             predictedMETphi_FH.append(temp_metphi)
 
             if met:
                 for i in range(0,num_threshold):
-                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold,quality=True,
-                                                chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
+                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['binned_trk_chi2rphi'], batch['binned_trk_chi2rz'], batch['binned_trk_bendchi2'],return_bool=True))
                     predictedMET_QNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,quality=True,
-                                                chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
+                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['binned_trk_chi2rphi'], batch['binned_trk_chi2rz'], batch['binned_trk_bendchi2'],return_bool=True))
                     predictedMET_QPNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QPNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,quality=True,
-                                                chi2rphi = batch['binned_trk_chi2rphi'],chi2rz = batch['binned_trk_chi2rz'],bendchi2 = batch['binned_trk_bendchi2'])
+                    temp_met,temp_metphi = predictMET(batch['trk_pt'],batch['trk_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['binned_trk_chi2rphi'], batch['binned_trk_chi2rz'], batch['binned_trk_bendchi2'],return_bool=True))
                     predictedMET_DANN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_DANN[str(i/num_threshold)].append(temp_metphi)
 

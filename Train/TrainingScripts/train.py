@@ -104,12 +104,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(model_name[0]+model_name[1]+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-
-            #if not bit:
-            #    z0Shift = np.random.normal(0.0,1.0,size=batch['pvz0'].shape)
-            #    z0Flip = 2.*np.random.randint(2,size=batch['pvz0'].shape)-1.
-            #    batch[z0]=batch[z0]*z0Flip + z0Shift
-            #    batch['pvz0']=batch['pvz0']*z0Flip + z0Shift
+            z0Shift = np.random.randint(-10,10,size=batch['pvz0'].shape)
+            batch[z0]=batch[z0] + z0Shift
+            batch['pvz0']=batch['pvz0'] + (z0Shift*(30/256))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -129,7 +126,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
-                predictedZ0_FH = eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt'])
+                predictedZ0_FH = eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt'],res_func=eval_funcs.linear_res_function(batch['trk_pt']))
   
                 predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
@@ -168,7 +165,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(eval_funcs.predictFastHisto(val_batch[FH_z0],val_batch['trk_pt']).flatten())
+            val_predictedZ0_FH.append(eval_funcs.predictFastHisto(val_batch[FH_z0],val_batch['trk_pt'],res_func=eval_funcs.linear_res_function(val_batch['trk_pt'])).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
 
@@ -183,7 +180,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(val_batch['pvz0'],val_batch[FH_z0],val_batch['trk_eta'],kf=kf).flatten())
+            val_predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(val_batch['pvz0'],val_batch[FH_z0],val_batch['trk_eta'],res_func=eval_funcs.linear_res_function(val_batch['trk_eta']),kf=kf).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -238,13 +235,12 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
 
-        predictedZ0_FH.append(eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt']))
+        predictedZ0_FH.append(eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_pt'],res_func=eval_funcs.linear_res_function(batch['trk_pt'])))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(batch['pvz0'],batch[FH_z0],batch['trk_eta'],kf=kf))
-
+        predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(batch['pvz0'],batch[FH_z0],batch['trk_eta'],res_func=eval_funcs.linear_res_function(batch['trk_eta']),kf=kf))
         predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
@@ -396,11 +392,6 @@ if __name__=="__main__":
         train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
         test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
-
-        #train_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Train/*.tfrecord")
-        #test_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Test/*.tfrecord")
-        #val_files = glob.glob("/home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData/Val/*.tfrecord")
-
         trackFeatures = [
                 'trk_z0',
                 'normed_trk_pt',
@@ -484,15 +475,14 @@ if __name__=="__main__":
     )
     model.summary()
 
-
     if trainable == 'DA':
         if not train_cnn:
-            model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-            model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('pattern_1').set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
         else:
-            model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
         if pretrain_DA:
@@ -513,15 +503,38 @@ if __name__=="__main__":
                             0
                             ]
             )
+
+            #model.load_weights(PretrainedModelName+".tf")
+
+            WeightModel = network.createWeightModel()
+            AssocModel = network.createAssociationModel()
         
-            model.load_weights(PretrainedModelName+".tf")
+            WeightModel.load_weights(PretrainedModelName+"_weightModel_weights.hdf5")
+            AssocModel.load_weights(PretrainedModelName+"_associationModel_weights.hdf5")
+
+            model.get_layer('weight_1').set_weights    (WeightModel.get_layer('weight_1').get_weights())
+            model.get_layer('dropout').set_weights     (WeightModel.get_layer('dropout').get_weights())
+            model.get_layer('weight_2').set_weights    (WeightModel.get_layer('weight_2').get_weights())
+            model.get_layer('dropout_1').set_weights   (WeightModel.get_layer('dropout_1').get_weights())
+            model.get_layer('weight_final').set_weights(WeightModel.get_layer('weight_final').get_weights())
+
             if not train_cnn:
-                model.layers[8].set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-                model.layers[11].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-                model.layers[13].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('pattern_1').set_weights        ([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+                model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
+                model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
+                model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
+                model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
+                model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
             else:
-                model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-                model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
+                model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
+                model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
+                model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
+                model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
 
 
 
@@ -562,29 +575,32 @@ if __name__=="__main__":
             )
             DAmodel.summary()
             DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
-            model.layers[1].set_weights(DAmodel.layers[1].get_weights())
-            model.layers[3].set_weights(DAmodel.layers[3].get_weights()) 
-            model.layers[5].set_weights(DAmodel.layers[6].get_weights()) 
-            model.layers[9].set_weights(DAmodel.layers[8].get_weights()) 
+            model.get_layer('weight_1').set_weights    (DAmodel.get_layer('weight_1').get_weights())
+            model.get_layer('weight_2').set_weights    (DAmodel.get_layer('weight_2').get_weights()) 
+            model.get_layer('weight_final').set_weights(DAmodel.get_layer('weight_final').get_weights()) 
+
+            model.get_layer('pattern_1').set_weights(DAmodel.get_layer('pattern_1').get_weights()) 
+            #model.get_layer('pattern_2').set_weights(DAmodel.get_layer('pattern_2').get_weights()) 
 
             if not train_cnn:
-                model.layers[13].set_weights(DAmodel.layers[12].get_weights()) 
-                model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
-                model.layers[19].set_weights(DAmodel.layers[18].get_weights()) 
-                model.layers[21].set_weights(DAmodel.layers[20].get_weights()) 
-                model.layers[23].set_weights(DAmodel.layers[22].get_weights())
+                model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
+                model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
+                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
+                model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
+                model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
             else:
-                
-                model.layers[13].set_weights(DAmodel.layers[12].get_weights()) 
-                model.layers[15].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
-                model.layers[19].set_weights(DAmodel.layers[18].get_weights()) 
-                model.layers[21].set_weights(DAmodel.layers[20].get_weights()) 
-                model.layers[23].set_weights(DAmodel.layers[22].get_weights())
+                model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
+                model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
+                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
+                model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
+                model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
 
 
         else:
-            model.layers[12].set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.layers[14].set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
+            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
 
     elif trainable == 'QDA_prune':

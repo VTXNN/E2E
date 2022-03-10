@@ -1,7 +1,7 @@
 retrain : True
 comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : QDANN_trkWord_noConv
-description : QDANN_fixed_point
+comet_experiment_name : QDANN_trkWord_3Conv_noise_
+description : QDANN_fixed_point_latent
 
 trainable : "QDiffArgMax"
 weight_features : ['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
@@ -10,10 +10,12 @@ pretrained : True
 bit_inputs : False
 pretrain_DA : True
 
+train_cnn : True
+
 QuantisedModelName : Quantised_model
 UnquantisedModelName : Unquantised_model
 QuantisedPrunedModelName : Quantised_model_prune_iteration_9
-PretrainedModelName : NewKF_Unquantised_model
+PretrainedModelName : NoLatent_3conv_NewKF_Unquantised_model
 
 prune_iterations : 8
 
@@ -23,17 +25,17 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
 Nlatent : 0
 
 starting_lr : 0.001
-qtrain_starting_lr : 0.00001
+qtrain_starting_lr : 0.0001
 
-epochs : 25
-qtrain_epochs : 10
+epochs : 50
+qtrain_epochs : 20
 
 z0_loss_weight : 1
 crossentropy_loss_weight : 2
 qtrain_z0_loss_weight : 1
 qtrain_crossentropy_loss_weight : 2
 
-Huber_delta : 0.5
+Huber_delta : 0.8
 
 l1regloss : 1e-3
 l2regloss : 1e-10
@@ -57,9 +59,12 @@ QConfig:
     kernel_quantizer : quantized_bits(6,2,alpha=1)
     bias_quantizer : quantized_bits(6,1,alpha=1)
     activation : quantized_relu(8,1)
-  conv:
+  conv_1:
     kernel_quantizer : quantized_bits(4,1,alpha=1)
     activation : quantized_relu(5,1)
+  conv_2:
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
+    activation : quantized_relu(8,1)
   association_0 :
     kernel_quantizer : quantized_bits(6,3,alpha=1)
     bias_quantizer : quantized_bits(4,2,alpha=1)
