@@ -105,8 +105,14 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         
         for step,batch in enumerate(setup_pipeline(train_files)):
             z0Shift = np.random.randint(-10,10,size=batch['pvz0'].shape)
-            batch[z0]=batch[z0] + z0Shift
-            batch['pvz0']=batch['pvz0'] + (z0Shift*(30/256))
+
+            #Zflip = np.random.randint(2,size=batch['pvz0'].shape)
+            #z0Flip = 2.*Zflip-1.
+            #flipz0Flip = 1 - Zflip
+
+            batch[z0] = batch[z0]# + z0Shift
+            batch['pvz0']= batch['pvz0']# + (z0Shift*(30/nbins))
+            batch[FH_z0]= batch[FH_z0]# + (z0Shift*(30/nbins))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -191,6 +197,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
         experiment.log_histogram_3d(val_z0_NN_array-val_z0_PV_array, name="Validation_CNN" , epoch=epoch)
         experiment.log_histogram_3d(val_z0_FH_array-val_z0_PV_array, name="Validation_FH", epoch=epoch)
+
+        experiment.log_histogram_3d(val_z0_NN_array, name="CNN_Output" , epoch=epoch)
+        experiment.log_histogram_3d(val_z0_FH_array, name="FH_Output", epoch=epoch)
 
         experiment.log_metric("Validation_NN_z0_MSE",metrics.mean_squared_error(val_z0_PV_array,val_z0_NN_array),epoch=epoch)
         experiment.log_metric("Validation_NN_z0_AE",metrics.mean_absolute_error(val_z0_PV_array,val_z0_NN_array),epoch=epoch)
@@ -293,9 +302,19 @@ if __name__=="__main__":
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
+    nbins = config['nbins']
+
     train_cnn = config["train_cnn"]
     
     nlatent = config["Nlatent"]
+
+    position_final_weights = []
+    position_final_bias = []
+    for i in range(nlatent+1):
+        position_final_weights.append(1)
+        position_final_bias.append(0)
+
+    
     PretrainedModelName = config["PretrainedModelName"] 
     pretrain_DA = config["pretrain_DA"]
 
@@ -306,13 +325,13 @@ if __name__=="__main__":
 
     elif (kf == 'OldKF_intZ') | (kf == 'NewKF_intZ'):
         start = 0
-        end = 255
+        end = nbins - 1
         bit = True
 
     if trainable == 'DA':
 
         network = vtx.nn.E2EDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             start=start,
             end = end,
             ntracks=max_ntracks, 
@@ -337,7 +356,7 @@ if __name__=="__main__":
     if trainable == 'QDA':
 
         network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             start = start,
             end = end,
             ntracks=max_ntracks, 
@@ -363,7 +382,7 @@ if __name__=="__main__":
 
     if trainable == 'QDA_prune':
         network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
-            nbins=256,
+            nbins=nbins,
             start = start,
             end = end,
             ntracks=max_ntracks, 
@@ -410,19 +429,18 @@ if __name__=="__main__":
         val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
 
         trackFeatures = [
-                'trk_z0',
-                'normed_trk_pt',
-                'normed_trk_eta',
                 'trk_pt',
                 'trk_eta',
-                'trk_MVA1',
                 'trk_z0_res',
                 'corrected_trk_z0',
                 'corrected_int_z0',
-                'normed_trk_over_eta',
                 'abs_trk_word_pT',
                 'rescaled_trk_word_MVAquality',
                 'abs_trk_word_eta',
+                'unscaled_trk_word_pT',
+                'unscaled_trk_word_eta',
+                'unscaled_trk_word_MVAquality',
+                'unscaled_trk_z0_res',
         ]
 
 
@@ -461,7 +479,7 @@ if __name__=="__main__":
         optimizer,
         loss=[
             tf.keras.losses.Huber(config['Huber_delta']),
-            #tf.keras.losses.MeanAbsoluteError(),
+            #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -478,11 +496,11 @@ if __name__=="__main__":
     if trainable == 'DA':
         if not train_cnn:
             model.get_layer('pattern_1').set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
         else:
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
         if pretrain_DA:
@@ -491,7 +509,7 @@ if __name__=="__main__":
                 optimizer,
                 loss=[
                     tf.keras.losses.Huber(config['Huber_delta']),
-                    #tf.keras.losses.MeanAbsoluteError(),
+                    #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
                     tf.keras.losses.BinaryCrossentropy(from_logits=True),
                     lambda y,x: 0.,
                 ],
@@ -504,37 +522,38 @@ if __name__=="__main__":
                             ]
             )
 
-            #model.load_weights(PretrainedModelName+".tf")
-
-            WeightModel = network.createWeightModel()
-            AssocModel = network.createAssociationModel()
         
-            WeightModel.load_weights(PretrainedModelName+"_weightModel_weights.hdf5")
-            AssocModel.load_weights(PretrainedModelName+"_associationModel_weights.hdf5")
+            model.load_weights(PretrainedModelName+".tf").expect_partial()
 
-            model.get_layer('weight_1').set_weights    (WeightModel.get_layer('weight_1').get_weights())
-            model.get_layer('dropout').set_weights     (WeightModel.get_layer('dropout').get_weights())
-            model.get_layer('weight_2').set_weights    (WeightModel.get_layer('weight_2').get_weights())
-            model.get_layer('dropout_1').set_weights   (WeightModel.get_layer('dropout_1').get_weights())
-            model.get_layer('weight_final').set_weights(WeightModel.get_layer('weight_final').get_weights())
+            # WeightModel = network.createWeightModel()
+            # AssocModel = network.createAssociationModel()
+        
+            # WeightModel.load_weights(PretrainedModelName+"_weightModel_weights.hdf5")
+            # AssocModel.load_weights(PretrainedModelName+"_associationModel_weights.hdf5")
 
-            if not train_cnn:
-                model.get_layer('pattern_1').set_weights        ([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-                model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
-                model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
-                model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
-                model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
-                model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
-                model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
-            else:
-                model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
-                model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
-                model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
-                model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
-                model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
-                model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
+            # model.get_layer('weight_1').set_weights    (WeightModel.get_layer('weight_1').get_weights())
+            # model.get_layer('dropout').set_weights     (WeightModel.get_layer('dropout').get_weights())
+            # model.get_layer('weight_2').set_weights    (WeightModel.get_layer('weight_2').get_weights())
+            # model.get_layer('dropout_1').set_weights   (WeightModel.get_layer('dropout_1').get_weights())
+            # model.get_layer('weight_final').set_weights(WeightModel.get_layer('weight_final').get_weights())
+
+            # if not train_cnn:
+            #     model.get_layer('pattern_1').set_weights        ([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
+            #     model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+            #     model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
+            #     model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
+            #     model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
+            #     model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
+            #     model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
+            #     model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
+            # else:
+            #     model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+            #     model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
+            #     model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
+            #     model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
+            #     model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
+            #     model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
+            #     model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
 
 
 
@@ -542,7 +561,7 @@ if __name__=="__main__":
         experiment.set_name(kf+config['comet_experiment_name'])
         if config["pretrained"]:
             DAnetwork = vtx.nn.E2EDiffArgMax(
-                nbins=256,
+                nbins=nbins,
                 ntracks=max_ntracks, 
                 nweightfeatures=len(weightfeat), 
                 nfeatures=len(trackfeat), 
@@ -562,7 +581,7 @@ if __name__=="__main__":
                 optimizer,
                 loss=[
                     tf.keras.losses.Huber(config['Huber_delta']),
-                    #tf.keras.losses.MeanAbsoluteError(),
+                    #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
                     tf.keras.losses.BinaryCrossentropy(from_logits=True),
                     lambda y,x: 0.
                 ],
@@ -584,23 +603,23 @@ if __name__=="__main__":
 
             if not train_cnn:
                 model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
-                model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
+                #model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
                 model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
                 model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
                 model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
             else:
                 model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
-                model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                model.get_layer('position_final').set_weights   ([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+                #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
+                #model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
                 model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
                 model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
                 model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
 
 
         else:
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(256),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([[1]], dtype=np.float32), np.array([0], dtype=np.float32)])
+            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
 
 
     elif trainable == 'QDA_prune':
@@ -610,7 +629,7 @@ if __name__=="__main__":
 
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
         monitor='loss', factor=0.1, patience=6, verbose=1,
-        mode='auto', min_delta=0.005, cooldown=0, min_lr=0
+        mode='auto', min_delta=0.05, cooldown=0, min_lr=0
     )
     with experiment.train():
         train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,bit=bit,model_name=model_name),

@@ -105,11 +105,12 @@ if __name__ == "__main__":
 
     max_ntracks = 250   
     nlatent = config["Nlatent"]
+    nbins = config['nbins']
 
     if sys.argv[3] == '1':
 
         Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
-                    nbins=256,
+                    nbins=nbins,
                     ntracks=max_ntracks, 
                     nweightfeatures=len(config["weight_features"]), 
                     nfeatures=len(config["track_features"]), 
@@ -128,7 +129,7 @@ if __name__ == "__main__":
     else:
 
         Qnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
-                    nbins=256,
+                    nbins=nbins,
                     ntracks=max_ntracks, 
                     nweightfeatures=len(config["weight_features"]), 
                     nfeatures=len(config["track_features"]), 

@@ -140,10 +140,10 @@ class E2EQKerasDiffArgMaxConstraint():
         self.pvDenseLayers = [
             tf.keras.layers.Dense(
                 1+self.nlatent,
-                activation=None,
-                trainable=True,
-                kernel_initializer='lecun_normal',
-                kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
+                activation='linear',
+                trainable=False,
+                use_bias= False,
+                kernel_initializer='ones',
                 name='position_final'
             )
         ]
@@ -337,9 +337,9 @@ class E2EQKerasDiffArgMaxConstraint():
         random_weight_data = np.random.rand(1000,3)
         hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
                                                             hls_config=weightconfig,
-                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_weight/hls4ml_prj',
-                                                            #part='xcvu9p-flga2104-2L-e',
-                                                            part='xcvu13p-flga2577-2-e',
+                                                            output_dir=modelName+'_hls_weight/hls4ml_prj',
+                                                            part='xcvu9p-flga2104-2L-e',
+                                                            #part='xcvu13p-flga2577-2-e',
                                                             clock_period=2.0)
         #hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
         #plt.clf()
@@ -368,9 +368,9 @@ class E2EQKerasDiffArgMaxConstraint():
         random_pattern_data = np.random.rand(1000,256,1)
         hls_pattern_model = hls4ml.converters.convert_from_keras_model(self.patternModel,
                                                             hls_config=patternconfig,
-                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_pattern/hls4ml_prj',
-                                                            #fpga_part='xcvu9p-flga2104-2L-e',
-                                                            fpga_part='xcvu13p-flga2577-2-e',
+                                                            output_dir=modelName+'_hls_pattern/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            #fpga_part='xcvu13p-flga2577-2-e',
                                                             clock_period=2.0)
         #hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
         #plt.clf()
@@ -397,9 +397,9 @@ class E2EQKerasDiffArgMaxConstraint():
         random_association_data = np.random.rand(1000,4+self.nlatent)
         hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
                                                             hls_config=associationconfig,
-                                                            output_dir='/home/cebrown/Documents/Trigger/E2E/Train/'+modelName+'_hls_association/hls4ml_prj',
-                                                            #part='xcvu9p-flga2104-2L-e',
-                                                            part='xcvu13p-flga2577-2-e',
+                                                            output_dir=modelName+'_hls_association/hls4ml_prj',
+                                                            part='xcvu9p-flga2104-2L-e',
+                                                            #part='xcvu13p-flga2577-2-e',
                                                             clock_period=1.8)
         #hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
         #plt.clf()

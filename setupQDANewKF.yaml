@@ -21,8 +21,9 @@ eval_folder : Qplots
 data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData
 
 Nlatent : 0
+nbins : 256
 
-starting_lr : 0.0001
+starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
 epochs : 40

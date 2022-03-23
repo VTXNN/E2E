@@ -99,6 +99,7 @@ if __name__=="__main__":
     met = False
 
     nlatent = config["Nlatent"]
+    nbins = config['nbins']
 
     with open(kf+'experimentkey.txt') as f:
         first_line = f.readline()
@@ -177,14 +178,14 @@ if __name__=="__main__":
             'abs_trk_word_pT',
             'rescaled_trk_word_MVAquality',
             'abs_trk_word_eta',
-            'corrected_int_z0',
+            'corrected_int_z0'
         ]
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
 
     qnetwork = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             start=start,
             end=end,
             ntracks=nMaxTracks, 
@@ -221,7 +222,7 @@ if __name__=="__main__":
     )
 
     DAnetwork = vtx.nn.E2EDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             start=start,
             end=end,
             return_index = bit,
@@ -252,7 +253,7 @@ if __name__=="__main__":
     )
 
     QPnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
-            nbins=256,
+            nbins=nbins,
             ntracks=nMaxTracks, 
             start=start,
             end=end,

@@ -26,6 +26,8 @@ LEGEND_WIDTH = 20
 LINEWIDTH = 3
 MARKERSIZE = 20
 
+nbins = 256
+
 colormap = "seismic"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
@@ -114,16 +116,16 @@ def setup_pipeline(fileList):
 
 def predictFastHisto(value,weight, res_func, return_index = False):
     z0List = []
-    halfBinWidth = 0.5*30./256.
+    halfBinWidth = 0.5*30./nbins
 
     for ibatch in range(value.shape[0]):
-        hist,bin_edges = np.histogram(value[ibatch],256,range=(-15,15),weights=weight[ibatch]*res_func[ibatch])
+        hist,bin_edges = np.histogram(value[ibatch],nbins,range=(-15,15),weights=weight[ibatch]*res_func[ibatch])
         hist = np.convolve(hist,[1,1,1],mode='same')
         z0Index= np.argmax(hist)
         if return_index:
             z0List.append([z0Index])
         else:
-            z0 = -15.+30.*z0Index/256.+halfBinWidth
+            z0 = -15.+30.*z0Index/nbins+halfBinWidth
             z0List.append([z0])
     return np.array(z0List,dtype=np.float32)
 
@@ -442,14 +444,14 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     PU = assoc == 2
     PV = assoc == 1
 
-    PUhist,PUbin_edges = np.histogram(tracks[PU],256,range=(-15,15),weights=weights[PU])
-    plt.bar(PUbin_edges[:-1],PUhist,width=30/256,color='b',alpha=0.5, label="PU Trk",bottom=2)
+    PUhist,PUbin_edges = np.histogram(tracks[PU],nbins,range=(-15,15),weights=weights[PU])
+    plt.bar(PUbin_edges[:-1],PUhist,width=30/nbins,color='b',alpha=0.5, label="PU Trk",bottom=2)
 
-    Fakehist,Fakebin_edges = np.histogram(tracks[fakes],256,range=(-15,15),weights=weights[fakes])
-    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/256,color='r',alpha=0.5, label="Fake Trk",bottom=2+PUhist)
+    Fakehist,Fakebin_edges = np.histogram(tracks[fakes],nbins,range=(-15,15),weights=weights[fakes])
+    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/nbins,color='r',alpha=0.5, label="Fake Trk",bottom=2+PUhist)
 
-    PVhist,PVbin_edges = np.histogram(tracks[PV],256,range=(-15,15),weights=weights[PV])
-    plt.bar(PVbin_edges[:-1],PVhist,width=30/256,color='g',alpha=0.5, label="PV Trk",bottom=2+PUhist+Fakehist)
+    PVhist,PVbin_edges = np.histogram(tracks[PV],nbins,range=(-15,15),weights=weights[PV])
+    plt.bar(PVbin_edges[:-1],PVhist,width=30/nbins,color='g',alpha=0.5, label="PV Trk",bottom=2+PUhist+Fakehist)
 
     maxpt = np.max(2+PUhist+Fakehist+PVhist)*1.5
 

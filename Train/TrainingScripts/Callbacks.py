@@ -109,3 +109,39 @@ class OwnReduceLROnPlateau(tf.keras.callbacks.Callback):
 
   def in_cooldown(self):
     return self.cooldown_counter > 0
+
+from tensorflow.keras import backend
+
+def ModifiedHuberDelta(threshold):
+  
+  def ModifiedHuber(y_true, y_pred):
+    """Computes Huber loss value.
+    For each value x in `error = y_true - y_pred`:
+    ```
+    loss = 0.5 * x^2                  if |x| <= d
+    loss = d * |x| - 0.5 * d^2        if |x| > d
+    ```
+    where d is `delta`. See: https://en.wikipedia.org/wiki/Huber_loss
+    Args:
+      y_true: tensor of true targets.
+      y_pred: tensor of predicted targets.
+      delta: A float, the point where the Huber loss function changes from a
+        quadratic to linear.
+    Returns:
+      Tensor with one scalar loss entry per sample.
+    """
+    y_pred = tf.cast(y_pred, dtype=backend.floatx())
+    y_true = tf.cast(y_true, dtype=backend.floatx())
+    delta = tf.cast(threshold, dtype=backend.floatx())
+    error = tf.subtract(y_pred, y_true)
+    abs_error = tf.abs(error)
+    half = tf.convert_to_tensor(0.5, dtype=abs_error.dtype)
+
+    mean = abs(backend.mean((y_pred - y_true)))
+    huber = backend.mean(
+        tf.where(abs_error <= delta, half * tf.square(error),
+                          delta * abs_error - half * tf.square(delta)))
+    return huber + mean
+
+  return ModifiedHuber
+

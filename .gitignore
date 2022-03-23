@@ -35,3 +35,4 @@ Train/*/hls4ml_prj.tar.gz
 hls4ml_projects/*
 PretrainedModels/**
 Assets_*/
+Train/NetworkTest/**

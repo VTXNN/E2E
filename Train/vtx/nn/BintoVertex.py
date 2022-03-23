@@ -20,6 +20,6 @@ class BintoVertex(Layer):
         z0Index = tf.linalg.trace(x)
 
         z0Index = tf.expand_dims(z0Index,axis=1)
-        z0 = start+(end-start)*z0Index/nbins +halfBinWidth
+        z0 = start+(end-start)*z0Index/nbins 
 
-        return z0,z0Index
+        return z0,(tf.floor(z0Index))

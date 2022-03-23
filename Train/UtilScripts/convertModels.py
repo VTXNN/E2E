@@ -33,9 +33,10 @@ cnn = sys.argv[3]
 
 max_ntracks = 250   
 nlatent = config["Nlatent"]
+nbins = ['nbins']
 
 DAnetwork = vtx.nn.E2EDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             ntracks=max_ntracks, 
             nweightfeatures=len(config['weight_features']), 
             nfeatures=len(config['track_features']), 
@@ -50,7 +51,7 @@ DAnetwork = vtx.nn.E2EDiffArgMax(
         )
 
 Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=256,
+            nbins=nbins,
             ntracks=max_ntracks, 
             nweightfeatures=len(config["weight_features"]), 
             nfeatures=len(config["track_features"]), 
@@ -67,7 +68,7 @@ Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
         )
 
 QPnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
-            nbins=256,
+            nbins=nbins,
             ntracks=max_ntracks, 
             nweightfeatures=len(config["weight_features"]),  
             nfeatures=len(config["track_features"]), 

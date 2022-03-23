@@ -13,8 +13,8 @@ tf.compat.v1.disable_eager_execution()
 #f = uproot.open("/vols/cms/cb719/VertexDatasets/OldKF_TTbar_170K_quality.root")
 
 KFname =sys.argv[1]
-filename = sys.argv[2]
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_NN_TTsl.root")
+
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/OldKF_GTT_TrackNtuple_NN.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -271,14 +271,18 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         tfData['trk_over_eta_squared'] = _float_feature(padArray(np.array(1/(0.1+0.2*(data['trk_eta'][iev][selectTracksInZ0Range])**2)),nMaxTracks))
         abs_trk_word_pT = np.where(data['trk_word_pT'][iev][selectTracksInZ0Range] < 16383, (data['trk_word_pT'][iev][selectTracksInZ0Range]), (data['trk_word_pT'][iev][selectTracksInZ0Range] - 16384))
-        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 512)/512
-        abs_trk_word_eta = np.where(data['trk_word_eta'][iev][selectTracksInZ0Range] < 32767, (data['trk_word_eta'][iev][selectTracksInZ0Range]+32767)/2, (data['trk_word_eta'][iev][selectTracksInZ0Range] - 32767)/2)
-        abs_trk_word_eta = abs_trk_word_eta/32767
-        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]/8
+        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 512)
+        abs_trk_word_eta = np.where(data['trk_word_eta'][iev][selectTracksInZ0Range] < 32767, (data['trk_word_eta'][iev][selectTracksInZ0Range]), (65535 - data['trk_word_eta'][iev][selectTracksInZ0Range]))
+        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]
 
-        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
-        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=0))
+        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT/512,np.float32),nMaxTracks,num=0))
+        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta/65536,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality/8,np.float32),nMaxTracks,num=0))
+
+        tfData['unscaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT/8,np.float32),nMaxTracks,num=0))
+        tfData['unscaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
+        tfData['unscaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality*4096,np.float32),nMaxTracks,num=0))
+        tfData['unscaled_trk_z0_res'] = _float_feature(padArray(np.array(res*4096,np.float32),nMaxTracks,num=0))
 
         #tfData['trk_word_pT'] = _float_feature(padArray(np.array(data['trk_word_pT'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
         #tfData['trk_word_eta'] = _float_feature(padArray(np.array(data['trk_word_eta'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
