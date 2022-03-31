@@ -11,6 +11,7 @@
 *.tf.data*
 *.txt
 *.h5
+*.pkl
 __pycache__
 Env/env
 Env/install

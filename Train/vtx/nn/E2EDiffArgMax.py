@@ -58,7 +58,7 @@ class E2EDiffArgMax():
                     nodes,
                     activation=self.activation,
                     trainable=True,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='weight_'+str(ilayer+1)
                 ),
@@ -73,7 +73,7 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 self.nweights,
                 activation=self.activation, #need to use relu here to remove negative weights
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 trainable=True,
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='weight_final'
@@ -101,6 +101,7 @@ class E2EDiffArgMax():
                     kernelSize,
                     padding='same',
                     activation='linear',#self.activation,
+                    kernel_initializer='orthogonal',
                     trainable=train_cnn,
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
@@ -110,7 +111,7 @@ class E2EDiffArgMax():
         
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
-
+        
         self.binWeightLayer = tf.keras.layers.Dense(
                     self.nbins,
                     activation='linear',
@@ -143,7 +144,7 @@ class E2EDiffArgMax():
                 tf.keras.layers.Dense(
                     filterSize,
                     activation=self.activation,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='association_'+str(ilayer)
                 ),
@@ -156,7 +157,7 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 1,
                 activation=None,
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='association_final'
             )
@@ -252,7 +253,7 @@ class E2EDiffArgMax():
             )
             return tf.reduce_mean(0.1*tf.square(wq90-1.))
         
-        model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
+        #model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model
 
     def load_weights(self,largerModel):

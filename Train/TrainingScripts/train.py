@@ -162,6 +162,10 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                 if "Bin_weight" not in layer.name:
                     weights = get_weights[0].flatten()[get_weights[0].flatten() != 0]
                     prune_level.append(weights.shape[0]/get_weights[0].flatten().shape[0])
+                    experiment.log_histogram_3d(get_weights[0].flatten()[get_weights[0].flatten() != 0],name="Weight"+layer.name,epoch=epoch)
+                    if len(get_weights) > 1:
+                        experiment.log_histogram_3d(get_weights[1].flatten()[get_weights[1].flatten() != 0],name="Bias"+layer.name,epoch=epoch)
+                    
 
         val_actual_PV = []
         val_predictedZ0_FH = []

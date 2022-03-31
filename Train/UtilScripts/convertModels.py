@@ -33,21 +33,25 @@ cnn = sys.argv[3]
 
 max_ntracks = 250   
 nlatent = config["Nlatent"]
-nbins = ['nbins']
+nbins = config['nbins']
+
+start = 0
+end = 255
+bit = True
+nMaxTracks = 250
 
 DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=nbins,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(config['weight_features']), 
-            nfeatures=len(config['track_features']), 
+            start=start,
+            end=end,
+            return_index = bit,
+            ntracks=nMaxTracks, 
+            nweightfeatures=3, 
+            nfeatures=3, 
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            l2regloss=1e-10,
-            nweightnodes = config['nweightnodes'],
-            nweightlayers = config['nweightlayers'],
-            nassocnodes = config['nassocnodes'],
-            nassoclayers = config['nassoclayers'],
+            l2regloss=1e-10
         )
 
 Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
@@ -156,17 +160,16 @@ if cnn == 'False':
     Qnetwork.write_model_graph(QuantisedModelName)
     QPnetwork.write_model_graph(QuantisedPrunedModelName)
 
-    #DAnetwork.export_hls_weight_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_weight_model(QuantisedModelName)
-    #QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
+    DAnetwork.export_hls_weight_model(UnQuantisedModelName)
+    Qnetwork.export_hls_weight_model(QuantisedModelName)
+    QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
 
-    #DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_assoc_model(QuantisedModelName)
-    #QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
+    DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
+    Qnetwork.export_hls_assoc_model(QuantisedModelName)
+    QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
 
 if cnn == 'True':
-    pass
-    #DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
-    #Qnetwork.export_hls_pattern_model(QuantisedModelName)
-    #QPnetwork.export_hls_pattern_model(QuantisedPrunedModelName)
+    DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
+    Qnetwork.export_hls_pattern_model(QuantisedModelName)
+    QPnetwork.export_hls_pattern_model(QuantisedPrunedModelName)
 

@@ -1,3 +1,4 @@
+from math import ceil
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -22,4 +23,4 @@ class BintoVertex(Layer):
         z0Index = tf.expand_dims(z0Index,axis=1)
         z0 = start+(end-start)*z0Index/nbins 
 
-        return z0,(tf.floor(z0Index))
+        return z0,z0Index

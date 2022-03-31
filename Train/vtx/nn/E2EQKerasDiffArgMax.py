@@ -60,7 +60,7 @@ class E2EQKerasDiffArgMax():
                 QDense(
                     nodes,
                     trainable=True,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
@@ -73,7 +73,7 @@ class E2EQKerasDiffArgMax():
         self.weightLayers.extend([
             QDense(
                 self.nweights,
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 trainable=True,
                 kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['weight_final']['bias_quantizer'],
@@ -101,6 +101,7 @@ class E2EQKerasDiffArgMax():
                 QConv1D(
                     filterSize,
                     kernelSize,
+                    kernel_initializer='orthogonal',
                     padding='same',
                     trainable=True,
                     use_bias= False,
@@ -141,12 +142,12 @@ class E2EQKerasDiffArgMax():
         self.assocLayers = []
         for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
             self.assocLayers.extend([
-                tf.keras.layers.Dense(
+                QDense(
                     filterSize,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-                    #kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
-                    #bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
+                    bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
                     activation=None,
                     name='association_'+str(ilayer)
                 ),
@@ -158,7 +159,7 @@ class E2EQKerasDiffArgMax():
             QDense(
                 1,
                 activation=None,
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['association_final']['bias_quantizer'],

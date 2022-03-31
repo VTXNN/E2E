@@ -68,7 +68,7 @@ class E2EQKerasDiffArgMaxConstraint():
                 QDense(
                     nodes,
                     trainable=True,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
@@ -82,7 +82,7 @@ class E2EQKerasDiffArgMaxConstraint():
         self.weightLayers.extend([
             QDense(
                 self.nweights,
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 trainable=True,
                 kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['weight_final']['bias_quantizer'],
@@ -114,6 +114,7 @@ class E2EQKerasDiffArgMaxConstraint():
                     padding='same',
                     trainable=True,
                     use_bias= False,
+                    kernel_initializer='orthogonal',
                     kernel_quantizer=qconfig['conv_'+str(ilayer+1)]['kernel_quantizer'],
                     activation='linear',
                     name='pattern_'+str(ilayer+1)
@@ -153,7 +154,7 @@ class E2EQKerasDiffArgMaxConstraint():
             self.assocLayers.extend([
                 QDense(
                     filterSize,
-                    kernel_initializer='lecun_normal',
+                    kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
                     bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
@@ -169,7 +170,7 @@ class E2EQKerasDiffArgMaxConstraint():
             QDense(
                 1,
                 activation=None,
-                kernel_initializer='lecun_normal',
+                kernel_initializer='orthogonal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
                 bias_quantizer=qconfig['association_final']['bias_quantizer'],

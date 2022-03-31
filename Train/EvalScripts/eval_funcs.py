@@ -28,7 +28,7 @@ MARKERSIZE = 20
 
 nbins = 256
 
-colormap = "seismic"
+colormap = "jet"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title

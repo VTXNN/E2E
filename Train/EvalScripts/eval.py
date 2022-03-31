@@ -36,7 +36,7 @@ LEGEND_WIDTH = 20
 LINEWIDTH = 3
 MARKERSIZE = 20
 
-colormap = "seismic"
+colormap = "jet"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
@@ -412,8 +412,10 @@ if __name__=="__main__":
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
-            predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
+            #predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
+
+            predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,-5),15)
 
             predictedZ0_QNN.append(predictedZ0_QNN_temp)
             predictedAssoc_QNN.append(predictedAssoc_QNN_temp)
@@ -431,8 +433,10 @@ if __name__=="__main__":
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
-            predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
+            #predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
+
+            predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,-5),15)
 
             predictedZ0_QPNN.append(predictedZ0_QPNN_temp)
             predictedAssoc_QPNN.append(predictedAssoc_QPNN_temp)
@@ -451,8 +455,10 @@ if __name__=="__main__":
                                 [batch[z0],WeightFeatures,trackFeatures]
                             )
 
-            predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
+            #predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
+
+            predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,-5),15)
 
             predictedZ0_DANN.append(predictedZ0_DANN_temp)
             predictedAssoc_DANN.append(predictedAssoc_DANN_temp)

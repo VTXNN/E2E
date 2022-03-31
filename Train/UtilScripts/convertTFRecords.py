@@ -14,7 +14,7 @@ tf.compat.v1.disable_eager_execution()
 
 KFname =sys.argv[1]
 
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/OldKF_GTT_TrackNtuple_NN.root")
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/NewKF_TTbar_170K_quality.root")
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -66,14 +66,14 @@ branches = [
     "trk_MVA1",
     "trk_word_InvR",
     "trk_word_pT",
-    #"trk_word_Phi",
-    #"trk_word_TanL",
+    "trk_word_Phi",
+    "trk_word_TanL",
     "trk_word_eta",
-    #"trk_word_Z0",
+    "trk_word_Z0",
     "trk_word_chi2rphi",
     "trk_word_chi2rz",
     "trk_word_bendchi2",
-    #"trk_word_hitpattern",
+    "trk_word_hitpattern",
     "trk_word_MVAquality"
 ]
 
@@ -92,14 +92,14 @@ trackFeatures = [
     'trk_fake',
     "trk_word_InvR",
     "trk_word_pT",
-    #"trk_word_Phi",
-    #"trk_word_TanL",
+    "trk_word_Phi",
+    "trk_word_TanL",
     "trk_word_eta",
-    #"trk_word_Z0",
-    #"trk_word_chi2rphi",
-    #"trk_word_chi2rz",
-    #"trk_word_bendchi2",
-    #"trk_word_hitpattern",
+    "trk_word_Z0",
+    "trk_word_chi2rphi",
+    "trk_word_chi2rz",
+    "trk_word_bendchi2",
+    "trk_word_hitpattern",
     "trk_word_MVAquality"
 ]
 
@@ -284,9 +284,9 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['unscaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality*4096,np.float32),nMaxTracks,num=0))
         tfData['unscaled_trk_z0_res'] = _float_feature(padArray(np.array(res*4096,np.float32),nMaxTracks,num=0))
 
-        #tfData['trk_word_pT'] = _float_feature(padArray(np.array(data['trk_word_pT'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
-        #tfData['trk_word_eta'] = _float_feature(padArray(np.array(data['trk_word_eta'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
-        #tfData['trk_word_MVAquality'] = _float_feature(padArray(np.array(data['trk_word_MVAquality'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
+        tfData['trk_word_pT'] = _float_feature(padArray(np.array(data['trk_word_pT'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
+        tfData['trk_word_eta'] = _float_feature(padArray(np.array(data['trk_word_eta'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
+        tfData['trk_word_MVAquality'] = _float_feature(padArray(np.array(data['trk_word_MVAquality'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
    
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))
