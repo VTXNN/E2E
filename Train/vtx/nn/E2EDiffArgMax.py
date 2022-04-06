@@ -222,7 +222,7 @@ class E2EDiffArgMax():
             pvPosition_argmax = pvFeatures_argmax
 
         if self.return_index:
-            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs((x[0]*(2/self.nbins))-(x[1]*(2/self.nbins))),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
+            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1])/8,2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
         else:
             z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
         
@@ -253,7 +253,7 @@ class E2EDiffArgMax():
             )
             return tf.reduce_mean(0.1*tf.square(wq90-1.))
         
-        #model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
+        model.add_loss(tf.keras.layers.Lambda(q90loss)(weights))
         return model
 
     def load_weights(self,largerModel):

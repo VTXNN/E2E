@@ -1,6 +1,7 @@
 from tensorflow.keras.constraints import *
 from tensorflow.keras.layers import multiply
 from tensorflow.keras import backend as K
+import tensorflow as tf
 
 class ZeroSomeWeights(Constraint):
     """ZeroSomeWeights weight constraint.
