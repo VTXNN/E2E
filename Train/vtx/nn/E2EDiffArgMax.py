@@ -130,7 +130,7 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 1+self.nlatent,
                 activation='linear',
-                trainable=False,
+                trainable=True,
                 use_bias= True,
                 kernel_initializer='ones',
                 bias_initializer='zeros',

@@ -110,9 +110,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             #z0Flip = 2.*Zflip-1.
             #flipz0Flip = 1 - Zflip
 
-            batch[z0] = batch[z0]# + z0Shift
-            batch['pvz0']= batch['pvz0']# + (z0Shift*(30/nbins))
-            batch[FH_z0]= batch[FH_z0]# + (z0Shift*(30/nbins))
+            #batch[z0] = batch[z0] + z0Shift
+            #batch['pvz0']= batch['pvz0'] + (z0Shift*(30/nbins))
+            #batch[FH_z0]= batch[FH_z0] + (z0Shift*(30/nbins))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -316,7 +316,7 @@ if __name__=="__main__":
     position_final_bias = []
     for i in range(nlatent+1):
         position_final_weights.append(1)
-        position_final_bias.append(0)
+        position_final_bias.append(30/256)
 
     
     PretrainedModelName = config["PretrainedModelName"] 
@@ -475,14 +475,20 @@ if __name__=="__main__":
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
+    if trainable == 'DA':
+        loss_function = tf.keras.losses.Huber(config['Huber_delta'])
+    else:
+        loss_function = tf.keras.losses.MeanSquaredError()
+        #loss_function = tf.keras.losses.Huber(1.0)
     
-
+    print(loss_function)
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(lr=startingLR)
     model.compile(
         optimizer,
         loss=[
-            tf.keras.losses.Huber(config['Huber_delta']),
+            loss_function,
+            #tf.keras.losses.MeanAbsoluteError(),
             #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
@@ -501,10 +507,10 @@ if __name__=="__main__":
         if not train_cnn:
             model.get_layer('pattern_1').set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
             model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
         else:
             model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
+            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
         if pretrain_DA:
@@ -512,7 +518,8 @@ if __name__=="__main__":
             loadedmodel.compile(
                 optimizer,
                 loss=[
-                    tf.keras.losses.Huber(config['Huber_delta']),
+                    loss_function,
+                    #tf.keras.losses.MeanAbsoluteError(),
                     #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
                     tf.keras.losses.BinaryCrossentropy(from_logits=True),
                     lambda y,x: 0.,
@@ -584,7 +591,8 @@ if __name__=="__main__":
             DAmodel.compile(
                 optimizer,
                 loss=[
-                    tf.keras.losses.Huber(config['Huber_delta']),
+                    loss_function,
+                    #tf.keras.losses.MeanSquaredError(),
                     #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
                     tf.keras.losses.BinaryCrossentropy(from_logits=True),
                     lambda y,x: 0.
@@ -608,14 +616,14 @@ if __name__=="__main__":
             if not train_cnn:
                 model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
                 #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                #model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+                model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
                 model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
                 model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
                 model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
             else:
                 model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
                 #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                #model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+                model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
                 model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
                 model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
                 model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
@@ -623,7 +631,7 @@ if __name__=="__main__":
 
         else:
             model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            #model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
 
 
     elif trainable == 'QDA_prune':

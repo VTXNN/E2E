@@ -1,14 +1,14 @@
 retrain : True
 comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : QDANN_trkWord_NewKF_4Conv
+comet_experiment_name : QDANN_trkWord_NewKF_3Conv
 description : QDANN_fixed_point_latent
 
 trainable : "QDiffArgMax"
 weight_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
 track_features : ['normed_trk_pt','trk_MVA1','trk_z0_res'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
-pretrained : False
+pretrained : True
 bit_inputs : False
-pretrain_DA : False
+pretrain_DA : True
 
 train_cnn : True
 
@@ -26,7 +26,7 @@ nbins : 256
 starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
-epochs : 50
+epochs : 40
 qtrain_epochs : 1
 
 z0_loss_weight : 1

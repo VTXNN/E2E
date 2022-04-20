@@ -129,13 +129,15 @@ class E2EQKerasDiffArgMax():
         )
 
         self.pvDenseLayers = [
-            tf.keras.layers.Dense(
+            QDense(
                 1+self.nlatent,
                 activation='linear',
-                trainable=False,
-                use_bias= False,
+                trainable=True,
+                use_bias= True,
                 kernel_initializer='ones',
-                name='position_final'
+                name='position_final',
+                kernel_quantizer='quantized_bits(10,1,alpha=1)',
+                bias_quantizer='quantized_bits(10,1,alpha=1)',
             )
         ]
           

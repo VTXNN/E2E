@@ -205,8 +205,12 @@ if __name__=="__main__":
                                            'predicted_z0',
                                            'true_z0'],
                                             index=[i for i in range(0,250)])
-                
+                zero_indices = []
                 for j in range(0,250):
+                    if batch['trk_z0'][i][j].numpy() == 0:
+                        zero_indices.append(j)
+
+
                     dict_weight_1 = {'weight_1_'+str(k) : output_weight_activation_1[i][j][k] for k in range(0,10)}
                     dict_weight_2 = {'weight_2_'+str(k) : output_weight_activation_2[i][j][k] for k in range(0,10)}
                     dict_weight_3 = {'weight_3_0' : output_weight_activation_3[i][j][0]}
@@ -225,7 +229,7 @@ if __name__=="__main__":
 
                     df.loc[j] = pd.Series(combined)
 
-                Events.append(df)
+                Events.append(df.drop(zero_indices))
 
             with open('SavedDFs/events_batch'+str(step)+'.pkl', 'wb') as outp:
                 pickle.dump(Events, outp, pickle.HIGHEST_PROTOCOL)

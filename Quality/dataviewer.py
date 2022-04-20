@@ -63,7 +63,9 @@ association_2 = { 'association_2_'+str(i) : [] for i in range(0,20)}
 predicted_z0_residual = []
 predicted_association_residual = []
 
-for j in range(0,10):
+savingfolder = 'SavedDFs/Train'
+
+for j in range(0,20):
         with open('SavedDFs/events_batch'+str(j)+'.pkl', 'rb') as outp:
                 Events = pickle.load(outp)
         for i,event in enumerate(Events):
@@ -86,7 +88,6 @@ for j in range(0,10):
 
 weight_1_array = np.array([np.concatenate(weight_1['weight_1_'+str(k)]).ravel() for k in range(0,10)])
 
-print(weight_1_array.shape)
 weight_2_array = np.array([np.concatenate(weight_2['weight_2_'+str(k)]).ravel() for k in range(0,10)])
 weight_3_0_array = np.concatenate(weight_3_0).ravel()
 association_1_array = np.array([np.concatenate(association_1['association_1_'+str(k)]).ravel() for k in range(0,20)])
@@ -103,11 +104,12 @@ true_z0_array =  np.concatenate(true_z0).ravel()
 z0_residual = abs(true_z0_array - predicted_z0_array)
 association_residual = abs(predicted_association_array - trk_fromPV_array)
 
+
 ### V. Correct Postive -> 0.999 residual = small negative
 ### V. Wrong Positive -> 0.9999 residual = big positive
 ### V. Correct Negative -> 0.001 residual = small positive
 ### V. Wrong Negative -> 0.0001 residual = big negative
-
+'''
 plt.clf()
 fig,ax = plt.subplots(2,5,figsize=(50,20),sharey='row')
 
@@ -331,3 +333,4 @@ ax[2].set_xlabel('trk_z0',ha="right",x=1)
 
 plt.tight_layout()
 plt.savefig('other_association_residual.png')
+'''
