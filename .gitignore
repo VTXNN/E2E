@@ -6,9 +6,9 @@
 *.o
 *.png
 *.pdf
-*.index
+#*.index
 *.record
-*.tf.data*
+#*.tf.data*
 *.txt
 __pycache__
 Env/env
