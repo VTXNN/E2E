@@ -32,3 +32,7 @@ Train/*/hls4ml_prj.tar.gz
 *.npy
 hls4ml_projects/*
 PretrainedModels/**
+Train/Assets/**
+Train/ConvertFolder/**
+Train/NetworkTest/**
+Quality/**

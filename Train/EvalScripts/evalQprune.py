@@ -57,7 +57,7 @@ matplotlib.rcParams['ytick.major.width'] = 5
 matplotlib.rcParams['ytick.minor.size'] = 10
 matplotlib.rcParams['ytick.minor.width'] = 4
 
-colours=["red","green","blue","orange","purple","yellow"]
+colours=["red","blue","yellow","orange","purple","yellow"]
 
 if __name__=="__main__":
     with open(sys.argv[2]+'.yaml', 'r') as f:
@@ -69,11 +69,11 @@ if __name__=="__main__":
             config = yaml.load(f,Loader=yaml.FullLoader)
 
     if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"NewKFGTTData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"NewKFGTTData_ACAT/MET/*.tfrecord")
         z0 = 'trk_z0'
         bit_z0 = 'bit_trk_z0'
     elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"OldKFGTTData/Test/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"OldKFGTTData_ACAT/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
         bit_z0 = 'bit_corrected_trk_z0'
 
@@ -85,39 +85,16 @@ if __name__=="__main__":
 
     nlatent = config["Nlatent"]
 
-    with open(kf+'experimentkey.txt') as f:
-        first_line = f.readline()
-
-    EXPERIMENT_KEY = first_line
-
-    if (EXPERIMENT_KEY is not None):
-        # There is one, but the experiment might not exist yet:
-        api = comet_ml.API() # Assumes API key is set in config/env
-        try:
-            api_experiment = api.get_experiment_by_key(EXPERIMENT_KEY)
-        except Exception:
-            api_experiment = None
-
-    experiment = comet_ml.ExistingExperiment(
-            previous_experiment=EXPERIMENT_KEY,
-            log_env_details=True, # to continue env logging
-            log_env_gpu=True,     # to continue GPU logging
-            log_env_cpu=True,     # to continue CPU logging
-        )
 
     outputFolder = kf+config['eval_folder']
     trainable = config["trainable"]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
-    QuantisedModelName = config["QuantisedModelName"] 
-    UnQuantisedModelName = config["UnQuantisedModelName"] 
 
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
             "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32),
-            "trk_hitpattern": tf.io.FixedLenFeature([nMaxTracks*11], tf.float32), 
-            "PV_hist"  :tf.io.FixedLenFeature([256,1], tf.float32),
             "tp_met_pt" : tf.io.FixedLenFeature([1], tf.float32),
             "tp_met_phi" : tf.io.FixedLenFeature([1], tf.float32)
 
@@ -125,7 +102,7 @@ if __name__=="__main__":
 
     def decode_data(raw_data):
         decoded_data = tf.io.parse_example(raw_data,features)
-        decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,nMaxTracks,11])
+        #decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,nMaxTracks,11])
         return decoded_data
 
     def setup_pipeline(fileList):
@@ -152,10 +129,11 @@ if __name__=="__main__":
             'trk_z0',
             'normed_trk_pt',
             'normed_trk_eta', 
-            'normed_trk_invR',
+            #'normed_trk_invR',
             'binned_trk_chi2rphi', 
             'binned_trk_chi2rz', 
             'binned_trk_bendchi2',
+            'trk_over_eta_squared',
             'trk_z0_res',
             'trk_pt',
             'trk_eta',
@@ -163,11 +141,6 @@ if __name__=="__main__":
             'trk_MVA1',
             'trk_fake',
             'corrected_trk_z0',
-            'corrected_trk_z0',
-            'abs_trk_word_pT',
-            'rescaled_trk_word_MVAquality',
-            'abs_trk_word_eta'
-
         ]
 
     for trackFeature in trackFeatures:
@@ -209,7 +182,7 @@ if __name__=="__main__":
                       0]
     )
     qmodel.summary()
-    qmodel.load_weights(QuantisedModelName+".tf")
+    qmodel.load_weights("OldKFQbest_weights.tf")
 
     DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=256,
@@ -221,7 +194,7 @@ if __name__=="__main__":
             nweights=1, 
             nlatent = nlatent,
             activation='relu',
-            regloss=1e-10
+            l2regloss=1e-10
         )
         
     DAmodel = DAnetwork.createE2EModel()
@@ -241,7 +214,7 @@ if __name__=="__main__":
                         0]
     )
     DAmodel.summary()
-    DAmodel.load_weights(UnQuantisedModelName+".tf")
+    DAmodel.load_weights("OldKFbest_weights.tf")
 
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
@@ -693,6 +666,7 @@ if __name__=="__main__":
     Qweightmax = np.max(predictedQWeightsarray)
     Qweightmin = np.min(predictedQWeightsarray)
 
+
     #########################################################################################
     #                                                                                       #
     #                                   Parameter Plots                                     #  
@@ -882,15 +856,15 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50,range=((Qweightmin,Qweightmax),(Qweightmin,Qweightmax)), norm=matplotlib.colors.LogNorm(),cmap=colormap)
-    ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
-    ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
-    cbar = plt.colorbar(hist2d[3] , ax=ax)
-    cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
-    plt.tight_layout()
-    plt.savefig("%s/Qweightvsweight.png" % outputFolder)
-    plt.close()
+    # hist2d = ax.hist2d(predictedQWeightsarray, predictedDAWeightsarray, bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    # ax.set_xlabel("Quantised weights", horizontalalignment='right', x=1.0)
+    # ax.set_ylabel("Weights", horizontalalignment='right', y=1.0)
+    # cbar = plt.colorbar(hist2d[3] , ax=ax)
+    # cbar.set_label('# Tracks')
+    # ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    # plt.tight_layout()
+    # plt.savefig("%s/Qweightvsweight.png" % outputFolder)
+    # plt.close()
 
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
@@ -1556,5 +1530,5 @@ if __name__=="__main__":
     plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
     plt.close()
     
-    experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
-    experiment.log_asset(sys.argv[2]+'.yaml')
+    #experiment.log_asset_folder(outputFolder, step=None, log_file_name=True)
+    #experiment.log_asset(sys.argv[2]+'.yaml')

@@ -45,7 +45,8 @@ matplotlib.rcParams['ytick.major.width'] = 5
 matplotlib.rcParams['ytick.minor.size'] = 10
 matplotlib.rcParams['ytick.minor.width'] = 4
 
-colours=["red","green","blue","orange","purple","yellow"]
+colours=["black","blue","red","orange","purple","yellow"]
+
 
 def predictFastHisto(value,weight):
     z0List = []
@@ -409,8 +410,8 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
         recallFH = tpFH / (tpFH + fnFH) 
         TPRFH = recallFH
         FPRFH = fpFH / (fpFH + tnFH) 
-        ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
-        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
+        ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='X',markersize=LINEWIDTH*5)
+        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),linewidth=LINEWIDTH,color=colours[items],marker='X',markersize=LINEWIDTH*5)
         items+=1
 
     for i,NN in enumerate(NNpred):
