@@ -14,7 +14,7 @@ tf.compat.v1.disable_eager_execution()
 
 KFname =sys.argv[1]
 
-f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/NewKF_TTbar_170K_quality.root")
+f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+sys.argv[2])
 #print (sorted(f['L1TrackNtuple']['eventTree'].keys()))
 
 branches = [
@@ -103,6 +103,7 @@ trackFeatures = [
     "trk_word_MVAquality"
 ]
 
+max_z0 = 20.46912512
 
 def unpackbits(x, num_bits):
     if np.issubdtype(x.dtype, np.floating):
@@ -186,10 +187,10 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
     #ad-hoc correction of track z0
     data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
-    data['corrected_round_z0'] = round(((data['corrected_trk_z0']+15 )*256/30),2)
+    data['corrected_round_z0'] = round(((data['corrected_trk_z0']+max_z0 )*256/(max_z0*2)),2)
     data['corrected_int_z0'] = np.floor(data['corrected_round_z0'] )
 
-    data['round_z0'] = round(((data['trk_z0']+15 )*256/30),2)
+    data['round_z0'] = round(((data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
     data['int_z0'] = np.floor(data['round_z0'] )
 
     #################################################
@@ -214,7 +215,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         #only consider well reconstructed tracks
         selectGoodTracks = (data['trk_fake'][iev]>=0.0)
 
-        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= 15.0)
+        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= max_z0)
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
@@ -236,8 +237,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
 
-        hist1,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-15,15),weights=selectPVTracks[selectTracksInZ0Range])
-        hist2,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-15,15),weights=selectPVTracks[selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range])
+        hist1,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range])
+        hist2,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range])
         #tfData['PV_hist'] = _float_feature(np.array(hist1,np.float32))
         #tfData['PVpt_hist'] = _float_feature(np.array(hist2,np.float32))
 

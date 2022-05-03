@@ -8,6 +8,7 @@ class E2EDiffArgMax():
         nbins=256,
         start=-15,
         end=15,
+        max_z0 = 15,
         ntracks=200, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -34,6 +35,7 @@ class E2EDiffArgMax():
         self.npattern = npattern
         self.nlatent = nlatent
         self.activation = activation
+        self.max_z0 = max_z0
 
         self.l2regloss = l2regloss
 
@@ -122,8 +124,8 @@ class E2EDiffArgMax():
 
         self.ArgMaxLayer = vtx.nn.BintoVertex(
             nbins=self.nbins,
-            start=-15,
-            end=15
+            start=-1*self.max_z0,
+            end=self.max_z0
         )
 
         self.pvDenseLayers = [

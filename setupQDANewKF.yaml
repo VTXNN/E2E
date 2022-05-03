@@ -1,14 +1,14 @@
 retrain : True
 comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : QDANN_trkWord_NewKF_3Conv
+comet_experiment_name : QDANN_trkWord_NewKF_3Conv_chi
 description : QDANN_fixed_point_latent
 
 trainable : "QDiffArgMax"
-weight_features : ['normed_trk_pt','trk_MVA1','normed_trk_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
-track_features : ['normed_trk_pt','trk_MVA1','trk_z0_res'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
-pretrained : True
+weight_features : ['normed_trk_pt','trk_bendchi2','trk_chi2rphi','trk_chi2rz','normed_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
+track_features : ['normed_trk_pt','trk_bendchi2','trk_chi2rphi','trk_chi2rz','trk_z0_res'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
+pretrained : False
 bit_inputs : False
-pretrain_DA : True
+pretrain_DA : False
 
 train_cnn : True
 

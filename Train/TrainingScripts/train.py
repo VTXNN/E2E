@@ -30,6 +30,8 @@ tf.config.threading.set_inter_op_parallelism_threads(
 
 kf = sys.argv[1]
 
+max_z0 = 20.46912512
+
 if kf == "NewKF":
     z0 = 'trk_z0'
     FH_z0 = 'trk_z0'
@@ -110,9 +112,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             #z0Flip = 2.*Zflip-1.
             #flipz0Flip = 1 - Zflip
 
-            #batch[z0] = batch[z0] + z0Shift
-            #batch['pvz0']= batch['pvz0'] + (z0Shift*(30/nbins))
-            #batch[FH_z0]= batch[FH_z0] + (z0Shift*(30/nbins))
+            batch[z0] = batch[z0] + z0Shift
+            batch['pvz0']= batch['pvz0'] + (z0Shift*((max_z0*2)/nbins))
+            batch[FH_z0]= batch[FH_z0] + (z0Shift*((max_z0*2)/nbins))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -323,8 +325,8 @@ if __name__=="__main__":
     pretrain_DA = config["pretrain_DA"]
 
     if (kf == 'NewKF') | (kf == 'OldKF'):
-        start = -15
-        end = 15
+        start = -1*max_z0
+        end = max_z0
         bit = False
 
     elif (kf == 'OldKF_intZ') | (kf == 'NewKF_intZ'):
@@ -338,6 +340,7 @@ if __name__=="__main__":
             nbins=nbins,
             start=start,
             end = end,
+            max_z0 = max_z0,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -363,6 +366,7 @@ if __name__=="__main__":
             nbins=nbins,
             start = start,
             end = end,
+            max_z0 = max_z0,
             ntracks=max_ntracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -389,6 +393,7 @@ if __name__=="__main__":
             nbins=nbins,
             start = start,
             end = end,
+            max_z0 = max_z0,
             ntracks=max_ntracks, 
             return_index = bit,
             nweightfeatures=len(weightfeat), 
@@ -424,7 +429,10 @@ if __name__=="__main__":
                 'trk_MVA1',
                 'trk_z0_res',
                 'normed_trk_over_eta',
-                'int_z0'
+                'int_z0',
+                'trk_bendchi2',
+                'trk_chi2rphi',
+                'trk_chi2rz'
         ]
         
     elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
@@ -445,6 +453,9 @@ if __name__=="__main__":
                 'unscaled_trk_word_eta',
                 'unscaled_trk_word_MVAquality',
                 'unscaled_trk_z0_res',
+                'binned_trk_bendchi2',
+                'binned_trk_chi2rphi',
+                'binned_trk_chi2rz'
         ]
 
 
@@ -478,8 +489,8 @@ if __name__=="__main__":
     if trainable == 'DA':
         loss_function = tf.keras.losses.Huber(config['Huber_delta'])
     else:
-        loss_function = tf.keras.losses.MeanSquaredError()
-        #loss_function = tf.keras.losses.Huber(1.0)
+        #loss_function = tf.keras.losses.MeanSquaredError()
+        loss_function = tf.keras.losses.Huber(0.2)
     
     print(loss_function)
     model = network.createE2EModel()

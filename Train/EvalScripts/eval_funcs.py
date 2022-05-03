@@ -27,6 +27,7 @@ LINEWIDTH = 3
 MARKERSIZE = 20
 
 nbins = 256
+max_z0 = 20.46912512
 
 colormap = "jet"
 
@@ -116,16 +117,16 @@ def setup_pipeline(fileList):
 
 def predictFastHisto(value,weight, res_func, return_index = False):
     z0List = []
-    halfBinWidth = 0.5*30./nbins
+    halfBinWidth = 0.5*(2*max_z0)/nbins
 
     for ibatch in range(value.shape[0]):
-        hist,bin_edges = np.histogram(value[ibatch],nbins,range=(-15,15),weights=weight[ibatch]*res_func[ibatch])
+        hist,bin_edges = np.histogram(value[ibatch],nbins,range=(-1*max_z0,max_z0),weights=weight[ibatch]*res_func[ibatch])
         hist = np.convolve(hist,[1,1,1],mode='same')
         z0Index= np.argmax(hist)
         if return_index:
             z0List.append([z0Index])
         else:
-            z0 = -15.+30.*z0Index/nbins+halfBinWidth
+            z0 = -1*max_z0 +(2*max_z0)*z0Index/nbins+halfBinWidth
             z0List.append([z0])
     return np.array(z0List,dtype=np.float32)
 
@@ -176,7 +177,7 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     items = 0
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
-        ax[0].hist(FH,bins=50,range=(-15,15),histtype="step",
+        ax[0].hist(FH,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
                  %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)))
@@ -188,7 +189,7 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 
     for i,NN in enumerate(NNdiff):
         qz0_NN = np.percentile(NN,[32,50,68])
-        ax[0].hist(NN,bins=50,range=(-15,15),histtype="step",
+        ax[0].hist(NN,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
                  %(NNnames[i],np.sqrt(np.mean(NN**2))),LEGEND_WIDTH)))
@@ -444,14 +445,14 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
     PU = assoc == 2
     PV = assoc == 1
 
-    PUhist,PUbin_edges = np.histogram(tracks[PU],nbins,range=(-15,15),weights=weights[PU])
-    plt.bar(PUbin_edges[:-1],PUhist,width=30/nbins,color='b',alpha=0.5, label="PU Trk",bottom=2)
+    PUhist,PUbin_edges = np.histogram(tracks[PU],nbins,range=(-1*max_z0,max_z0),weights=weights[PU])
+    plt.bar(PUbin_edges[:-1],PUhist,width=(2*max_z0)/nbins,color='b',alpha=0.5, label="PU Trk",bottom=2)
 
-    Fakehist,Fakebin_edges = np.histogram(tracks[fakes],nbins,range=(-15,15),weights=weights[fakes])
-    plt.bar(Fakebin_edges[:-1],Fakehist,width=30/nbins,color='r',alpha=0.5, label="Fake Trk",bottom=2+PUhist)
+    Fakehist,Fakebin_edges = np.histogram(tracks[fakes],nbins,range=(-1*max_z0,max_z0),weights=weights[fakes])
+    plt.bar(Fakebin_edges[:-1],Fakehist,width=(2*max_z0)/nbins,color='r',alpha=0.5, label="Fake Trk",bottom=2+PUhist)
 
-    PVhist,PVbin_edges = np.histogram(tracks[PV],nbins,range=(-15,15),weights=weights[PV])
-    plt.bar(PVbin_edges[:-1],PVhist,width=30/nbins,color='g',alpha=0.5, label="PV Trk",bottom=2+PUhist+Fakehist)
+    PVhist,PVbin_edges = np.histogram(tracks[PV],nbins,range=(-1*max_z0,max_z0),weights=weights[PV])
+    plt.bar(PVbin_edges[:-1],PVhist,width=(2*max_z0)/nbins,color='g',alpha=0.5, label="PV Trk",bottom=2+PUhist+Fakehist)
 
     maxpt = np.max(2+PUhist+Fakehist+PVhist)*1.5
 
@@ -467,7 +468,7 @@ def plotKDEandTracks(tracks,assoc,genPV,predictedPV,weights,weight_label="KDE",t
 
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
     ax.set_ylabel('$\\sum p_T$ [GeV]',ha="right",y=1)
-    ax.set_xlim(-15,15)
+    ax.set_xlim(-1*max_z0,max_z0)
     ax.set_ylim(2,maxpt)
     ax.set_yscale("log")
     ax.grid()

@@ -11,6 +11,7 @@ class E2EQKerasDiffArgMax():
         nbins=256,
         start=-15,
         end=15,
+        max_z0 = 15,
         ntracks=200, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -39,6 +40,7 @@ class E2EQKerasDiffArgMax():
         self.npattern = npattern
         self.nlatent = nlatent
         self.train_cnn = train_cnn
+        self.max_z0 = max_z0
 
         self.activation = 'relu'#quantized_relu(self.bits)
 
@@ -124,8 +126,8 @@ class E2EQKerasDiffArgMax():
 
         self.ArgMaxLayer = vtx.nn.BintoVertex(
             nbins=self.nbins,
-            start=-15,
-            end=15
+            start=-1*self.max_z0,
+            end=self.max_z0
         )
 
         self.pvDenseLayers = [

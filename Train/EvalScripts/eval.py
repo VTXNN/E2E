@@ -36,6 +36,7 @@ LEGEND_WIDTH = 20
 LINEWIDTH = 3
 MARKERSIZE = 20
 
+max_z0 = 20.46912512
 colormap = "jet"
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
@@ -71,15 +72,15 @@ if __name__=="__main__":
         test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'trk_z0'
         FH_z0 = 'trk_z0'
-        start = -15
-        end = 15
+        start = -1*max_z0
+        end = max_z0
         bit = False
 
     elif kf == "OldKF":
         test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
         z0 = 'corrected_trk_z0'
-        start = -15
-        end = 15
+        start = -1*max_z0
+        end = max_z0
         bit = False
 
     elif kf == "OldKF_intZ":
@@ -188,6 +189,7 @@ if __name__=="__main__":
             nbins=nbins,
             start=start,
             end=end,
+            max_z0 = max_z0,
             ntracks=nMaxTracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
@@ -225,6 +227,7 @@ if __name__=="__main__":
             nbins=nbins,
             start=start,
             end=end,
+            max_z0 = max_z0,
             return_index = bit,
             ntracks=nMaxTracks, 
             nweightfeatures=len(weightfeat), 
@@ -257,6 +260,7 @@ if __name__=="__main__":
             ntracks=nMaxTracks, 
             start=start,
             end=end,
+            max_z0 = max_z0,
             return_index = bit,
             nweightfeatures=len(config["weight_features"]),  
             nfeatures=len(config["track_features"]), 
@@ -1225,10 +1229,10 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    ax.hist(z0_FH_array,range=(-15,15),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
-    ax.hist(z0_FHres_array,range=(-15,15),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
-    ax.hist(z0_QNN_array,range=(-15,15),bins=120,density=True,color='b',histtype="step",label="CNN")
-    ax.hist(z0_PV_array,range=(-15,15),bins=120,density=True,color='y',histtype="step",label="Truth")
+    ax.hist(z0_FH_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
+    ax.hist(z0_FHres_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
+    ax.hist(z0_QNN_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='b',histtype="step",label="CNN")
+    ax.hist(z0_PV_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='y',histtype="step",label="Truth")
     ax.grid(True)
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
@@ -1240,7 +1244,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1252,7 +1256,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1264,7 +1268,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1276,7 +1280,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-15,15),(-30,30)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1288,7 +1292,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1300,7 +1304,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1312,7 +1316,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1324,7 +1328,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1336,7 +1340,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-15,15),(-15,15)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("Reco PV $z_0$ NN [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
