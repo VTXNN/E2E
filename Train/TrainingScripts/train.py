@@ -318,7 +318,7 @@ if __name__=="__main__":
     position_final_bias = []
     for i in range(nlatent+1):
         position_final_weights.append(1)
-        position_final_bias.append(30/256)
+        position_final_bias.append((max_z0*2)/nbins)
 
     
     PretrainedModelName = config["PretrainedModelName"] 
@@ -386,7 +386,7 @@ if __name__=="__main__":
         )
 
         model_name = [config['QuantisedModelName'],"_prune_iteration_0"]
-        epochs = config['qtrain_epochs']
+        epochs = config['epochs']
 
     if trainable == 'QDA_prune':
         network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
