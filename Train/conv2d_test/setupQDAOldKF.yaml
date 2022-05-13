@@ -2,7 +2,15 @@ comet_project_name : Vertex_CNN_Prune
 comet_experiment_name : QDANN_trkWord_OldTQ
 description : QDANN_fixed_point_latent
 
-hist_features : ['trk_feature_Image']
+hist_features : ['trk_pt',
+                 'trk_eta',
+                 'trk_MVA1',
+                 'trk_chi2rphi',
+                 'trk_chi2rz',
+                 'trk_bendchi2',
+                 'trk_nstub',
+                 'trk_phi',
+                 'trk_over_eta_squared']
  
 track_features :  ['trk_pt','trk_MVA1','trk_z0_res']  
 

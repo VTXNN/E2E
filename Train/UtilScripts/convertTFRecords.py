@@ -87,6 +87,7 @@ trackFeatures = [
     'trk_chi2rphi', 
     'trk_chi2rz', 
     'trk_bendchi2',
+    'trk_nstub',
     'corrected_trk_z0',
     'corrected_int_z0',
     'trk_fake',
@@ -145,6 +146,9 @@ def _float_feature(value):
         value=np.nan_to_num(value.flatten(), nan=0.0, posinf=0.0, neginf=0.0)
     ))
 
+def _array_feature(value):
+    tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
 def splitter(x,granularity,signed):
     import math
 
@@ -174,7 +178,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     print ('processing batch:',ibatch+1,'/',math.ceil(1.*len(f['L1TrackNtuple']['eventTree'])/chunkread))
     
     tfwriter = tf.io.TFRecordWriter(
-        '/home/cebrown/Documents/Datasets/VertexDatasets/%sGTTData/%s%i.tfrecord'%(KFname,KFname,ibatch),
+        '/home/cebrown/Documents/Datasets/VertexDatasets/%sGTTData_oldTQ/%s%i.tfrecord'%(KFname,KFname,ibatch),
         options=tf.io.TFRecordOptions(
             compression_type='GZIP',
             compression_level = 4,
@@ -237,8 +241,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
 
-        hist1,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range])
-        hist2,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range])
+        #hist1,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range])
+        #hist2,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range])
         #tfData['PV_hist'] = _float_feature(np.array(hist1,np.float32))
         #tfData['PVpt_hist'] = _float_feature(np.array(hist2,np.float32))
 
@@ -288,7 +292,25 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['trk_word_pT'] = _float_feature(padArray(np.array(data['trk_word_pT'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
         tfData['trk_word_eta'] = _float_feature(padArray(np.array(data['trk_word_eta'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
         tfData['trk_word_MVAquality'] = _float_feature(padArray(np.array(data['trk_word_MVAquality'][iev][selectTracksInZ0Range],np.float32),nMaxTracks,num=0))
-   
+
+        histos=[]
+        histfeat = ['trk_pt',
+                    'trk_eta',
+                    'trk_MVA1',
+                    'trk_chi2rphi',
+                    'trk_chi2rz',
+                    'trk_bendchi2',
+                    'trk_nstub',
+                    'trk_phi'
+                    ]
+        for feature in histfeat:
+            hist =np.histogram(data['corrected_int_z0'][iev],256,range=(-1*max_z0,max_z0),weights=data[feature][iev],density=True)[0]
+            histos.append(hist)
+
+        histos.append( np.histogram(data['corrected_int_z0'][iev],256,range=(-1*max_z0,max_z0),weights=np.array(1/(0.1+0.2*(data['trk_eta'][iev])**2)),density=True)[0])
+
+        twod_hist = np.stack(histos, axis=0)
+        tfData['trk_feature_Image'] = _array_feature(np.array(twod_hist))
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))
 
