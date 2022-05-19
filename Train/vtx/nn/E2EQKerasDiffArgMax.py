@@ -245,7 +245,8 @@ class E2EQKerasDiffArgMax():
 
         assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
         #assocProbability = self.outputSoftmax(assocProbability)
-        
+        print(assocFeat.shape)
+        print(assocProbability.shape)
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
             outputs=[pvPosition,assocProbability,weights]

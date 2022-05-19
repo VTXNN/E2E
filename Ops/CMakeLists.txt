@@ -31,7 +31,7 @@ message(STATUS "Module name: ${MODULENAME}")
 
 message(STATUS "Install dir: ${CMAKE_INSTALL_PREFIX}")
 
-set(CMAKE_CXX_STANDARD 11) #binary incompatible with c++17
+set(CMAKE_CXX_STANDARD 14) #binary incompatible with c++17
 add_definitions(${TF_DEF})
 
 include_directories(${CURRENT_CMAKE_SOURCE_DIR})

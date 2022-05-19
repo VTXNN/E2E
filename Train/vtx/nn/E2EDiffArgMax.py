@@ -1,3 +1,4 @@
+import tensorflow_decision_forests as tfdf
 import tensorflow as tf
 import tensorflow_probability as tfp
 import vtx
@@ -140,32 +141,9 @@ class E2EDiffArgMax():
             )
         ]
           
-        self.assocLayers = []
-        for ilayer,filterSize in enumerate(([nassocnodes]*nassoclayers)):
-            self.assocLayers.extend([
-                tf.keras.layers.Dense(
-                    filterSize,
-                    activation=self.activation,
-                    kernel_initializer='orthogonal',
-                    kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
-                    name='association_'+str(ilayer)
-                ),
-                tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.Activation(self.activation),
-                #tf.keras.layers.BatchNormalization(),
-            ])
-            
-        self.assocLayers.extend([
-            tf.keras.layers.Dense(
-                1,
-                activation=None,
-                kernel_initializer='orthogonal',
-                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
-                name='association_final'
-            )
-        ])
-
-        #self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
+        self.first_vertex_BDT = tfdf.keras.RandomForestModel(num_trees=1000)
+        self.first_vertex_BDT.task = task=tfdf.keras.Task.CLASSIFICATION
+        self.first_vertex_BDT.input_spec=tf.keras.layers.InputSpec(shape=(None,250,4,1))
 
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
 
@@ -195,9 +173,8 @@ class E2EDiffArgMax():
         return tf.keras.Model(inputs=[convsInput],outputs=[argmax])
     
     def createAssociationModel(self):
-        assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
-        assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        #assocProbability = self.outputSoftmax(assocProbability)
+        assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1),name="assoc")
+        assocProbability = self.first_vertex_BDT(assocInput)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -238,8 +215,15 @@ class E2EDiffArgMax():
             
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
-        assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
-        #assocProbability = self.outputSoftmax(assocProbability)
+        print(assocFeat.shape)
+
+        assocFeat = tf.expand_dims(assocFeat,3)
+
+        print(assocFeat.shape)
+
+        assocProbability =  self.first_vertex_BDT(assocFeat)
+
+        print(assocProbability.shape)
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
