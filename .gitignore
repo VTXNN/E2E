@@ -37,3 +37,4 @@ hls4ml_projects/*
 PretrainedModels/**
 Assets_*/
 Train/NetworkTest/**
+CMSSW_comp/**
