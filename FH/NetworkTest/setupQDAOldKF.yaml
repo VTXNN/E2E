@@ -1,0 +1,74 @@
+retrain : True
+comet_project_name : Vertex_CNN_Prune
+comet_experiment_name : QDANN_trkWord
+description : QDANN_fixed_point
+
+trainable : "QDiffArgMax"
+weight_features : ['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta'] #
+track_features : ['abs_trk_word_pT','rescaled_trk_word_MVAquality','trk_z0_res'] #['abs_trk_word_pT','rescaled_trk_word_MVAquality','abs_trk_word_eta']  #['bit_trk_pt','rescaled_bit_MVA1','rescaled_bit_trk_z0_res','bit_trk_eta'] #['normed_trk_pt','trk_MVA1','normed_trk_eta'] #
+pretrained : True
+bit_inputs : False
+pretrain_DA : True
+
+QuantisedModelName : Quantised_model
+UnquantisedModelName : Unquantised_model
+QuantisedPrunedModelName : Quantised_model_prune_iteration_9
+PretrainedModelName : NewKF_Unquantised_model
+
+prune_iterations : 8
+nbins : 256
+
+eval_folder : Qplots
+data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData
+
+Nlatent : 0
+
+starting_lr : 0.001
+qtrain_starting_lr : 0.00001
+
+epochs : 25
+qtrain_epochs : 10
+
+z0_loss_weight : 1
+crossentropy_loss_weight : 2
+qtrain_z0_loss_weight : 1
+qtrain_crossentropy_loss_weight : 2
+
+Huber_delta : 0.5
+
+l1regloss : 1e-3
+l2regloss : 1e-10
+nweightnodes : 10
+nweightlayers : 2
+nassocnodes : 20
+nassoclayers : 2
+
+relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.02,0.025,0.03,0.035,0.04]
+
+QConfig:
+  weight_1: 
+    kernel_quantizer: quantized_bits(6,2,alpha=1)
+    bias_quantizer: quantized_bits(6,1,alpha=1)
+    activation : quantized_relu(8,1)
+  weight_2:
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
+    bias_quantizer : quantized_bits(6,1,alpha=1)
+    activation : quantized_relu(8,1)
+  weight_final:
+    kernel_quantizer : quantized_bits(6,2,alpha=1)
+    bias_quantizer : quantized_bits(6,1,alpha=1)
+    activation : quantized_relu(8,1)
+  conv_1:
+    kernel_quantizer : quantized_bits(3,1,alpha=1)
+    activation : quantized_relu(5,1)
+  association_0 :
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)
+    activation : quantized_relu(14,4)
+  association_1 : 
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)
+    activation : quantized_relu(12,4)
+  association_final : 
+    kernel_quantizer : quantized_bits(6,3,alpha=1)
+    bias_quantizer : quantized_bits(4,2,alpha=1)

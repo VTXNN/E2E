@@ -382,8 +382,8 @@ if __name__=="__main__":
         data = {k.decode('utf-8'):v for k,v in data.items() }
         data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
 
-        if ibatch > 0:
-           break
+        #if ibatch > 0:
+        #   break
 
         if ((ibatch % 1 == 0) & (ibatch != 0)):
              print("Step: ", ibatch, " Out of ",int(len(f['L1TrackNtuple']['eventTree'])/5000))
