@@ -212,12 +212,12 @@ def plotz0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles,splitplo
                  linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items],
                  )
         ax[0].plot(0,1,label='\n'.join(wrap(f"%s \n RMS = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH,)
+                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH)
         ax[1].hist(FH,bins=50,range=(-1,1),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items],
                  )
         ax[1].plot(0,1,label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH,)
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH)
         items+=1
 
     ax[0].grid(True)
@@ -245,15 +245,15 @@ def plot_split_z0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles):
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
         ax.hist(FH,bins=50,range=(-15,15),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items],
-                 label='\n'.join(wrap(f"%s \n RMS = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)))
+                 linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items])
+        ax.plot(0,1,label='\n'.join(wrap(f"%s \n RMS = %.4f" 
+                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH)
         items+=1
 
     ax.grid(True)
     ax.set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
-    ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='k')
+    ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
     ax.set_yscale("log")
     ax.set_ylim([5,200000])
     fig_1.tight_layout()
@@ -268,15 +268,15 @@ def plot_split_z0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles):
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
         ax.hist(FH,bins=50,range=(-1,1),histtype="step",
-                 linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items],
-                 label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)))
+                 linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items])
+        ax.plot(0,1,label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH)
         items+=1
 
     ax.grid(True)
     ax.set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
-    ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='k')
+    ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
     ax.set_ylim([0,65000])
     fig_2.tight_layout()
 
@@ -725,14 +725,14 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
-    ax.plot(thresholds,predictedZ0_MVA_RMS_array,label="BDT",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
+    ax.plot(thresholds,predictedZ0_MVA_RMS_array,label="BDT FH",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[0]),label="Base FH",linestyle=linestyles[1],linewidth=LINEWIDTH,color=colours[1])
     ax.plot(thresholds,np.full(len(thresholds),FHresWidths[0]),label="$\eta$ Corrected FH",linestyle=linestyles[2],linewidth=LINEWIDTH,color=colours[2])
     ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[0]),label="No Fakes FH",linestyle=linestyles[3],linewidth=LINEWIDTH,color=colours[3])
     ax.plot(thresholds,np.full(len(thresholds),FHPVWidths[0]),label="Only PV FH",linestyle=linestyles[4],linewidth=LINEWIDTH,color=colours[4])
     ax.plot(thresholds,np.full(len(thresholds),FHchi2Widths[0]),label="$\chi^{2}$ Corrected FH",linestyle=linestyles[5],linewidth=LINEWIDTH,color=colours[5])
     
-    ax.set_ylabel("$z_{0}^{PV}$ Residual RMS", horizontalalignment='right', y=1.0)
+    ax.set_ylabel("$z_{0}^{PV}$ Residual RMS [cm]", horizontalalignment='right', y=1.0)
     ax.set_xlabel("BDT classification threshold", horizontalalignment='right', x=1.0)
     ax.legend(frameon=True,facecolor='w',edgecolor='w',loc=3)
     plt.tight_layout()
@@ -752,7 +752,7 @@ if __name__=="__main__":
     ax.plot(thresholds,np.full(len(thresholds),FHPVWidths[1]),label="Only PV FH",linestyle=linestyles[4],linewidth=LINEWIDTH,color=colours[4])
     ax.plot(thresholds,np.full(len(thresholds),FHchi2Widths[1]),label="$\chi^{2}$ Corrected FH",linestyle=linestyles[5],linewidth=LINEWIDTH,color=colours[5])
     
-    ax.set_ylabel("$z_{0}^{PV}$ Residual Quartile Width", horizontalalignment='right', y=1.0)
+    ax.set_ylabel("$z_{0}^{PV}$ Residual Quartile Width [cm]", horizontalalignment='right', y=1.0)
     ax.set_xlabel("BDT classification threshold", horizontalalignment='right', x=1.0)
     ax.legend(frameon=True,facecolor='w',edgecolor='w',loc=3)
     plt.tight_layout()
@@ -765,14 +765,14 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
-    ax.plot(thresholds,predictedZ0_MVA_Centre_array,label="BDT",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
+    ax.plot(thresholds,predictedZ0_MVA_Centre_array,label="BDT FH",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[2]),label="Base FH",linestyle=linestyles[1],linewidth=LINEWIDTH,color=colours[1])
     ax.plot(thresholds,np.full(len(thresholds),FHresWidths[2]),label="$\eta$ Corrected FH",linestyle=linestyles[2],linewidth=LINEWIDTH,color=colours[2])
     ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[2]),label="No Fakes FH",linestyle=linestyles[3],linewidth=LINEWIDTH,color=colours[3])
     ax.plot(thresholds,np.full(len(thresholds),FHPVWidths[2]),label="Only PV FH",linestyle=linestyles[4],linewidth=LINEWIDTH,color=colours[4])
     ax.plot(thresholds,np.full(len(thresholds),FHchi2Widths[2]),label="$\chi^{2}$ Corrected FH",linestyle=linestyles[5],linewidth=LINEWIDTH,color=colours[5])
     
-    ax.set_ylabel("$z_{0}^{PV}$ Residual Centre", horizontalalignment='right', y=1.0)
+    ax.set_ylabel("$z_{0}^{PV}$ Residual Centre [cm]", horizontalalignment='right', y=1.0)
     ax.set_xlabel("BDT classification threshold", horizontalalignment='right', x=1.0)
     ax.legend(frameon=True,facecolor='w',edgecolor='w',loc=3)
     plt.tight_layout()
@@ -785,7 +785,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
-    ax.plot(thresholds,predictedZ0_MVA_Efficiency_array,label="BDT",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
+    ax.plot(thresholds,predictedZ0_MVA_Efficiency_array,label="BDT FH",markersize=10,linestyle=linestyles[0],linewidth=LINEWIDTH,marker='o',color=colours[0])
     ax.plot(thresholds,np.full(len(thresholds),FHwidths[3]),label="Base FH",linestyle=linestyles[1],linewidth=LINEWIDTH,color=colours[1])
     ax.plot(thresholds,np.full(len(thresholds),FHresWidths[3]),label="$\eta$ Corrected FH",linestyle=linestyles[2],linewidth=LINEWIDTH,color=colours[2])
     ax.plot(thresholds,np.full(len(thresholds),FHNoFakeWidths[3]),label="No Fakes FH",linestyle=linestyles[3],linewidth=LINEWIDTH,color=colours[3])
@@ -794,7 +794,7 @@ if __name__=="__main__":
     
     ax.set_ylabel("Vertex Finding Efficiency (threshold 0.5 cm)", horizontalalignment='right', y=1.0)
     ax.set_xlabel("BDT classification threshold", horizontalalignment='right', x=1.0)
-    ax.legend(frameon=False,facecolor='w',loc=1)
+    ax.legend(frameon=True,facecolor='w',edgecolor='w',loc=3)
     plt.tight_layout()
     plt.savefig("%s/BDTEfficiencyvsThreshold.pdf" %  outputFolder)
     plt.savefig("%s/BDTEfficiencyvsThreshold.png" %  outputFolder)
