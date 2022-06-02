@@ -140,10 +140,20 @@ class E2EDiffArgMax():
                 name='position_final'
             )
         ]
+
+        self.first_vertex_BDT = tfdf.keras.GradientBoostedTreesModel(num_trees=1000)
+        #self.first_vertex_BDT.task =tfdf.keras.Task.CLASSIFICATION
+        self.first_vertex_BDT.input_spec=tf.keras.layers.InputSpec(shape=(None,250,4))
+
+
+        self.assocLayers = []
+
+        self.assocLayers.extend([
+            self.first_vertex_BDT
+        ])
+
+
           
-        self.first_vertex_BDT = tfdf.keras.RandomForestModel(num_trees=1000)
-        self.first_vertex_BDT.task = task=tfdf.keras.Task.CLASSIFICATION
-        self.first_vertex_BDT.input_spec=tf.keras.layers.InputSpec(shape=(None,250,4,1))
 
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
 
@@ -174,7 +184,7 @@ class E2EDiffArgMax():
     
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1),name="assoc")
-        assocProbability = self.first_vertex_BDT(assocInput)
+        assocProbability = self.applyLayerList(assocInput,self.assocLayers)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -217,11 +227,10 @@ class E2EDiffArgMax():
 
         print(assocFeat.shape)
 
-        assocFeat = tf.expand_dims(assocFeat,3)
-
         print(assocFeat.shape)
 
-        assocProbability =  self.first_vertex_BDT(assocFeat)
+        #assocProbability =  self.first_vertex_BDT(assocFeat)
+        assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
 
         print(assocProbability.shape)
         

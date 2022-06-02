@@ -22,7 +22,7 @@ prune_iterations : 8
 nbins : 256
 
 eval_folder : Qplots
-data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_oldTQ
+data_folder : /home/cb719/Documents/DataSets/VertexDatasets/OldKFGTTData_oldTQ
 
 Nlatent : 0
 
