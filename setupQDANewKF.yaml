@@ -18,7 +18,7 @@ PretrainedModelName : NewKF_Unquantised_model
 
 
 eval_folder : Qplots
-data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/NewKFGTTData
+data_folder : /home/cb719/Documents/DataSets/VertexDatasets/OldKFGTTData_oldTQ
 
 Nlatent : 0
 nbins : 256
