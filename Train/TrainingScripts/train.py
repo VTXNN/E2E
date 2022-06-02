@@ -492,9 +492,8 @@ if __name__=="__main__":
         #loss_function = tf.keras.losses.MeanSquaredError()
         loss_function = tf.keras.losses.Huber(0.2)
     
-    print(loss_function)
     model = network.createE2EModel()
-    optimizer = tf.keras.optimizers.Adam(lr=startingLR)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=startingLR)
     model.compile(
         optimizer,
         loss=[
@@ -598,7 +597,7 @@ if __name__=="__main__":
             )
             
             DAmodel = DAnetwork.createE2EModel()
-            optimizer = tf.keras.optimizers.Adam(lr=0.01)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
             DAmodel.compile(
                 optimizer,
                 loss=[
