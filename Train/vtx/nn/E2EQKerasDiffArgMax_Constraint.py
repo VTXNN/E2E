@@ -285,6 +285,23 @@ class E2EQKerasDiffArgMaxConstraint():
         self.weightModel.summary()
         self.associationModel.summary()
 
+        # self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
+        # self.weightModel.get_layer('q_activation').set_weights   (largerModel.get_layer('q_activation').get_weights())
+        # self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
+        # self.weightModel.get_layer('q_activation_1').set_weights (largerModel.get_layer('q_activation_1').get_weights())
+        # self.weightModel.get_layer('weight_final').set_weights   (largerModel.get_layer('weight_final').get_weights())
+        # self.weightModel.get_layer('q_activation_2').set_weights (largerModel.get_layer('q_activation_2').get_weights())
+
+        # self.patternModel.get_layer('pattern_1').set_weights     (largerModel.get_layer('pattern_1').get_weights())
+        # self.patternModel.get_layer('q_activation_3').set_weights(largerModel.get_layer('q_activation_3').get_weights())
+
+        # self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
+        # self.associationModel.get_layer('q_activation_4').set_weights   (largerModel.get_layer('q_activation_4').get_weights()) 
+        # self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
+        # self.associationModel.get_layer('q_activation_5').set_weights   (largerModel.get_layer('q_activation_5').get_weights()) 
+        # self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
+
+
         self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
         self.weightModel.get_layer('q_activation_6').set_weights   (largerModel.get_layer('q_activation_6').get_weights())
         self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
@@ -329,9 +346,6 @@ class E2EQKerasDiffArgMaxConstraint():
     def export_hls_weight_model(self,modelName):
         import hls4ml
         import numpy as np
-        import matplotlib
-        #matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
         print(weightconfig)
@@ -346,23 +360,35 @@ class E2EQKerasDiffArgMaxConstraint():
                                                             part='xcvu9p-flga2104-2L-e',
                                                             #part='xcvu13p-flga2577-2-e',
                                                             clock_period=2.0)
-        #hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_Weight_model.png")
-        #plt.clf()
-        #ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
-        #wp.savefig(modelName+"_Weight_model_activations_profile.png")
-        #ap.savefig(modelName+"_Weight_model_weights_profile.png")
 
         hls_weight_model.compile()
         hls_weight_model.build(csim=True,synth=True,vsynth=True)
 
-
-
-    def export_hls_pattern_model(self,modelName):
+    def plot_hls_weight_model(self,modelName):
         import hls4ml
         import numpy as np
         import matplotlib
         #matplotlib.use('Agg')
         import matplotlib.pyplot as plt
+
+        weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
+
+        random_weight_data = np.random.rand(1000,3)
+        hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
+                                                            hls_config=weightconfig,
+                                                            output_dir=modelName+'_hls_weight/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            #part='xcvu13p-flga2577-2-e',
+                                                            clock_period=2.0)
+
+        plt.clf()
+        ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
+        wp.savefig(modelName+"_Weight_model_activations_profile.png")
+        ap.savefig(modelName+"_Weight_model_weights_profile.png")
+
+    def export_hls_pattern_model(self,modelName):
+        import hls4ml
+        import numpy as np
 
         patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
         patternconfig['Model']['Strategy'] = 'Resource'
@@ -377,21 +403,36 @@ class E2EQKerasDiffArgMaxConstraint():
                                                             fpga_part='xcvu9p-flga2104-2L-e',
                                                             #fpga_part='xcvu13p-flga2577-2-e',
                                                             clock_period=2.0)
-        #hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
-        #plt.clf()
-        #ap,wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-        #wp.savefig(modelName+"_pattern_model_activations_profile.png")
-        #ap.savefig(modelName+"_pattern_model_weights_profile.png")
 
         hls_pattern_model.compile()
         hls_pattern_model.build(csim=True,synth=True,vsynth=True)
 
+    def plot_hls_pattern_model(self,modelName):
+            import hls4ml
+            import numpy as np
+            import matplotlib
+            #matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+
+            patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
+            patternconfig['Model']['Strategy'] = 'Resource'
+            random_pattern_data = np.random.rand(1000,256,1)
+            hls_pattern_model = hls4ml.converters.convert_from_keras_model(self.patternModel,
+                                                                hls_config=patternconfig,
+                                                                output_dir=modelName+'_hls_pattern/hls4ml_prj',
+                                                                fpga_part='xcvu9p-flga2104-2L-e',
+                                                                #fpga_part='xcvu13p-flga2577-2-e',
+                                                                clock_period=2.0)
+
+
+            plt.clf()
+            ap, wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
+            wp.savefig(modelName+"_Pattern_model_activations_profile.png")
+            ap.savefig(modelName+"_Pattern_model_weights_profile.png")
+
     def export_hls_assoc_model(self,modelName):
         import hls4ml
         import numpy as np
-        import matplotlib
-        #matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
         print(associationconfig)
@@ -406,11 +447,27 @@ class E2EQKerasDiffArgMaxConstraint():
                                                             part='xcvu9p-flga2104-2L-e',
                                                             #part='xcvu13p-flga2577-2-e',
                                                             clock_period=1.8)
-        #hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
-        #plt.clf()
-        #ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
-        #wp.savefig(modelName+"_association_model_activations_profile.png")
-        #ap.savefig(modelName+"_association_model_weights_profile.png")
+
 
         hls_association_model.compile()
         hls_association_model.build(csim=True,synth=True,vsynth=True)
+
+    def plot_hls_assoc_model(self,modelName):
+        import hls4ml
+        import numpy as np
+        import matplotlib
+        #matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
+        random_association_data = np.random.rand(1000,4+self.nlatent)
+        hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
+                                                            hls_config=associationconfig,
+                                                            output_dir=modelName+'_hls_association/hls4ml_prj',
+                                                            fpga_part='xcvu9p-flga2104-2L-e',
+                                                            #part='xcvu13p-flga2577-2-e',
+                                                            clock_period=1.8)
+        plt.clf()
+        ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
+        wp.savefig(modelName+"_association_model_activations_profile.png")
+        ap.savefig(modelName+"_association_model_weights_profile.png")

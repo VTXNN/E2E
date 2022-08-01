@@ -174,7 +174,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     print ('processing batch:',ibatch+1,'/',math.ceil(1.*len(f['L1TrackNtuple']['eventTree'])/chunkread))
     
     tfwriter = tf.io.TFRecordWriter(
-        '/home/cebrown/Documents/Datasets/VertexDatasets/%sGTTData/%s%i.tfrecord'%(KFname,KFname,ibatch),
+        '/home/cebrown/Documents/Datasets/VertexDatasets/%sGTTData_oldTQ/%s%i.tfrecord'%(KFname,KFname,ibatch),
         options=tf.io.TFRecordOptions(
             compression_type='GZIP',
             compression_level = 4,
@@ -219,6 +219,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
+        selectPUTracks = (data['trk_fake'][iev]!=1)
 
         if (np.sum(1.*selectPVTracks)<1):
             continue
@@ -236,6 +237,12 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['pv_trk_met_phi'] = _float_feature(np.array([pv_trk_met_phi],np.float32))
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
+
+        PVtrack_weight = (1/len(data['trk_pt'][iev][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+        PUtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPUTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+        track_weight = np.where((data['trk_fake'][iev][selectTracksInZ0Range]==1), PVtrack_weight, PUtrack_weight)
+
+        tfData['trk_class_weight'] = _float_feature(padArray(track_weight,nMaxTracks))
 
         hist1,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range])
         hist2,bin_edges = np.histogram(data['trk_z0'][iev][selectTracksInZ0Range],256,range=(-1*max_z0,max_z0),weights=selectPVTracks[selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range]*data['trk_pt'][iev][selectTracksInZ0Range])

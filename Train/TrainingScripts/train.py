@@ -112,9 +112,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             #z0Flip = 2.*Zflip-1.
             #flipz0Flip = 1 - Zflip
 
-            batch[z0] = batch[z0] + z0Shift
-            batch['pvz0']= batch['pvz0'] + (z0Shift*((max_z0*2)/nbins))
-            batch[FH_z0]= batch[FH_z0] + (z0Shift*((max_z0*2)/nbins))
+            # batch[z0] = batch[z0] + z0Shift
+            # batch['pvz0']= batch['pvz0'] + (z0Shift*((max_z0*2)/nbins))
+            # batch[FH_z0]= batch[FH_z0] + (z0Shift*((max_z0*2)/nbins))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -122,7 +122,8 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             nBatch = batch['pvz0'].shape[0]
                                   
-            result = model.train_on_batch([batch[z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])])   
+            result = model.train_on_batch([batch[z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])], 
+                                          sample_weight = [np.ones([nBatch,max_ntracks,1]),np.expand_dims(batch['trk_class_weight'],axis=-1),np.ones([nBatch,max_ntracks,1])])   
 
             result = dict(zip(model.metrics_names,result))
 
@@ -432,7 +433,8 @@ if __name__=="__main__":
                 'int_z0',
                 'trk_bendchi2',
                 'trk_chi2rphi',
-                'trk_chi2rz'
+                'trk_chi2rz',
+                'trk_class_weight'
         ]
         
     elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
@@ -455,7 +457,7 @@ if __name__=="__main__":
                 'unscaled_trk_z0_res',
                 'binned_trk_bendchi2',
                 'binned_trk_chi2rphi',
-                'binned_trk_chi2rz'
+                'binned_trk_chi2rz',
         ]
 
 
@@ -465,7 +467,8 @@ if __name__=="__main__":
 
     features = {
         "pvz0": tf.io.FixedLenFeature([1], tf.float32),  
-        "trk_fromPV":tf.io.FixedLenFeature([max_ntracks], tf.float32) 
+        "trk_fromPV":tf.io.FixedLenFeature([max_ntracks], tf.float32),
+        "trk_class_weight":tf.io.FixedLenFeature([max_ntracks], tf.float32) 
     }
 
     for trackFeature in trackFeatures:
