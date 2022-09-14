@@ -20,7 +20,7 @@ f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/"+sys.argv[2])
 branches = [ 
     'trk_gtt_pt',
     'trk_gtt_eta',
-    'trk_gtt_phi'
+    'trk_gtt_phi',
     'trk_fake', 
     'trk_pt',
     'trk_z0',
