@@ -36,11 +36,11 @@ if kf == "NewKF":
     z0 = 'trk_z0'
     FH_z0 = 'trk_z0'
 elif kf == "OldKF":
-    z0 = 'corrected_trk_z0'
-    FH_z0 = 'corrected_trk_z0'
+    z0 = 'trk_z0'
+    FH_z0 = 'trk_z0'
 elif kf == "OldKF_intZ":
-    z0 = 'corrected_int_z0'
-    FH_z0 = 'corrected_trk_z0'
+    z0 = 'int_z0'
+    FH_z0 = 'trk_z0'
 elif kf == "NewKF_intZ":
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
@@ -106,7 +106,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(model_name[0]+model_name[1]+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            z0Shift = np.random.randint(-10,10,size=batch['pvz0'].shape)
+            #z0Shift = np.random.randint(-10,10,size=batch['pvz0'].shape)
 
             #Zflip = np.random.randint(2,size=batch['pvz0'].shape)
             #z0Flip = 2.*Zflip-1.
@@ -418,48 +418,41 @@ if __name__=="__main__":
         epochs = config['qtrain_epochs']
 
     if (kf == "NewKF")  | (kf == 'NewKF_intZ'):
-        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/TTbar/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/TTbar/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/TTbar/Val/*.tfrecord")
         trackFeatures = [
                 'trk_z0',
-                'normed_trk_pt',
-                'normed_trk_eta',
-                'trk_pt',
-                'trk_eta',
-                'trk_MVA1',
+                'abs_trk_word_pT',
+                'abs_trk_word_eta',
+                'rescaled_trk_word_MVAquality',
+                'trk_gtt_pt',
+                'trk_gtt_eta',
                 'trk_z0_res',
-                'normed_trk_over_eta',
                 'int_z0',
-                'trk_bendchi2',
-                'trk_chi2rphi',
-                'trk_chi2rz',
-                'trk_class_weight'
+                'trk_class_weight',
+                'abs_trk_word_pT',
+                'abs_trk_word_eta'
         ]
         
     elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
-        train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+        train_files = glob.glob(config["data_folder"]+"/TTbar/Train/*.tfrecord")
+        test_files = glob.glob(config["data_folder"]+"/TTbar/Test/*.tfrecord")
+        val_files = glob.glob(config["data_folder"]+"/TTbar/Val/*.tfrecord")
 
         trackFeatures = [
-                'trk_pt',
-                'trk_eta',
-                'trk_z0_res',
-                'corrected_trk_z0',
-                'corrected_int_z0',
+                'trk_z0',
                 'abs_trk_word_pT',
-                'rescaled_trk_word_MVAquality',
                 'abs_trk_word_eta',
-                'unscaled_trk_word_pT',
-                'unscaled_trk_word_eta',
-                'unscaled_trk_word_MVAquality',
-                'unscaled_trk_z0_res',
-                'binned_trk_bendchi2',
-                'binned_trk_chi2rphi',
-                'binned_trk_chi2rz',
+                'rescaled_trk_word_MVAquality',
+                'trk_gtt_pt',
+                'trk_gtt_eta',
+                'trk_z0_res',
+                'int_z0',
+                'trk_class_weight',
+                'abs_trk_word_pT',
+                'abs_trk_word_eta'
         ]
-
 
     print ("Input Train files: ",len(train_files))
     print ("Input Validation files: ",len(val_files))
@@ -493,7 +486,7 @@ if __name__=="__main__":
         loss_function = tf.keras.losses.Huber(config['Huber_delta'])
     else:
         #loss_function = tf.keras.losses.MeanSquaredError()
-        loss_function = tf.keras.losses.Huber(0.2)
+        loss_function = tf.keras.losses.Huber(0.8)
     
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(learning_rate=startingLR)
@@ -526,7 +519,7 @@ if __name__=="__main__":
             model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
         experiment.set_name(kf+config['comet_experiment_name'])
 
-        if pretrain_DA:
+        if (pretrain_DA == 'True'):
             loadedmodel = network.createE2EModel()
             loadedmodel.compile(
                 optimizer,
@@ -546,44 +539,11 @@ if __name__=="__main__":
                             ]
             )
 
-        
-            model.load_weights(PretrainedModelName+".tf").expect_partial()
-
-            # WeightModel = network.createWeightModel()
-            # AssocModel = network.createAssociationModel()
-        
-            # WeightModel.load_weights(PretrainedModelName+"_weightModel_weights.hdf5")
-            # AssocModel.load_weights(PretrainedModelName+"_associationModel_weights.hdf5")
-
-            # model.get_layer('weight_1').set_weights    (WeightModel.get_layer('weight_1').get_weights())
-            # model.get_layer('dropout').set_weights     (WeightModel.get_layer('dropout').get_weights())
-            # model.get_layer('weight_2').set_weights    (WeightModel.get_layer('weight_2').get_weights())
-            # model.get_layer('dropout_1').set_weights   (WeightModel.get_layer('dropout_1').get_weights())
-            # model.get_layer('weight_final').set_weights(WeightModel.get_layer('weight_final').get_weights())
-
-            # if not train_cnn:
-            #     model.get_layer('pattern_1').set_weights        ([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-            #     model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            #     model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
-            #     model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
-            #     model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
-            #     model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
-            #     model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
-            #     model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
-            # else:
-            #     model.get_layer('Bin_weight').set_weights       ([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            #     model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
-            #     model.get_layer('association_0').set_weights    (AssocModel.get_layer('association_0').get_weights())
-            #     model.get_layer('dropout_2').set_weights        (AssocModel.get_layer('dropout_2').get_weights())
-            #     model.get_layer('association_1').set_weights    (AssocModel.get_layer('association_1').get_weights())
-            #     model.get_layer('dropout_3').set_weights        (AssocModel.get_layer('dropout_3').get_weights())
-            #     model.get_layer('association_final').set_weights(AssocModel.get_layer('association_final').get_weights())
-
-
+            model.load_weights(config["UnquantisedModelName"]+".tf").expect_partial()
 
     elif trainable == 'QDA':
         experiment.set_name(kf+config['comet_experiment_name'])
-        if config["pretrained"]:
+        if (config["pretrained"] == True):
             DAnetwork = vtx.nn.E2EDiffArgMax(
                 nbins=nbins,
                 ntracks=max_ntracks, 
