@@ -51,6 +51,7 @@ matplotlib.rcParams['ytick.minor.width'] = 4
 
 colours=["red","green","blue","orange","purple","yellow"]
 
+#f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_NN_TTsl.root")
 f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_FH_oldTQ.root")
 
 branches = [
@@ -122,6 +123,7 @@ if __name__=="__main__":
             trk_overEta = 1/(0.1+0.2*(data['trk_eta'][iev])**2)
 
             trk_fromPV = (data['trk_fake'][iev] == 1).astype(int)
+            trk = (data['trk_fake'][iev] > 0).astype(int)
             fake_trk = (data['trk_fake'][iev] == 0).astype(int)
 
             pt_histo = CreateHisto(data['trk_z0'][iev],data['trk_pt'][iev],res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0)
@@ -135,21 +137,24 @@ if __name__=="__main__":
             nstub_histo = CreateHisto(data['trk_z0'][iev],data['trk_nstub'][iev],res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0)
             overeta_histo = CreateHisto(data['trk_z0'][iev],trk_overEta,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0)
 
-            PVtrk_histo = CreateHisto(data['trk_z0'][iev],trk_fromPV,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0,factor=10)
-            faketrk_histo = CreateHisto(data['trk_z0'][iev],fake_trk,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0,factor=10)
+            trk_histo = CreateHisto(data['trk_z0'][iev],trk,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0,factor=1)
+
+
+            PVtrk_histo = CreateHisto(data['trk_z0'][iev],trk_fromPV,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0,factor=1)
+            faketrk_histo = CreateHisto(data['trk_z0'][iev],fake_trk,res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0,factor=1)
 
 
 
             reco_z0 = predictFastHisto(data['trk_z0'][iev],data['trk_pt'][iev],res_func=linear_res_function(data['trk_pt'][iev]), nbins=nbins, max_z0=max_z0)
-            if ((abs(reco_z0 - data['pv_MC'][iev]) > 5) & (abs(reco_z0 - data['pv_MC'][iev]) < 10)):
+            if ((abs(reco_z0 - data['pv_MC'][iev]) > 5)): #& (abs(reco_z0 - data['pv_MC'][iev]) < 10)):
                 histo_counter += 1
                 print("Large Error   ", reco_z0[0][0], "  ", data['pv_MC'][iev][0])
 
                 nan_array = np.zeros_like(pt_histo[0])
                 nan_array[:] = np.NaN
 
-                histo_list = [pt_histo[0],eta_histo[0],MVA_histo[0],chi2rphi_histo[0],chi2rz_histo[0],bendchi2_histo[0],phi_histo[0],nstub_histo[0],overeta_histo[0],PVtrk_histo[0],faketrk_histo[0],nan_array]
-                histo_names = ["$p_T$ ","$\eta$ ","MVA ","$\chi^2_{R\phi}$ ","$\chi^2_{rz}$ ","$\chi^2_{bend}$ ","$\phi$ ","# stub ","$\\frac{1}{\eta^2}$ ", "PV Tracks", "Fake Tracks","Vertex"][::-1]
+                histo_list = [pt_histo[0],eta_histo[0],MVA_histo[0],chi2rphi_histo[0],chi2rz_histo[0],bendchi2_histo[0],phi_histo[0],nstub_histo[0],overeta_histo[0],trk_histo[0],PVtrk_histo[0],faketrk_histo[0],nan_array]
+                histo_names = ["$p_T$ ","$\eta$ ","MVA ","$\chi^2_{R\phi}$ ","$\chi^2_{rz}$ ","$\chi^2_{bend}$ ","$\phi$ ","# stub ","$\\frac{1}{\eta^2}$ ","Tracks", "PV Tracks", "Fake Tracks","Vertex"][::-1]
 
                 plt.clf()
                 fig,ax = plt.subplots(1,1,figsize=(24,10))
@@ -167,7 +172,7 @@ if __name__=="__main__":
                 ax.set_yticklabels(histo_names)
                 
 
-                ax.set_yticks(np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5]))
+                ax.set_yticks(np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5]))
 
                 rect = plt.Rectangle((data['pv_MC'][iev]-((2.5*max_z0)/nbins), 1), 5*max_z0/nbins, len(histo_names),
                                     fill=False,linewidth=2,linestyle='--',edgecolor='r')
@@ -182,9 +187,9 @@ if __name__=="__main__":
 
 
                 cbar = plt.colorbar(hist2d , ax=ax)
-                cbar.set_label('# Tracks')
+                cbar.set_label('Weighted Density')
 
-                cbar.set_label('# Tracks')
+                cbar.set_label('Weighted Density')
                 plt.tight_layout()
                 plt.savefig("%s/2dhist_%s.png" % (outputFolder, str(histo_counter)))
                 plt.close()

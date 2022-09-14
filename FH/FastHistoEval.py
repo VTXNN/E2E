@@ -58,8 +58,11 @@ if kf == "NewKF":
     f = uproot.open("/home/cb719/Documents/DataSets/NewKF_TTbar_170K_quality.root")
     z0 = 'trk_z0'
 elif kf == "OldKF":
-    f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_FH_oldTQ.root")
+    f = uproot.open("/home/cebrown/Documents/Datasets/VertexDatasets/GTT_TrackNtuple_DY_FH.root")
     z0 = 'corrected_trk_z0'
+
+max_z0 = 20.46912512
+nbins = 256
 
 branches = [
     'tp_d0',
@@ -150,16 +153,16 @@ def pv_res_function(pv,return_bool = False):
 
 def predictFastHisto(value,weight, res_func, return_index = False, nbins=256):
     z0List = []
-    halfBinWidth = 0.5*30./nbins
+    halfBinWidth = max_z0/nbins
 
 
-    hist,bin_edges = np.histogram(value,nbins,range=(-15,15),weights=weight*res_func)
+    hist,bin_edges = np.histogram(value,nbins,range=(-1*max_z0,max_z0),weights=weight*res_func)
     hist = np.convolve(hist,[1,1,1],mode='same')
     z0Index= np.argmax(hist)
     if return_index:
         z0List.append([z0Index])
     else:
-        z0 = -15.+30.*z0Index/nbins+halfBinWidth
+        z0 = -1*max_z0+2*max_z0*z0Index/nbins+halfBinWidth
         z0List.append([z0])
     return np.array(z0List,dtype=np.float32)
 
@@ -208,7 +211,7 @@ def plotz0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles,splitplo
 
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
-        ax[0].hist(FH,bins=50,range=(-15,15),histtype="step",
+        ax[0].hist(FH,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items],
                  )
         ax[0].plot(0,1,label='\n'.join(wrap(f"%s \n RMS = %.4f" 
@@ -225,13 +228,13 @@ def plotz0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles,splitplo
     ax[0].set_ylabel('Events',ha="right",y=1)
     ax[0].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
     ax[0].set_yscale("log")
-    ax[0].set_ylim([5,200000])
+    #ax[0].set_ylim([5,200000])
 
     ax[1].grid(True)
     ax[1].set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax[1].set_ylabel('Events',ha="right",y=1)
     ax[1].legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
-    ax[1].set_ylim([0,65000])
+    #ax[1].set_ylim([0,65000])
 
     plt.tight_layout()
 
@@ -244,7 +247,7 @@ def plot_split_z0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles):
 
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
-        ax.hist(FH,bins=50,range=(-15,15),histtype="step",
+        ax.hist(FH,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items], linestyle=linestyles[items])
         ax.plot(0,1,label='\n'.join(wrap(f"%s \n RMS = %.4f" 
                  %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),color = colours[items],markersize=0,linewidth=LINEWIDTH)
@@ -255,7 +258,7 @@ def plot_split_z0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles):
     ax.set_ylabel('Events',ha="right",y=1)
     ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
     ax.set_yscale("log")
-    ax.set_ylim([5,200000])
+    #ax.set_ylim([5,200000])
     fig_1.tight_layout()
 
     #============================================================================================#
@@ -277,7 +280,7 @@ def plot_split_z0_residual(FHdiff,FHnames,colours=colours,linestyle=linestyles):
     ax.set_xlabel('$z^{PV}_0$ Residual [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
     ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.95),frameon=True,facecolor='w',edgecolor='w')
-    ax.set_ylim([0,65000])
+    #ax.set_ylim([0,65000])
     fig_2.tight_layout()
 
     return fig_1,fig_2
@@ -460,7 +463,7 @@ if __name__=="__main__":
         predictedZ0_MVA_Centre_array[i] = qMVA[1]
 
         hist,bin_edges = np.histogram((z0_PV_array - z0_MVA_array),bins=50,range=(-1,1))
-        hist_log,bin_edges = np.histogram((z0_PV_array - z0_MVA_array),bins=50,range=(-15,15))
+        hist_log,bin_edges = np.histogram((z0_PV_array - z0_MVA_array),bins=50,range=(-1*max_z0,max_z0))
         MVA_histos.append(hist)
         MVA_log_histos.append(hist_log)
 
@@ -472,7 +475,7 @@ if __name__=="__main__":
     twod_log_hist = np.stack(MVA_log_histos, axis=1)
 
     hist2d = ax[0].imshow(twod_hist,cmap=colormap,aspect='auto',extent=[0,1,-1,1])
-    hist2d_log = ax[1].imshow(twod_log_hist,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),aspect='auto',cmap=colormap,extent=[0,1,-15,15])
+    hist2d_log = ax[1].imshow(twod_log_hist,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),aspect='auto',cmap=colormap,extent=[0,1,-1*max_z0,max_z0])
 
     ax[0].grid(True)
     ax[1].grid(True)
@@ -631,9 +634,9 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    ax.hist(z0_FH_array,range=(-15,15),bins=64,density=True,color='r',histtype="step",label="FastHisto Base")
-    ax.hist(z0_FHzres_array,range=(-15,15),bins=64,density=True,color='g',histtype="step",label="FastHisto with z0 res")
-    ax.hist(z0_PV_array,range=(-15,15),bins=64,density=True,color='y',histtype="step",label="Truth")
+    ax.hist(z0_FH_array,range=(-1*max_z0,max_z0),bins=64,density=True,color='r',histtype="step",label="FastHisto Base")
+    ax.hist(z0_FHzres_array,range=(-1*max_z0,max_z0),bins=64,density=True,color='g',histtype="step",label="FastHisto with z0 res")
+    ax.hist(z0_PV_array,range=(-1*max_z0,max_z0),bins=64,density=True,color='y',histtype="step",label="Truth")
     ax.grid(True)
     ax.set_xlabel('Reconstructed $z_{0}^{PV}$ [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
@@ -646,7 +649,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-15,15),(-30,30)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("PV", horizontalalignment='right', x=1.0)
     ax.set_ylabel("PV - $z_0^{FH}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -660,7 +663,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-15,15),(-15,15)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("PV", horizontalalignment='right', x=1.0)
     ax.set_ylabel("$z_0^{FH}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
