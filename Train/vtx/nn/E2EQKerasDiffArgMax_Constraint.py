@@ -348,6 +348,8 @@ class E2EQKerasDiffArgMaxConstraint():
         import numpy as np
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
+        weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
+        weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
         print(weightconfig)
         print("-----------------------------------")
         print("Configuration")
@@ -372,6 +374,8 @@ class E2EQKerasDiffArgMaxConstraint():
         import matplotlib.pyplot as plt
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
+        weightconfig['weight']['Precision']['result'] =  'ap_fixed<22,9>'
+        weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
 
         random_weight_data = np.random.rand(1000,3)
         hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
@@ -435,6 +439,8 @@ class E2EQKerasDiffArgMaxConstraint():
         import numpy as np
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
+        associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
+        associationconfig['Model']['Precision'] =  'ap_fixed<22,9>'
         print(associationconfig)
         print("-----------------------------------")
         print("Configuration")
@@ -460,6 +466,8 @@ class E2EQKerasDiffArgMaxConstraint():
         import matplotlib.pyplot as plt
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
+        print(associationconfig)
+
         random_association_data = np.random.rand(1000,4+self.nlatent)
         hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
                                                             hls_config=associationconfig,
