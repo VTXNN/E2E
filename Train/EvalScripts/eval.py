@@ -24,41 +24,16 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-hep.cms.label()
-hep.cms.text("Simulation")
-plt.style.use(hep.style.CMS)
+# hep.cms.label()
+# hep.cms.text("Simulation")
+# plt.style.use(hep.style.CMS)
 
-SMALL_SIZE = 20
-MEDIUM_SIZE = 25
-BIGGER_SIZE = 30
-
-LEGEND_WIDTH = 20
-LINEWIDTH = 3
-MARKERSIZE = 20
 
 max_z0 = 20.46912512
-colormap = "jet"
+# colormap = "jet"
 
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
-plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
-plt.rc('axes', linewidth=5)              # thickness of axes
-plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=18)            # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-matplotlib.rcParams['xtick.major.size'] = 20
-matplotlib.rcParams['xtick.major.width'] = 5
-matplotlib.rcParams['xtick.minor.size'] = 10
-matplotlib.rcParams['xtick.minor.width'] = 4
-
-matplotlib.rcParams['ytick.major.size'] = 20
-matplotlib.rcParams['ytick.major.width'] = 5
-matplotlib.rcParams['ytick.minor.size'] = 10
-matplotlib.rcParams['ytick.minor.width'] = 4
-
-colours=["red","green","blue","orange","purple","yellow"]
+# colours=["red","green","blue","orange","purple","yellow"]
 
 
 
@@ -96,7 +71,7 @@ if __name__=="__main__":
 
     save = True
     savingfolder = kf+"SavedArrays/"
-    PVROCs = True 
+    PVROCs = True
     met = False
 
     nlatent = config["Nlatent"]
@@ -174,7 +149,11 @@ if __name__=="__main__":
             'int_z0',
             'trk_class_weight',
             'abs_trk_word_pT',
-            'abs_trk_word_eta'
+            'abs_trk_word_eta',
+            'trk_word_MVAquality',
+            'rescaled_trk_word_pT',
+            'rescaled_trk_word_eta',
+            'rescaled_trk_z0_res'
         ]
 
     for trackFeature in trackFeatures:
@@ -345,6 +324,7 @@ if __name__=="__main__":
     trk_gtt_phi = []
     trk_gtt_pt = []
     trk_gtt_eta = []
+    trk_z0_res = []
 
     trk_chi2rphi = []
     trk_chi2rz = []
@@ -368,10 +348,12 @@ if __name__=="__main__":
             FHnoFake = predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],fake_res_function(batch['trk_fake']))
             predictedZ0_FHnoFake.append(FHnoFake)
 
-            trk_z0.append(batch[z0])
+            trk_z0.append(batch[FH_z0])
             trk_MVA.append(batch["rescaled_trk_word_MVAquality"])
             trk_gtt_pt.append(batch['trk_gtt_pt'])
             trk_gtt_eta.append(batch['trk_gtt_eta'])
+            trk_gtt_phi.append(batch['trk_gtt_phi'])
+            trk_z0_res.append(batch['trk_z0_res'])
 
             trk_chi2rphi.append(batch['trk_word_chi2rphi'])
             trk_chi2rz.append(batch['trk_word_chi2rz'])
@@ -410,10 +392,10 @@ if __name__=="__main__":
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
-            #predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
-            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
+            predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
+                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
 
-            predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,-5),15)
+            #predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,-5),15)
 
             predictedZ0_QNN.append(predictedZ0_QNN_temp)
             predictedAssoc_QNN.append(predictedAssoc_QNN_temp)
@@ -431,10 +413,10 @@ if __name__=="__main__":
                             [batch[z0],WeightFeatures,trackFeatures]
                         )
 
-            #predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
-            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
+            predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
+                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
 
-            predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,-5),15)
+            #predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,-5),15)
 
             predictedZ0_QPNN.append(predictedZ0_QPNN_temp)
             predictedAssoc_QPNN.append(predictedAssoc_QPNN_temp)
@@ -453,10 +435,10 @@ if __name__=="__main__":
                                 [batch[z0],WeightFeatures,trackFeatures]
                             )
 
-            #predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
-            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
+            predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
+                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
 
-            predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,-5),15)
+            #predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,-5),15)
 
             predictedZ0_DANN.append(predictedZ0_DANN_temp)
             predictedAssoc_DANN.append(predictedAssoc_DANN_temp)
@@ -519,6 +501,7 @@ if __name__=="__main__":
         trk_mva_array = np.concatenate(trk_MVA).ravel()
         trk_gtt_pt_array = np.concatenate(trk_gtt_pt).ravel()
         trk_gtt_eta_array = np.concatenate(trk_gtt_eta).ravel()
+        trk_z0_res_array = np.concatenate(trk_z0_res).ravel()
         trk_gtt_phi_array = np.concatenate(trk_gtt_phi).ravel()
 
         trk_chi2rphi_array = np.concatenate(trk_chi2rphi).ravel()
@@ -633,6 +616,7 @@ if __name__=="__main__":
         np.save(savingfolder+"trk_mva_array",trk_mva_array)
         np.save(savingfolder+"trk_gtt_pt_array",trk_gtt_pt_array)
         np.save(savingfolder+"trk_gtt_eta_array",trk_gtt_eta_array)
+        np.save(savingfolder+"trk_z0_res_array",trk_z0_res_array)
         np.save(savingfolder+"trk_gtt_phi_array",trk_gtt_phi_array)
         np.save(savingfolder+"trk_chi2rphi_array",trk_chi2rphi_array)
         np.save(savingfolder+"trk_chi2rz_array",trk_chi2rz_array)
@@ -701,6 +685,7 @@ if __name__=="__main__":
         trk_mva_array = np.load(savingfolder+"trk_mva_array.npy")
         trk_gtt_pt_array = np.load(savingfolder+"trk_gtt_pt_array.npy")
         trk_gtt_eta_array = np.load(savingfolder+"trk_gtt_eta_array.npy")
+        trk_z0_res_array = np.load(savingfolder+"trk_z0_res_array.npy")
         trk_gtt_phi_array = np.load(savingfolder+"trk_gtt_phi_array.npy")
         trk_chi2rphi_array = np.load(savingfolder+"trk_chi2rphi_array.npy")
         trk_chi2rz_array = np.load(savingfolder+"trk_chi2rz_array.npy")
@@ -761,6 +746,7 @@ if __name__=="__main__":
 
     QPweightmax = np.max(predictedQPWeightsarray)
     QPweightmin = np.min(predictedQPWeightsarray)
+    nonzero_Qweights = trk_gtt_pt_array != 0
 
     #########################################################################################
     #                                                                                       #
@@ -771,29 +757,60 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    ax.hist(trk_bendchi2_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", alpha=0.5, density=True)
-    ax.hist(trk_bendchi2_array[pu_track_sel],range=(0,1), bins=50, label="PU tracks", alpha=0.5, density=True)
+    ax.hist(trk_bendchi2_array[pv_track_sel],range=(0,8), bins=8, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax.hist(trk_bendchi2_array[pu_track_sel],range=(0,8), bins=8, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
     ax.set_xlabel("Track $\\chi^2_{bend}$", horizontalalignment='right', x=1.0)
-    # ax.set_ylabel("tracks/counts", horizontalalignment='right', y=1.0)
+    ax.set_ylabel("# Tracks", horizontalalignment='right', y=1.0)
     ax.set_yscale("log")
     ax.legend()
+    ax.tick_params(axis='x', which='minor', bottom=False,top=False)
     plt.tight_layout()
     plt.savefig("%s/bendchi2hist.png" % outputFolder)
     plt.close()
 
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    
+    ax.hist(trk_chi2rz_array[pv_track_sel],range=(0,16), bins=16, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax.hist(trk_chi2rz_array[pu_track_sel],range=(0,16), bins=16, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
+    ax.set_xlabel("Track $\\chi^2_{rz}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("# Tracks", horizontalalignment='right', y=1.0)
+    ax.set_yscale("log")
+    ax.legend()
+    ax.tick_params(axis='x', which='minor', bottom=False,top=False)
+    plt.tight_layout()
+    plt.savefig("%s/chi2rzhist.png" % outputFolder)
+    plt.close()
 
     plt.clf()
-    fig,ax = plt.subplots(2,1,figsize=(20,10))
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    
+    ax.hist(trk_chi2rphi_array[pv_track_sel],range=(0,16), bins=16, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax.hist(trk_chi2rphi_array[pu_track_sel],range=(0,16), bins=16, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
+    ax.set_xlabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("# Tracks", horizontalalignment='right', y=1.0)
+    ax.set_yscale("log")
+    ax.legend()
+    ax.tick_params(axis='x', which='minor', bottom=False,top=False)
+    plt.tight_layout()
+    plt.savefig("%s/chi2rphihist.png" % outputFolder)
+    plt.close()
+
+
+    plt.clf()
+    fig,ax = plt.subplots(2,1,figsize=(20,20))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[0])
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[1])
     
-    ax[0].hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
-    ax[0].hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
-    ax[1].hist(predictedQPWeightsarray[pv_track_sel],range=(QPweightmin,QPweightmax), bins=50, label="PV tracks", alpha=0.5, density=True)
-    ax[1].hist(predictedQPWeightsarray[pu_track_sel],range=(QPweightmin,QPweightmax), bins=50, label="PU tracks", alpha=0.5, density=True)
+    ax[0].hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax[0].hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
+    ax[1].hist(predictedQPWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax[1].hist(predictedQPWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
     ax[0].set_xlabel("Quantised Weights", horizontalalignment='right', x=1.0)
     ax[1].set_xlabel("Pruned Weights", horizontalalignment='right', x=1.0)
-    # ax.set_ylabel("tracks/counts", horizontalalignment='right', y=1.0)
+    ax[0].set_ylabel("# Tracks", horizontalalignment='right', y=1.0)
     ax[0].set_yscale("log")
     ax[1].set_yscale("log")
     #ax.set_title("Histogram weights for PU and PV tracks")
@@ -812,9 +829,25 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", alpha=0.5, weights=np.ones_like(predictedQWeightsarray[pv_track_sel]) / assoc_scale)
-    ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", alpha=0.5)
+    ax.hist(predictedQWeightsarray[pv_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PV tracks", weights=np.ones_like(predictedQWeightsarray[pv_track_sel]) / assoc_scale, density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax.hist(predictedQWeightsarray[pu_track_sel],range=(Qweightmin,Qweightmax), bins=50, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("a.u.", horizontalalignment='right', y=1.0)
+    #ax.set_title("Histogram weights for PU and PV tracks (normalised)")
+    ax.set_yscale("log")
+
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig("%s/Qcorr-weights-1d-norm.png" % outputFolder)
+    plt.close()
+
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    
+    ax.hist(assoc_QPNN_array[pv_track_sel],range=(0,1), bins=50, label="PV tracks", density=True,histtype="stepfilled",color='g',alpha=0.7,linewidth=LINEWIDTH)
+    ax.hist(assoc_QPNN_array[pu_track_sel],range=(0,1), bins=50, label="PU tracks", density=True,histtype="stepfilled",color='r',alpha=0.7,linewidth=LINEWIDTH)
+    ax.set_xlabel("Association Flag", horizontalalignment='right', x=1.0)
     ax.set_ylabel("a.u.", horizontalalignment='right', y=1.0)
     #ax.set_title("Histogram weights for PU and PV tracks (normalised)")
     ax.set_yscale("log")
@@ -829,8 +862,8 @@ if __name__=="__main__":
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[0])
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[1])
     
-    hist2d = ax[0].hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50,cmap=colormap)
-    hist2dp = ax[1].hist2d(predictedQPWeightsarray, assoc_QPNN_array, range=((QPweightmin,QPweightmax),(0,1)),bins=50,cmap=colormap)
+    hist2d = ax[0].hist2d(predictedQWeightsarray, assoc_QNN_array, range=((Qweightmin,Qweightmax),(0,1)),bins=50,norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2dp = ax[1].hist2d(predictedQPWeightsarray, assoc_QPNN_array, range=((QPweightmin,QPweightmax),(0,1)),bins=50,norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax[0].set_xlabel("Quantised Weights", horizontalalignment='right', x=1.0)
     ax[0].set_ylabel("Quantised Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
     ax[0].set_xlabel("Pruned Weights", horizontalalignment='right', x=1.0)
@@ -849,12 +882,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_z0_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(-20,20)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,-20,20,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0.png" %  outputFolder)
     plt.close()
@@ -863,12 +896,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_mva_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_mva_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=8, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track MVA", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-mva.png" %  outputFolder)
     plt.close()
@@ -877,12 +910,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hidst2d = ax.hist2d(predictedQWeightsarray, trk_gtt_pt_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-pt.png" %  outputFolder)
     plt.close()
@@ -890,13 +923,27 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
+    ax.set_ylabel("Track $z_0$ resolution [cm]", horizontalalignment='right', y=1.0)
+    cbar = plt.colorbar(hist2d[3] , ax=ax)
+    cbar.set_label('# Tracks')
+    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
+    plt.tight_layout()
+    plt.savefig("%s/Qcorr-z0res.png" %  outputFolder)
+    plt.close()
+
+
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(12,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, np.abs(trk_gtt_eta_array), range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], np.abs(trk_gtt_eta_array[nonzero_Qweights]), range=((Qweightmin,Qweightmax),(0,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,2.4,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-abs-eta.png" %  outputFolder)
     plt.close()
@@ -905,12 +952,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_gtt_eta_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_eta_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(-2.4,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,-2.4,2.4,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-eta.png" %  outputFolder)
     plt.close()
@@ -919,12 +966,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rphi_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_chi2rphi_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,16,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rphi.png" % outputFolder)
     plt.close()
@@ -933,12 +980,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_chi2rz_array, range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_chi2rz_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{rz}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,16,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2rz.png" % outputFolder)
     plt.close()
@@ -947,12 +994,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray, trk_bendchi2_array , range=((Qweightmin,Qweightmax),(0,1)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_bendchi2_array[nonzero_Qweights] , range=((Qweightmin,Qweightmax),(0,8)), bins=(50,8), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{bend}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,8,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-chi2bend.png" % outputFolder)
     plt.close()
@@ -980,7 +1027,7 @@ if __name__=="__main__":
     ax.set_ylabel("Track-to-Vertex Association Flag", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
+    #ax.vlines(0,0,1,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qassocvsassoc.png" % outputFolder)
     plt.close()
