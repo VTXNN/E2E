@@ -2,7 +2,7 @@ import tensorflow as tf
 import vtxops
 
 class KDELayer(tf.keras.layers.Layer):
-    def __init__(self, nbins=256, start=-15, end=15, kernel='flat', bandwidth=1e-12, add_overflow=True, **kwargs):
+    def __init__(self, nbins=256, start=-20.46912512, end=20.46912512, kernel='flat', bandwidth=1e-12, add_overflow=True, **kwargs):
         self.nbins = nbins
         self.start = start
         self.end = end
