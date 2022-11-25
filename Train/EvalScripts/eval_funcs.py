@@ -180,11 +180,11 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
         ax[0].hist(FH,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
-                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)))
+                 %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),density=True)
         ax[1].hist(FH,bins=50,range=(-1,1),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)))
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0]),LEGEND_WIDTH)),density=True)
         items+=1
 
     for i,NN in enumerate(NNdiff):
@@ -192,11 +192,11 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
         ax[0].hist(NN,bins=50,range=(-1*max_z0,max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
-                 %(NNnames[i],np.sqrt(np.mean(NN**2))),LEGEND_WIDTH)))
+                 %(NNnames[i],np.sqrt(np.mean(NN**2))),LEGEND_WIDTH)),density=True)
         ax[1].hist(NN,bins=50,range=(-1,1),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nQuartile Width = %.4f" 
-                 %(NNnames[i],qz0_NN[2]-qz0_NN[0]),LEGEND_WIDTH)))
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0]),LEGEND_WIDTH)),density=True)
         items+=1
     
     ax[0].grid(True)
@@ -227,54 +227,53 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     items = 0
     for i,FH in enumerate(FHdiff):
         if relative:
-            FH = (FH - actual) / actual
-            temp_actual = actual[~np.isnan(FH)]
-            temp_actual = temp_actual[np.isfinite(FH)]
+            FH = (FH - actual[i]) / actual[i]
+            temp_actual = actual[i][~np.isnan(FH)]
             FH = FH[~np.isnan(FH)]
+            temp_actual = temp_actual[np.isfinite(FH)]
             FH = FH[np.isfinite(FH)]
 
             if logbins:
                 FH = FH + 1
             
         else:
-            FH = (FH - actual)
-            temp_actual = actual
+            FH = (FH - actual[i])
+            temp_actual = actual[i]
         qz0_FH = np.percentile(FH,[32,50,68])
 
         ax[0].hist(FH,bins=bins,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
-                 %(FHnames[i],metrics.mean_squared_error(temp_actual,FH,squared=False)),LEGEND_WIDTH)))
+                 %(FHnames[i],metrics.mean_squared_error(temp_actual,FH,squared=False)),LEGEND_WIDTH)),density=True)
         ax[1].hist(FH,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s Quartile Width = %.4f   Centre = %.4f" 
-                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),25)))
+                 %(FHnames[i],qz0_FH[2]-qz0_FH[0], qz0_FH[1]),25)),density=True)
         items+=1
 
     for i,NN in enumerate(NNdiff):
         if relative:
-            print(len(NN),len(actual))
-            NN = (NN - actual)/actual
-            temp_actual = actual[~np.isnan(NN)]
-            temp_actual = temp_actual[np.isfinite(NN)]
+            NN = (NN - actual[i])/actual[i]
+            temp_actual = actual[i][~np.isnan(NN)]
             NN = NN[~np.isnan(NN)]
+            temp_actual = temp_actual[np.isfinite(NN)]
             NN = NN[np.isfinite(NN)]
 
             if logbins:
                 NN = NN + 1
 
         else:
-            NN = (NN - actual)
-            temp_actual = actual
+            NN = (NN - actual[i])
+            temp_actual = actual[i]
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=bins,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s RMS = %.4f" 
-                 %(NNnames[i],metrics.mean_squared_error(temp_actual,NN,squared=False)),LEGEND_WIDTH)))
+                 %(NNnames[i],metrics.mean_squared_error(temp_actual,NN,squared=False)),LEGEND_WIDTH)),density=True)
         ax[1].hist(NN,bins=50,range=range,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s Quartile Width = %.4f   Centre = %.4f" 
-                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),25)))
+                 %(NNnames[i],qz0_NN[2]-qz0_NN[0], qz0_NN[1]),25)),density=True)
         items+=1
     
     ax[0].grid(True)
@@ -357,13 +356,13 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
     items=0
 
     for i,FH in enumerate(FHpred):
-        tnFH, fpFH, fnFH, tpFH = metrics.confusion_matrix(actual, FH).ravel()
+        tnFH, fpFH, fnFH, tpFH = metrics.confusion_matrix(actual[i], FH).ravel()
         precisionFH = tpFH / (tpFH + fpFH) 
         recallFH = tpFH / (tpFH + fnFH) 
         TPRFH = recallFH
         FPRFH = fpFH / (fpFH + tnFH) 
         ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
-        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual,FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
+        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual[i],FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
         items+=1
 
     for i,NN in enumerate(NNpred):
@@ -377,18 +376,16 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
 
         for j,threshold in enumerate(thresholds):
             print(str(NNnames[i]) + " Testing ROC threshold: "+str(j) + " out of "+str(len(thresholds)))
-            tnNN, fpNN, fnNN, tpNN = metrics.confusion_matrix(actual, NN>threshold).ravel()
+            tnNN, fpNN, fnNN, tpNN = metrics.confusion_matrix(actual[i], NN>threshold).ravel()
             precisionNN.append( tpNN / (tpNN + fpNN) )
             recallNN.append(tpNN / (tpNN + fnNN) )
             FPRNN.append(fpNN / (fpNN + tnNN) )
 
         
         ax[0].plot(recallNN,precisionNN,label=str(NNnames[i]),linewidth=LINEWIDTH,color=colours[items])
-        ax[1].plot(recallNN,FPRNN,linewidth=LINEWIDTH,label='\n'.join(wrap(f"%s AUC: %.4f" %(NNnames[i],metrics.roc_auc_score(actual,NN)),LEGEND_WIDTH)),color=colours[items])
+        ax[1].plot(recallNN,FPRNN,linewidth=LINEWIDTH,label='\n'.join(wrap(f"%s AUC: %.4f" %(NNnames[i],metrics.roc_auc_score(actual[i],NN)),LEGEND_WIDTH)),color=colours[items])
         items+=1
 
-    
-    
     ax[0].grid(True)
     ax[0].set_xlabel('Efficiency',ha="right",x=1)
     ax[0].set_ylabel('Purity',ha="right",y=1)
@@ -493,10 +490,10 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
         Et_bin_widths.append((Et_bins[i+1] - Et_bins[i]) / 2)
 
     for i,FH in enumerate(FHpred):
-        FH = (FH - actual) / actual
-        temp_actual = actual[~np.isnan(FH)]
-        temp_actual = temp_actual[np.isfinite(FH)]
+        FH = (FH - actual[i]) / actual[i]
+        temp_actual = actual[i][~np.isnan(FH)]
         FH = FH[~np.isnan(FH)]
+        temp_actual = temp_actual[np.isfinite(FH)]
         FH = FH[np.isfinite(FH)]
         FH_means = []
         FH_sdevs = []
@@ -512,10 +509,10 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
     for i,NN in enumerate(NNpred):
         NN_means = []
         NN_sdevs = []
-        NN = (NN - actual)/actual
-        temp_actual = actual[~np.isnan(NN)]
-        temp_actual = temp_actual[np.isfinite(NN)]
+        NN = (NN - actual[i])/actual[i]
+        temp_actual = actual[i][~np.isnan(NN)]
         NN = NN[~np.isnan(NN)]
+        temp_actual = temp_actual[np.isfinite(NN)]
         NN = NN[np.isfinite(NN)]
 
         for j in range(len(Et_bins) - 1):

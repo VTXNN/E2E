@@ -7,6 +7,9 @@ from qkeras.quantizers import quantized_bits, quantized_relu
 import numpy
 from vtx.nn.constraints import *
 import h5py
+import hls4ml
+import numpy as np
+from sklearn.metrics import accuracy_score
 
 class E2EQKerasDiffArgMaxConstraint():
     def __init__(self,
@@ -285,23 +288,6 @@ class E2EQKerasDiffArgMaxConstraint():
         self.weightModel.summary()
         self.associationModel.summary()
 
-        # self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
-        # self.weightModel.get_layer('q_activation').set_weights   (largerModel.get_layer('q_activation').get_weights())
-        # self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
-        # self.weightModel.get_layer('q_activation_1').set_weights (largerModel.get_layer('q_activation_1').get_weights())
-        # self.weightModel.get_layer('weight_final').set_weights   (largerModel.get_layer('weight_final').get_weights())
-        # self.weightModel.get_layer('q_activation_2').set_weights (largerModel.get_layer('q_activation_2').get_weights())
-
-        # self.patternModel.get_layer('pattern_1').set_weights     (largerModel.get_layer('pattern_1').get_weights())
-        # self.patternModel.get_layer('q_activation_3').set_weights(largerModel.get_layer('q_activation_3').get_weights())
-
-        # self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
-        # self.associationModel.get_layer('q_activation_4').set_weights   (largerModel.get_layer('q_activation_4').get_weights()) 
-        # self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
-        # self.associationModel.get_layer('q_activation_5').set_weights   (largerModel.get_layer('q_activation_5').get_weights()) 
-        # self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
-
-
         self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
         self.weightModel.get_layer('q_activation_6').set_weights   (largerModel.get_layer('q_activation_6').get_weights())
         self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
@@ -343,139 +329,125 @@ class E2EQKerasDiffArgMaxConstraint():
         self.associationModel.save_weights(modelName+"_associationModel_weights.hdf5")
         self.associationModel.save(modelName+"_associationModel")
 
-    def export_hls_weight_model(self,modelName):
-        import hls4ml
-        import numpy as np
+    def export_hls_weight_model(self,modelName,plot=True):
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
+        weightconfig['Model']['Strategy'] = 'Resource'
         weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
         weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
-        print(weightconfig)
-        print("-----------------------------------")
-        print("Configuration")
-        #plotting.print_dict(config)
-        print("-----------------------------------")
-        random_weight_data = np.random.rand(1000,3)
-        hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
-                                                            hls_config=weightconfig,
-                                                            output_dir=modelName+'_hls_weight/hls4ml_prj',
-                                                            part='xcvu9p-flga2104-2L-e',
-                                                            #part='xcvu13p-flga2577-2-e',
-                                                            clock_period=2.0)
 
+        cfg = hls4ml.converters.create_config(backend='Vivado')
+        #cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        cfg['HLSConfig']  = weightconfig
+        cfg['KerasModel'] = self.weightModel
+        cfg['OutputDir']  = modelName+'_hls_weight/'
+        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['ClockPeriod'] = 2.7
+
+        random_weight_data = np.random.rand(1000,3)
+
+        hls_weight_model = hls4ml.converters.keras_to_hls(cfg)
         hls_weight_model.compile()
+
+        if plot:
+            hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_weight_model.png")
+            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model)
+
+            #wp.savefig(modelName+"_Weight_model_activations_profile.png")
+            #ap.savefig(modelName+"_Weight_model_weights_profile.png")
+            wph.savefig(modelName+"_Weight_model_activations_profile_opt.png")
+            #aph.savefig(modelName+"_Weight_model_weights_profile_opt.png")
+
+        y_keras = self.weightModel.predict(random_weight_data)
+        y_hls4ml   = hls_weight_model.predict(random_weight_data)
+        
+        # "Accuracy" of hls4ml predictions vs keras
+        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
+        with open('ModelAccuracies.txt', 'a') as f:
+            print('{} Weight accuracy relative to keras: {} \n'.format(modelName,rel_acc),file=f)
+
+
         hls_weight_model.build(csim=True,synth=True,vsynth=True)
 
-    def plot_hls_weight_model(self,modelName):
-        import hls4ml
-        import numpy as np
-        import matplotlib
-        #matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-
-        weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
-        weightconfig['weight']['Precision']['result'] =  'ap_fixed<22,9>'
-        weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
-
-        random_weight_data = np.random.rand(1000,3)
-        hls_weight_model = hls4ml.converters.convert_from_keras_model(self.weightModel,
-                                                            hls_config=weightconfig,
-                                                            output_dir=modelName+'_hls_weight/hls4ml_prj',
-                                                            fpga_part='xcvu9p-flga2104-2L-e',
-                                                            #part='xcvu13p-flga2577-2-e',
-                                                            clock_period=2.0)
-
-        plt.clf()
-        ap, wp = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model, X=random_weight_data)
-        wp.savefig(modelName+"_Weight_model_activations_profile.png")
-        ap.savefig(modelName+"_Weight_model_weights_profile.png")
-
-    def export_hls_pattern_model(self,modelName):
-        import hls4ml
-        import numpy as np
+    def export_hls_pattern_model(self,modelName,plot=True):
 
         patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
-        patternconfig['Model']['Strategy'] = 'Resource'
-        print("-----------------------------------")
-        print("Configuration")
-        #plotting.print_dict(config)
-        print("-----------------------------------")
-        random_pattern_data = np.random.rand(1000,256,1)
-        hls_pattern_model = hls4ml.converters.convert_from_keras_model(self.patternModel,
-                                                            hls_config=patternconfig,
-                                                            output_dir=modelName+'_hls_pattern/hls4ml_prj',
-                                                            fpga_part='xcvu9p-flga2104-2L-e',
-                                                            #fpga_part='xcvu13p-flga2577-2-e',
-                                                            clock_period=2.0)
+        #patternconfig['Model']['Strategy'] = 'resource'
+        #patternconfig['Model']['Precision'] = 'ap_fixed<22,9>'
+        #patternconfig['Model']['ReuseFactor'] = 1
 
+        patternconfig['LayerName']['hist']['ParallelizationFactor'] = 128
+        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 128
+        patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 128
+        patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 128
+        patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 128
+
+        cfg = hls4ml.converters.create_config(backend='Vivado')
+        #cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        cfg['HLSConfig']  = patternconfig
+        cfg['KerasModel'] = self.patternModel
+        cfg['OutputDir']  = modelName+'_hls_pattern/'
+        #cfg['ParallelizationFactor'] = 256
+        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['ClockPeriod'] = 2.7
+
+        random_pattern_data = np.random.rand(1000,256,1)
+        hls_pattern_model = hls4ml.converters.keras_to_hls(cfg)
         hls_pattern_model.compile()
+
+        # Model under test predictions and accuracy
+        y_keras = self.patternModel.predict(random_pattern_data)
+        y_hls4ml   = hls_pattern_model.predict(random_pattern_data)
+        
+        # "Accuracy" of hls4ml predictions vs keras
+        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
+        with open('ModelAccuracies.txt', 'a') as f:
+            print('{} Pattern accuracy relative to keras: {} \n'.format(modelName,rel_acc),file=f)
+
+        if plot:
+            hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
+            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model)
+
+            #wp.savefig(modelName+"_Pattern_model_activations_profile.png")
+            #ap.savefig(modelName+"_Pattern_model_weights_profile.png")
+            wph.savefig(modelName+"_Pattern_model_activations_profile_opt.png")
+            #aph.savefig(modelName+"_Pattern_model_weights_profile_opt.png")
+
         hls_pattern_model.build(csim=True,synth=True,vsynth=True)
 
-    def plot_hls_pattern_model(self,modelName):
-            import hls4ml
-            import numpy as np
-            import matplotlib
-            #matplotlib.use('Agg')
-            import matplotlib.pyplot as plt
-
-            patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
-            patternconfig['Model']['Strategy'] = 'Resource'
-            random_pattern_data = np.random.rand(1000,256,1)
-            hls_pattern_model = hls4ml.converters.convert_from_keras_model(self.patternModel,
-                                                                hls_config=patternconfig,
-                                                                output_dir=modelName+'_hls_pattern/hls4ml_prj',
-                                                                fpga_part='xcvu9p-flga2104-2L-e',
-                                                                #fpga_part='xcvu13p-flga2577-2-e',
-                                                                clock_period=2.0)
-
-
-            plt.clf()
-            ap, wp = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model, X=random_pattern_data)
-            wp.savefig(modelName+"_Pattern_model_activations_profile.png")
-            ap.savefig(modelName+"_Pattern_model_weights_profile.png")
-
-    def export_hls_assoc_model(self,modelName):
-        import hls4ml
-        import numpy as np
+    def export_hls_assoc_model(self,modelName,plot=True):
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
         associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
-        associationconfig['Model']['Precision'] =  'ap_fixed<22,9>'
-        print(associationconfig)
-        print("-----------------------------------")
-        print("Configuration")
-        #plotting.print_dict(config)
-        print("-----------------------------------")
+        associationconfig['Model']['Precision'] =  'ap_fixed<22,9>' 
+
+        cfg = hls4ml.converters.create_config(backend='Vivado')
+        #cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        cfg['HLSConfig']  = associationconfig
+        cfg['KerasModel'] = self.associationModel
+        cfg['OutputDir']  = modelName+'_hls_association/'
+        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['ClockPeriod'] = 2.7
+
         random_association_data = np.random.rand(1000,4+self.nlatent)
-        hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
-                                                            hls_config=associationconfig,
-                                                            output_dir=modelName+'_hls_association/hls4ml_prj',
-                                                            part='xcvu9p-flga2104-2L-e',
-                                                            #part='xcvu13p-flga2577-2-e',
-                                                            clock_period=1.8)
-
-
+        
+        hls_association_model = hls4ml.converters.keras_to_hls(cfg)
         hls_association_model.compile()
+
+        if plot:
+            hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
+            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model) 
+            #wp.savefig(modelName+"_Association_model_activations_profile.png")
+            #ap.savefig(modelName+"_Association_model_weights_profile.png")
+            wph.savefig(modelName+"_Association_model_activations_profile_opt.png")
+            #aph.savefig(modelName+"_Association_model_weights_profile_opt.png")
+
+        y_keras = self.associationModel.predict(random_association_data)
+        y_hls4ml   = hls_association_model.predict(random_association_data)
+        
+        # "Accuracy" of hls4ml predictions vs keras
+        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
+        with open('ModelAccuracies.txt', 'a') as f:
+            print('{} Association accuracy relative to keras: {} \n'.format(modelName,rel_acc), file=f)
+
         hls_association_model.build(csim=True,synth=True,vsynth=True)
-
-    def plot_hls_assoc_model(self,modelName):
-        import hls4ml
-        import numpy as np
-        import matplotlib
-        #matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-
-        associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
-        print(associationconfig)
-
-        random_association_data = np.random.rand(1000,4+self.nlatent)
-        hls_association_model = hls4ml.converters.convert_from_keras_model(self.associationModel,
-                                                            hls_config=associationconfig,
-                                                            output_dir=modelName+'_hls_association/hls4ml_prj',
-                                                            fpga_part='xcvu9p-flga2104-2L-e',
-                                                            #part='xcvu13p-flga2577-2-e',
-                                                            clock_period=1.8)
-        plt.clf()
-        ap,wp = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model, X=random_association_data)
-        wp.savefig(modelName+"_association_model_activations_profile.png")
-        ap.savefig(modelName+"_association_model_weights_profile.png")
