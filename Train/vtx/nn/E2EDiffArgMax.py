@@ -8,14 +8,13 @@ from sklearn.metrics import accuracy_score
 class E2EDiffArgMax():
     def __init__(self,
         nbins=256,
-        start=-20.46912512,
-        end=20.46912512,
+        start=0,
+        end=256,
         max_z0 = 20.46912512,
         ntracks=250, 
         nweightfeatures=1,
         nfeatures=1, 
         nweights=1, 
-        npattern=4,
         nlatent=0, 
         activation='relu',
         nweightnodes = 10,
@@ -24,8 +23,6 @@ class E2EDiffArgMax():
         nassoclayers = 2,
         l2regloss=1e-10,
         temperature=1e-4,
-        return_index = False,
-        train_cnn = True,
     ):
         self.nbins = nbins
         self.start = start
@@ -34,7 +31,6 @@ class E2EDiffArgMax():
         self.nweightfeatures = nweightfeatures
         self.nfeatures = nfeatures
         self.nweights = nweights
-        self.npattern = npattern
         self.nlatent = nlatent
         self.activation = activation
         self.max_z0 = max_z0
@@ -43,9 +39,6 @@ class E2EDiffArgMax():
 
         self.temperature = temperature
 
-        self.return_index = return_index
-
-        self.train_cnn = train_cnn
 
         self.weightModel = None
         self.patternModel = None
@@ -67,9 +60,6 @@ class E2EDiffArgMax():
                     name='weight_'+str(ilayer+1)
                 ),
                 tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.Activation(self.activation),
-                #tf.keras.layers.BatchNormalization(),
-
                 
             ])
             
@@ -82,7 +72,6 @@ class E2EDiffArgMax():
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='weight_final'
             ),
-            #tf.keras.layers.Activation(self.activation)
         ])
 
         
@@ -96,7 +85,6 @@ class E2EDiffArgMax():
         
         self.patternConvLayers = []
         for ilayer,(filterSize,kernelSize) in enumerate([
-#            [1,5],
             [1,3]
         ]):
             self.patternConvLayers.extend([
@@ -104,9 +92,8 @@ class E2EDiffArgMax():
                     filterSize,
                     kernelSize,
                     padding='same',
-                    activation='linear',#self.activation,
+                    activation='linear',
                     kernel_initializer='orthogonal',
-                    trainable=train_cnn,
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
                 ) ,
@@ -153,8 +140,6 @@ class E2EDiffArgMax():
                     name='association_'+str(ilayer)
                 ),
                 tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.Activation(self.activation),
-                #tf.keras.layers.BatchNormalization(),
             ])
             
         self.assocLayers.extend([
@@ -167,11 +152,8 @@ class E2EDiffArgMax():
             )
         ])
 
-        #self.outputSoftmax = tf.keras.layers.Softmax(name='association_final')
-
         self.tiledTrackDimLayer = tf.keras.layers.Lambda(lambda x: tf.reshape(tf.tile(x,[1,self.ntracks]),[-1,self.ntracks,x.shape[1]]),name='tiled_track_dim')
-
-                
+    
     def applyLayerList(self, inputs, layerList):
         outputs = inputs
         for layer in layerList:
@@ -199,7 +181,6 @@ class E2EDiffArgMax():
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
         assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        #assocProbability = self.outputSoftmax(assocProbability)
         return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
         
     def createE2EModel(self):
@@ -212,40 +193,27 @@ class E2EDiffArgMax():
         binweight = self.binWeightLayer(softmax)
         pv,argmax = self.ArgMaxLayer(binweight)
 
-        pvFeatures = self.applyLayerList(pv,self.pvDenseLayers)
         pvFeatures_argmax = self.applyLayerList(argmax,self.pvDenseLayers)
-
-        if self.nlatent>0:
-            pvPosition,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent')(pvFeatures)
-        else:
-            pvPosition = pvFeatures
 
         if self.nlatent>0:
             pvPosition_argmax,latentFeatures_argmax = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent_argmax')(pvFeatures_argmax)
         else:
             pvPosition_argmax = pvFeatures_argmax
 
-        if self.return_index:
-            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-tf.floor(x[1])),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
-        else:
-            z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-x[1]),2)),name='z0_diff')([self.inputTrackZ0,pvPosition])
+        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-tf.floor(x[1])),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
         
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 
         if self.nlatent>0:
-            if self.return_index:
-                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures))  
-            else:
-                assocFeatures.append(self.tiledTrackDimLayer(latentFeatures_argmax))  
+            assocFeatures.append(self.tiledTrackDimLayer(latentFeatures_argmax))  
             
         assocFeat = tf.keras.layers.Concatenate(axis=2,name='association_features')(assocFeatures)
 
         assocProbability = self.applyLayerList(assocFeat,self.assocLayers)
-        #assocProbability = self.outputSoftmax(assocProbability)
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
-            outputs=[pvPosition,assocProbability,weights]
+            outputs=[pv,assocProbability,weights]
         )
 
         def q90loss(w):
@@ -278,7 +246,6 @@ class E2EDiffArgMax():
         self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
         self.associationModel.get_layer('dropout_3').set_weights        (largerModel.get_layer('dropout_3').get_weights()) 
         self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
-
 
     def write_model_graph(self,modelName):
         import cmsml
@@ -351,18 +318,18 @@ class E2EDiffArgMax():
         #patternconfig['Model']['Precision'] = 'ap_fixed<22,9>'
         #patternconfig['Model']['ReuseFactor'] = 1
 
-        patternconfig['LayerName']['hist']['ParallelizationFactor'] = 256
-        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 256
-        patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 1
-        patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 1
-        patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 1
+        patternconfig['LayerName']['hist']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 64
 
         cfg = hls4ml.converters.create_config(backend='Vivado')
-        #cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
         cfg['HLSConfig']  = patternconfig
         cfg['KerasModel'] = self.patternModel
         cfg['OutputDir']  = modelName+'_hls_pattern/'
-        #cfg['ParallelizationFactor'] = 256
+        cfg['ParallelizationFactor'] = 64
         cfg['Part'] = 'xcvu9p-flga2104-2L-e'
         cfg['ClockPeriod'] = 2.7
 

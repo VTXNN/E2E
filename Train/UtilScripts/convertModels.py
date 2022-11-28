@@ -24,12 +24,8 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-kf = sys.argv[1]
-
-with open(sys.argv[2]+'.yaml', 'r') as f:
+with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
-
-cnn = sys.argv[3]
 
 max_ntracks = 250   
 nlatent = config["Nlatent"]
@@ -44,13 +40,11 @@ DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=nbins,
             start=start,
             end=end,
-            return_index = bit,
             ntracks=nMaxTracks, 
             nweightfeatures=3, 
             nfeatures=3, 
             nweights=1, 
             nlatent = nlatent,
-            activation='relu',
             l2regloss=1e-10
         )
 
@@ -61,7 +55,6 @@ Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nfeatures=len(config["track_features"]), 
             nweights=1, 
             nlatent = nlatent,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
@@ -78,14 +71,12 @@ QPnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
             nfeatures=len(config["track_features"]), 
             nweights=1, 
             nlatent = nlatent,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-2,
             qconfig = config['QConfig'],
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(config['prune_iterations'])+'.h5'
         )
@@ -151,25 +142,23 @@ DAnetwork.load_weights(DAmodel)
 Qnetwork.load_weights(Qmodel)
 QPnetwork.load_weights(QPmodel)
 
-if cnn == 'False':
-    DAnetwork.export_individual_models(UnQuantisedModelName)
-    Qnetwork.export_individual_models(QuantisedModelName)
-    QPnetwork.export_individual_models(QuantisedPrunedModelName)
+DAnetwork.export_individual_models(UnQuantisedModelName)
+Qnetwork.export_individual_models(QuantisedModelName)
+QPnetwork.export_individual_models(QuantisedPrunedModelName)
 
-    DAnetwork.write_model_graph(UnQuantisedModelName)
-    Qnetwork.write_model_graph(QuantisedModelName)
-    QPnetwork.write_model_graph(QuantisedPrunedModelName)
+DAnetwork.write_model_graph(UnQuantisedModelName)
+Qnetwork.write_model_graph(QuantisedModelName)
+QPnetwork.write_model_graph(QuantisedPrunedModelName)
 
-    DAnetwork.export_hls_weight_model(UnQuantisedModelName)
-    Qnetwork.export_hls_weight_model(QuantisedModelName)
-    QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
+DAnetwork.export_hls_weight_model(UnQuantisedModelName)
+Qnetwork.export_hls_weight_model(QuantisedModelName)
+QPnetwork.export_hls_weight_model(QuantisedPrunedModelName)
 
-    DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
-    Qnetwork.export_hls_assoc_model(QuantisedModelName)
-    QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
+DAnetwork.export_hls_assoc_model(UnQuantisedModelName)
+Qnetwork.export_hls_assoc_model(QuantisedModelName)
+QPnetwork.export_hls_assoc_model(QuantisedPrunedModelName)
 
-if cnn == 'True':
-    DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
-    Qnetwork.export_hls_pattern_model(QuantisedModelName)
-    QPnetwork.export_hls_pattern_model(QuantisedPrunedModelName)
+DAnetwork.export_hls_pattern_model(UnQuantisedModelName)
+Qnetwork.export_hls_pattern_model(QuantisedModelName)
+QPnetwork.export_hls_pattern_model(QuantisedPrunedModelName)
 

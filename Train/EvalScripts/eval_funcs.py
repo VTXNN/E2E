@@ -130,11 +130,9 @@ def predictFastHisto(value,weight, res_func, return_index = False):
             z0List.append([z0])
     return np.array(z0List,dtype=np.float32)
 
-def FastHistoAssoc(PV,trk_z0,trk_eta, res_func, kf):
-    if (kf == "NewKF") | (kf == "NewKF_intZ"):
-        deltaz_bins = np.array([0.0,0.41,0.55,0.66,0.825,1.1,1.76,0.0])
-    elif (kf == "OldKF") | (kf == "OldKF_intZ"):
-        deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
+def FastHistoAssoc(PV,trk_z0,trk_eta, res_func):
+
+    deltaz_bins = np.array([0.0,0.37,0.5,0.6,0.75,1.0,1.6,0.0])
     eta_bins = np.array([0.0,0.7,1.0,1.2,1.6,2.0,2.4])
     
 

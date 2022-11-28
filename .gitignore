@@ -1,7 +1,6 @@
 *.pyc
 *.hdf5
 *.log
-*.sh
 *.so
 *.o
 *.png

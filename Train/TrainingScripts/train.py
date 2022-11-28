@@ -9,55 +9,12 @@ import glob
 import sklearn.metrics as metrics
 import vtx
 import TrainingScripts
-import EvalScripts.eval_funcs as eval_funcs
+from EvalScripts.eval_funcs import *
 import pandas as pd
 
 import yaml
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import mplhep as hep
-#hep.set_style("CMSTex")
-hep.cms.label()
-hep.cms.text("Simulation")
-
-plt.style.use(hep.style.ROOT)
-
-tf.config.threading.set_inter_op_parallelism_threads(
-    8
-)
-
-kf = sys.argv[1]
-
 max_z0 = 20.46912512
-
-if kf == "NewKF":
-    z0 = 'trk_z0'
-    FH_z0 = 'trk_z0'
-elif kf == "OldKF":
-    z0 = 'trk_z0'
-    FH_z0 = 'trk_z0'
-elif kf == "OldKF_intZ":
-    z0 = 'int_z0'
-    FH_z0 = 'trk_z0'
-elif kf == "NewKF_intZ":
-    z0 = 'int_z0'
-    FH_z0 = 'trk_z0'
-
-
-SMALL_SIZE = 15
-MEDIUM_SIZE = 15
-BIGGER_SIZE = 16
-
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
-plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
-
 max_ntracks = 250
 
 def decode_data(raw_data):
@@ -85,7 +42,7 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,bit=False,model_name=[None,None]):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,model_name=[None,None]):
 
     total_steps = 0
     early_stop_patience = 100
@@ -106,15 +63,6 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             model.load_weights(model_name[0]+model_name[1]+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
-            #z0Shift = np.random.randint(-10,10,size=batch['pvz0'].shape)
-
-            #Zflip = np.random.randint(2,size=batch['pvz0'].shape)
-            #z0Flip = 2.*Zflip-1.
-            #flipz0Flip = 1 - Zflip
-
-            # batch[z0] = batch[z0] + z0Shift
-            # batch['pvz0']= batch['pvz0'] + (z0Shift*((max_z0*2)/nbins))
-            # batch[FH_z0]= batch[FH_z0] + (z0Shift*((max_z0*2)/nbins))
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
@@ -122,7 +70,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             nBatch = batch['pvz0'].shape[0]
                                   
-            result = model.train_on_batch([batch[z0],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])], 
+            result = model.train_on_batch([batch['int_z0'],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])], 
                                           sample_weight = [np.ones([nBatch,max_ntracks,1]),np.expand_dims(batch['trk_class_weight'],axis=-1),np.ones([nBatch,max_ntracks,1])])   
 
             result = dict(zip(model.metrics_names,result))
@@ -135,9 +83,9 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
-                predictedZ0_FH = eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],res_func=eval_funcs.linear_res_function(batch['trk_gtt_pt']))
+                predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_gtt_pt'],res_func=linear_res_function(batch['trk_gtt_pt']))
   
-                predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
+                predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch['int_z0'],WeightFeatures,trackFeatures] )
 
                 qz0_NN = np.percentile(predictedZ0_NN-batch['pvz0'],[5,32,50,68,95])
                 qz0_FH = np.percentile(predictedZ0_FH-batch['pvz0'],[5,32,50,68,95])
@@ -178,14 +126,14 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(eval_funcs.predictFastHisto(val_batch[FH_z0],val_batch['trk_gtt_pt'],res_func=eval_funcs.linear_res_function(val_batch['trk_gtt_pt'])).flatten())
+            val_predictedZ0_FH.append(predictFastHisto(val_batch['trk_z0'],val_batch['trk_gtt_pt'],res_func=linear_res_function(val_batch['trk_gtt_pt'])).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
 
             val_WeightFeatures = np.stack([val_batch[feature] for feature in weightfeat],axis=2)
 
             temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
-                        [val_batch[z0],val_WeightFeatures,val_trackFeatures]
+                        [val_batch['trk_z0'],val_WeightFeatures,val_trackFeatures]
                 )
   
             val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
@@ -193,7 +141,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(val_batch['pvz0'],val_batch[FH_z0],val_batch['trk_gtt_eta'],res_func=eval_funcs.linear_res_function(val_batch['trk_gtt_eta']),kf=kf).flatten())
+            val_predictedAssoc_FH.append(FastHistoAssoc(val_batch['pvz0'],val_batch['trk_z0'],val_batch['trk_gtt_eta'],res_func=linear_res_function(val_batch['trk_gtt_eta'])).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -251,13 +199,13 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
 
-        predictedZ0_FH.append(eval_funcs.predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],res_func=eval_funcs.linear_res_function(batch['trk_gtt_pt'])))
+        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['trk_gtt_pt'],res_func=linear_res_function(batch['trk_gtt_pt'])))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(eval_funcs.FastHistoAssoc(batch['pvz0'],batch[FH_z0],batch['trk_gtt_eta'],res_func=eval_funcs.linear_res_function(batch['trk_gtt_eta']),kf=kf))
-        predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch[z0],WeightFeatures,trackFeatures] )
+        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch['trk_z0'],batch['trk_gtt_eta'],res_func=linear_res_function(batch['trk_gtt_eta'])))
+        predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch['int_z0'],WeightFeatures,trackFeatures] )
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -301,18 +249,15 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None
    
     
 if __name__=="__main__":
-    with open(sys.argv[2]+'.yaml', 'r') as f:
+    with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
-    retrain = config["retrain"]
 
-    trainable = sys.argv[3]
+    trainable = sys.argv[2]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
     nbins = config['nbins']
 
-    train_cnn = config["train_cnn"]
-    
     nlatent = config["Nlatent"]
 
     position_final_weights = []
@@ -321,37 +266,21 @@ if __name__=="__main__":
         position_final_weights.append(1)
         position_final_bias.append((max_z0*2)/nbins)
 
-    
-    PretrainedModelName = config["PretrainedModelName"] 
-    pretrain_DA = config["pretrain_DA"]
-
-    if (kf == 'NewKF') | (kf == 'OldKF'):
-        start = -1*max_z0
-        end = max_z0
-        bit = False
-
-    elif (kf == 'OldKF_intZ') | (kf == 'NewKF_intZ'):
-        start = 0
-        end = nbins - 1
-        bit = True
+    start = 0
+    end = nbins - 1
 
     if trainable == 'DA':
 
         network = vtx.nn.E2EDiffArgMax(
-            nbins=nbins,
-            start=start,
+            nbins = nbins,
+            start = start,
             end = end,
             max_z0 = max_z0,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
+            ntracks = max_ntracks, 
+            nweightfeatures = len(weightfeat), 
+            nfeatures = len(trackfeat), 
             nlatent = nlatent,
-            return_index = bit,
-            train_cnn = train_cnn,
-            activation='relu',
-            l2regloss=1e-10,
-            temperature=1e-4,
+            l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
@@ -364,25 +293,20 @@ if __name__=="__main__":
     if trainable == 'QDA':
 
         network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins=nbins,
+            nbins = nbins,
             start = start,
             end = end,
             max_z0 = max_z0,
-            ntracks=max_ntracks, 
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            return_index = bit,
-            nweights=1, 
+            ntracks = max_ntracks, 
+            nweightfeatures = len(weightfeat), 
+            nfeatures = len(trackfeat), 
             nlatent = nlatent,
-            train_cnn = train_cnn,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-4,
             qconfig = config['QConfig']
         )
 
@@ -391,76 +315,46 @@ if __name__=="__main__":
 
     if trainable == 'QDA_prune':
         network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
-            nbins=nbins,
+            nbins = nbins,
             start = start,
             end = end,
             max_z0 = max_z0,
-            ntracks=max_ntracks, 
-            return_index = bit,
-            nweightfeatures=len(weightfeat), 
-            nfeatures=len(trackfeat), 
-            nweights=1, 
+            ntracks = max_ntracks, 
+            nweightfeatures = len(weightfeat), 
+            nfeatures = len(trackfeat), 
             nlatent = nlatent,
-            train_cnn = train_cnn,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            temperature = 1e-4,
             qconfig = config['QConfig'],
-            h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[4]+'.h5'
+            h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[3]+'.h5'
         )
 
-        model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[4])+1)]
+        model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[3])+1)]
         epochs = config['qtrain_epochs']
 
-    if (kf == "NewKF")  | (kf == 'NewKF_intZ'):
-        train_files = glob.glob(config["data_folder"]+"/TTbar/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"/TTbar/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"/TTbar/Val/*.tfrecord")
-        trackFeatures = [
-                'trk_z0',
-                'abs_trk_word_pT',
-                'abs_trk_word_eta',
-                'rescaled_trk_word_MVAquality',
-                'trk_gtt_pt',
-                'trk_gtt_eta',
-                'trk_z0_res',
-                'int_z0',
-                'trk_class_weight',
-                'abs_trk_word_pT',
-                'abs_trk_word_eta',
-                'trk_word_MVAquality',
-                'rescaled_trk_word_pT',
-                'rescaled_trk_word_eta',
-                'rescaled_trk_z0_res'
-        ]
-        
-    elif (kf == "OldKF") | (kf == 'OldKF_intZ'):
-        train_files = glob.glob(config["data_folder"]+"/TTbar/Train/*.tfrecord")
-        test_files = glob.glob(config["data_folder"]+"/TTbar/Test/*.tfrecord")
-        val_files = glob.glob(config["data_folder"]+"/TTbar/Val/*.tfrecord")
 
-        trackFeatures = [
+    train_files = glob.glob(config["data_folder"]+"/Train/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+    val_files = glob.glob(config["data_folder"]+"/Val/*.tfrecord")
+
+    trackFeatures = [
                 'trk_z0',
                 'abs_trk_word_pT',
                 'abs_trk_word_eta',
-                'rescaled_trk_word_MVAquality',
                 'trk_gtt_pt',
                 'trk_gtt_eta',
                 'trk_z0_res',
                 'int_z0',
                 'trk_class_weight',
-                'abs_trk_word_pT',
-                'abs_trk_word_eta',
                 'trk_word_MVAquality',
                 'rescaled_trk_word_pT',
                 'rescaled_trk_word_eta',
                 'rescaled_trk_z0_res'
-        ]
+    ]
 
     print ("Input Train files: ",len(train_files))
     print ("Input Validation files: ",len(val_files))
@@ -484,17 +378,12 @@ if __name__=="__main__":
         auto_histogram_activation_logging=True,
     )
 
-    
-    experiment.log_other("description",kf + config["description"])
-    with open(kf+'experimentkey.txt', 'w') as fh:
+    experiment.log_other("description",config["description"])
+    with open('experimentkey.txt', 'w') as fh:
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
-    if trainable == 'DA':
-        loss_function = tf.keras.losses.Huber(config['Huber_delta'])
-    else:
-        #loss_function = tf.keras.losses.MeanSquaredError()
-        loss_function = tf.keras.losses.Huber(0.8)
+    loss_function = tf.keras.losses.Huber(0.8)
     
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(learning_rate=startingLR)
@@ -502,8 +391,6 @@ if __name__=="__main__":
         optimizer,
         loss=[
             loss_function,
-            #tf.keras.losses.MeanAbsoluteError(),
-            #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.,
         ],
@@ -518,113 +405,62 @@ if __name__=="__main__":
     model.summary()
 
     if trainable == 'DA':
-        if not train_cnn:
-            model.get_layer('pattern_1').set_weights([np.array([[[1]],[[1]],[[1]]], dtype=np.float32)]) 
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
-        else:
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
-        experiment.set_name(kf+config['comet_experiment_name'])
-
-        if (pretrain_DA == 'True'):
-            loadedmodel = network.createE2EModel()
-            loadedmodel.compile(
-                optimizer,
-                loss=[
-                    loss_function,
-                    #tf.keras.losses.MeanAbsoluteError(),
-                    #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
-                    tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                    lambda y,x: 0.,
-                ],
-                metrics=[
-                    tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
-                ],
-                loss_weights=[config['z0_loss_weight'],
-                            config['crossentropy_loss_weight'],
-                            0
-                            ]
-            )
-
-            model.load_weights(config["UnquantisedModelName"]+".tf").expect_partial()
-
+        experiment.set_name(config['comet_experiment_name'])
+        model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
+        model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
+        
     elif trainable == 'QDA':
-        experiment.set_name(kf+config['comet_experiment_name'])
-        if (config["pretrained"] == True):
-            DAnetwork = vtx.nn.E2EDiffArgMax(
-                nbins=nbins,
-                ntracks=max_ntracks, 
-                nweightfeatures=len(weightfeat), 
-                nfeatures=len(trackfeat), 
-                nweights=1, 
-                nlatent = nlatent,
-                activation='relu',
-                l2regloss=1e-10,
-                nweightnodes = config['nweightnodes'],
-                nweightlayers = config['nweightlayers'],
-                nassocnodes = config['nassocnodes'],
-                nassoclayers = config['nassoclayers'],
-            )
-            
-            DAmodel = DAnetwork.createE2EModel()
-            optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-            DAmodel.compile(
-                optimizer,
-                loss=[
-                    loss_function,
-                    #tf.keras.losses.MeanSquaredError(),
-                    #TrainingScripts.Callbacks.ModifiedHuberDelta(config['Huber_delta']),
-                    tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                    lambda y,x: 0.
-                ],
-                metrics=[
-                    tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
-                ],
-                loss_weights=[config['z0_loss_weight'],
-                            config['crossentropy_loss_weight'],
-                            0]
-            )
-            DAmodel.summary()
-            DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
-            model.get_layer('weight_1').set_weights    (DAmodel.get_layer('weight_1').get_weights())
-            model.get_layer('weight_2').set_weights    (DAmodel.get_layer('weight_2').get_weights()) 
-            model.get_layer('weight_final').set_weights(DAmodel.get_layer('weight_final').get_weights()) 
-
-            model.get_layer('pattern_1').set_weights(DAmodel.get_layer('pattern_1').get_weights()) 
-            #model.get_layer('pattern_2').set_weights(DAmodel.get_layer('pattern_2').get_weights()) 
-
-            if not train_cnn:
-                model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
-                #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
-                model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
-                model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
-                model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
-            else:
-                model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
-                #model.get_layer('position_final').set_weights   (DAmodel.get_layer('position_final').get_weights()) 
-                model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
-                model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
-                model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
-                model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
-
-
-        else:
-            model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
-            model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
-
+        experiment.set_name(config['comet_experiment_name']+str("_Quantised"))
+        DAnetwork = vtx.nn.E2EDiffArgMax(
+            nbins = nbins,
+            ntracks = max_ntracks, 
+            nweightfeatures = len(weightfeat), 
+            nfeatures = len(trackfeat), 
+            nlatent = nlatent,
+            l2regloss = (float)(config['l2regloss']),
+            nweightnodes = config['nweightnodes'],
+            nweightlayers = config['nweightlayers'],
+            nassocnodes = config['nassocnodes'],
+            nassoclayers = config['nassoclayers'],
+        )
+        
+        DAmodel = DAnetwork.createE2EModel()
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+        DAmodel.compile(
+            optimizer,
+            loss=[
+                loss_function,
+                tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                lambda y,x: 0.
+            ],
+            metrics=[
+                tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+            ],
+            loss_weights=[config['z0_loss_weight'],
+                        config['crossentropy_loss_weight'],
+                        0]
+        )
+        DAmodel.summary()
+        DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
+        model.get_layer('weight_1').set_weights    (DAmodel.get_layer('weight_1').get_weights())
+        model.get_layer('weight_2').set_weights    (DAmodel.get_layer('weight_2').get_weights()) 
+        model.get_layer('weight_final').set_weights(DAmodel.get_layer('weight_final').get_weights()) 
+        model.get_layer('pattern_1').set_weights(DAmodel.get_layer('pattern_1').get_weights()) 
+        model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
+        model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+        model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
+        model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
+        model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
 
     elif trainable == 'QDA_prune':
-        experiment.set_name(kf+config['comet_experiment_name']+str(sys.argv[4]))
-        model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[4]+".tf").expect_partial()
-
-
+        experiment.set_name(config['comet_experiment_name']+"_Quantised_prune_#"+str(sys.argv[3]))
+        model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[3]+".tf").expect_partial()
+    
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
         monitor='loss', factor=0.1, patience=6, verbose=1,
         mode='auto', min_delta=0.05, cooldown=0, min_lr=0
     )
     with experiment.train():
-        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,bit=bit,model_name=model_name),
+        train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=epochs,callbacks=reduceLR,nlatent=nlatent,model_name=model_name),
     with experiment.test():
         test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=model_name)

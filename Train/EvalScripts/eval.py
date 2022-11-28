@@ -15,7 +15,7 @@ import yaml
 from tensorflow.keras.models import Model
 
 import vtx
-#from TrainingScripts.train import *
+from TrainingScripts.train import *
 from EvalScripts.eval_funcs import *
 
 from qkeras.qlayers import QDense, QActivation
@@ -24,60 +24,29 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-# hep.cms.label()
-# hep.cms.text("Simulation")
-# plt.style.use(hep.style.CMS)
-
-
+nMaxTracks = 250
 max_z0 = 20.46912512
-# colormap = "jet"
-
-
-# colours=["red","green","blue","orange","purple","yellow"]
-
-
 
 if __name__=="__main__":
-    with open(sys.argv[2]+'.yaml', 'r') as f:
+    with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    kf = sys.argv[1]
-
-    if kf == "NewKF":
-        test_files = glob.glob(config["data_folder"]+"/TTbar/MET/*.tfrecord")
-        z0 = 'trk_z0'
-        FH_z0 = 'trk_z0'
-        start = -1*max_z0
-        end = max_z0
-        bit = False
-
-    elif kf == "OldKF":
-        test_files = glob.glob(config["data_folder"]+"/TTbar/MET/*.tfrecord")
-        z0 = 'trk_z0'
-        start = -1*max_z0
-        end = max_z0
-        bit = False
-
-    elif kf == "OldKF_intZ":
-        test_files = glob.glob(config["data_folder"]+"/TTbar/MET/*.tfrecord")
-        z0 = 'int_z0'
-        FH_z0 = 'trk_z0'
-        start = 0
-        end = 255
-        bit = True
-
-
-    nMaxTracks = 250
+    test_files = glob.glob(config["data_folder"]+"/TTbar/MET/*.tfrecord")
+    z0 = 'int_z0'
+    FH_z0 = 'trk_z0'
+    start = 0
+    end = 255
+    bit = True
 
     save = True
-    savingfolder = kf+"SavedArrays/"
+    savingfolder = "SavedArrays/"
     PVROCs = True
     met = False
 
     nlatent = config["Nlatent"]
     nbins = config['nbins']
 
-    with open(kf+'experimentkey.txt') as f:
+    with open('experimentkey.txt') as f:
         first_line = f.readline()
 
     EXPERIMENT_KEY = first_line
@@ -97,7 +66,7 @@ if __name__=="__main__":
             log_env_cpu=True,     # to continue CPU logging
         )
 
-    outputFolder = kf+config['eval_folder']
+    outputFolder = 'plots'
     trainable = config["trainable"]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
@@ -110,30 +79,6 @@ if __name__=="__main__":
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
             "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32)
     }
-
-    def decode_data(raw_data):
-        decoded_data = tf.io.parse_example(raw_data,features)
-        return decoded_data
-
-    def setup_pipeline(fileList):
-        ds = tf.data.Dataset.from_tensor_slices(fileList)
-        ds.shuffle(len(fileList),reshuffle_each_iteration=True)
-        ds = ds.interleave(
-            lambda x: tf.data.TFRecordDataset(
-                x, compression_type='GZIP', buffer_size=100000000
-            ),
-            cycle_length=6, 
-            block_length=200, 
-            num_parallel_calls=6
-        )
-        ds = ds.batch(200) #decode in batches (match block_length?)
-        ds = ds.map(decode_data, num_parallel_calls=6)
-        ds = ds.unbatch()
-        ds = ds.shuffle(5000,reshuffle_each_iteration=True)
-        ds = ds.batch(2000)
-        ds = ds.prefetch(5)
-
-        return ds
 
     trackFeatures = [
             'trk_word_chi2rphi', 
@@ -169,8 +114,6 @@ if __name__=="__main__":
             nfeatures=len(trackfeat), 
             nweights=1, 
             nlatent = nlatent,
-            return_index = bit,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
@@ -202,13 +145,11 @@ if __name__=="__main__":
             start=start,
             end=end,
             max_z0 = max_z0,
-            return_index = bit,
             ntracks=nMaxTracks, 
             nweightfeatures=len(weightfeat), 
             nfeatures=len(trackfeat), 
             nweights=1, 
             nlatent = nlatent,
-            activation='relu',
             l2regloss=1e-10
         )
         
@@ -235,12 +176,10 @@ if __name__=="__main__":
             start=start,
             end=end,
             max_z0 = max_z0,
-            return_index = bit,
             nweightfeatures=len(config["weight_features"]),  
             nfeatures=len(config["track_features"]), 
             nweights=1, 
             nlatent = nlatent,
-            activation='relu',
             l1regloss = (float)(config['l1regloss']),
             l2regloss = (float)(config['l2regloss']),
             nweightnodes = config['nweightnodes'],
@@ -362,16 +301,16 @@ if __name__=="__main__":
             actual_Assoc.append(batch["trk_fromPV"])
             actual_PV.append(batch['pvz0'])
 
-            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True),kf)
+            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             predictedAssoc_FH.append(FHassoc)
 
-            FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True),kf)
+            FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             predictedAssoc_FHres.append(FHassocres)
 
-            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_gtt_eta'],MVA_res_function(batch['rescaled_trk_word_MVAquality'],return_bool=True),kf)
+            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_gtt_eta'],MVA_res_function(batch['rescaled_trk_word_MVAquality'],return_bool=True))
             predictedAssoc_FHMVA.append(FHassocMVA)
 
-            FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_fake'],return_bool=True),kf)
+            FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_fake'],return_bool=True))
             predictedAssoc_FHnoFake.append(FHassocnoFake)
 
             #for i,event in enumerate(batch[z0]):

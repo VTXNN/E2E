@@ -11,51 +11,13 @@ import h5py
 
 import sklearn.metrics as metrics
 import vtx
-import EvalScripts.eval_funcs as eval_funcs
+from EvalScripts.eval_funcs import *
 import pandas as pd
 
 import yaml
 
 from tensorflow.keras.utils import get_custom_objects
 get_custom_objects().update({"ZeroSomeWeights": vtx.nn.constraints.ZeroSomeWeights})
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import mplhep as hep
-#hep.set_style("CMSTex")
-hep.cms.label()
-hep.cms.text("Simulation")
-
-plt.style.use(hep.style.CMS)
-
-colormap = "jet"
-
-SMALL_SIZE = 20
-MEDIUM_SIZE = 25
-BIGGER_SIZE = 30
-
-LEGEND_WIDTH = 31
-LINEWIDTH = 3
-
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
-plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
-plt.rc('axes', linewidth=5)              # thickness of axes
-plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=18)            # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
-
-matplotlib.rcParams['xtick.major.size'] = 20
-matplotlib.rcParams['xtick.major.width'] = 5
-matplotlib.rcParams['xtick.minor.size'] = 10
-matplotlib.rcParams['xtick.minor.width'] = 4
-
-matplotlib.rcParams['ytick.major.size'] = 20
-matplotlib.rcParams['ytick.major.width'] = 5
-matplotlib.rcParams['ytick.minor.size'] = 10
-matplotlib.rcParams['ytick.minor.width'] = 4
 
 def getWeightArray(model):
     allWeights = []
@@ -98,16 +60,15 @@ if __name__ == "__main__":
     co = {}
     _add_supported_quantized_objects(co)
 
-    kf = sys.argv[1]
 
-    with open(sys.argv[2]+'.yaml', 'r') as f:
+    with open(sys.argv[1]+'.yaml', 'r') as f:
             config = yaml.load(f,Loader=yaml.FullLoader)
 
     max_ntracks = 250   
     nlatent = config["Nlatent"]
     nbins = config['nbins']
 
-    if sys.argv[3] == '1':
+    if sys.argv[2] == '1':
 
         Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
                     nbins=nbins,

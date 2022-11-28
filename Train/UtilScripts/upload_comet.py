@@ -1,9 +1,8 @@
 import comet_ml
 import sys
-kf = sys.argv[1]
 
 
-with open(kf+'_intZexperimentkey.txt') as f:
+with open('experimentkey.txt') as f:
         first_line = f.readline()
 
 EXPERIMENT_KEY = first_line

@@ -1,36 +1,27 @@
-retrain : True
 comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : QDANN_weighted_CMSSW12_
-description : QDANN
+comet_experiment_name : Base_model
+description : Baseline Model no changes
 
-trainable : "QDiffArgMax"
 weight_features : ['abs_trk_word_pT','trk_word_MVAquality','abs_trk_word_eta']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_word_eta'] #
 track_features :  ['abs_trk_word_pT','trk_word_MVAquality','trk_z0_res']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_z0_res']  #
-pretrained : False
-bit_inputs : False
-pretrain_DA : False
 
-train_cnn : True
-
-QuantisedModelName : Quantised_model
 UnquantisedModelName : Unquantised_model
+QuantisedModelName : Quantised_model
 QuantisedPrunedModelName : Quantised_model_prune_iteration_9
-PretrainedModelName : NewKF_Unquantised_model
 
 prune_iterations : 8
 
 nbins : 256
 
-eval_folder : Qplots
-data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ
+data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
 Nlatent : 0
 
 starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
-epochs : 25
-qtrain_epochs : 10
+epochs : 2
+qtrain_epochs : 1
 
 z0_loss_weight : 1.0
 crossentropy_loss_weight : 1.0
@@ -63,9 +54,9 @@ QConfig:
   conv_1:
     kernel_quantizer : quantized_bits(6,2,alpha=1)
     activation : quantized_relu(7,2)
-  conv_2:
-    kernel_quantizer : quantized_bits(6,2,alpha=1)
-    activation : quantized_relu(8,1)
+  PVDense:
+    kernel_quantizer : quantized_bits(10,1,alpha=1)
+    bias_quantizer : quantized_bits(10,1,alpha=1)
   association_0 :
     kernel_quantizer : quantized_bits(10,3,alpha=1)
     bias_quantizer : quantized_bits(10,3,alpha=1)
