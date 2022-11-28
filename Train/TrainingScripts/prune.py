@@ -75,9 +75,7 @@ if __name__ == "__main__":
                     ntracks=max_ntracks, 
                     nweightfeatures=len(config["weight_features"]), 
                     nfeatures=len(config["track_features"]), 
-                    nweights=1, 
                     nlatent = nlatent,
-                    activation='relu',
                     l1regloss = (float)(config['l1regloss']),
                     l2regloss = (float)(config['l2regloss']),
                     nweightnodes = config['nweightnodes'],
@@ -94,9 +92,7 @@ if __name__ == "__main__":
                     ntracks=max_ntracks, 
                     nweightfeatures=len(config["weight_features"]), 
                     nfeatures=len(config["track_features"]), 
-                    nweights=1, 
                     nlatent = nlatent,
-                    activation='relu',
                     l1regloss = (float)(config['l1regloss']),
                     l2regloss = (float)(config['l2regloss']),
                     nweightnodes = config['nweightnodes'],
@@ -104,7 +100,7 @@ if __name__ == "__main__":
                     nassocnodes = config['nassocnodes'],
                     nassoclayers = config['nassoclayers'],
                     qconfig = config['QConfig'],
-                    h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(int(sys.argv[3])-1)+'.h5'
+                    h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(int(sys.argv[2])-1)+'.h5'
                 )
 
     Qmodel = Qnetwork.createE2EModel()
@@ -126,7 +122,7 @@ if __name__ == "__main__":
     QuantisedModelName = config["QuantisedModelName"] 
 
     Qmodel.summary()
-    Qmodel.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3])-1)+".tf").expect_partial()
+    Qmodel.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[2])-1)+".tf").expect_partial()
 
 
     weightsPerLayer = {}
@@ -134,7 +130,7 @@ if __name__ == "__main__":
     binaryTensorPerLayer = {}
     allWeightsArray,allWeightsByLayer,allWeightsArrayNonRel,allWeightsByLayerNonRel = getWeightArray(Qmodel)
 
-    relative_weight_max = config["relative_weight_max"][int(sys.argv[3])]
+    relative_weight_max = config["relative_weight_max"][int(sys.argv[2])]
 
     print(relative_weight_max)
 
@@ -178,10 +174,10 @@ if __name__ == "__main__":
     print('%i total weights dropped out of %i total weights'%(totalDropped,Qmodel.count_params()))
     print('%.1f%% compression'%(100.*totalDropped/Qmodel.count_params()))
 
-    Qmodel.save_weights(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+".tf")
+    Qmodel.save_weights(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+".tf")
 
     # save binary tensor in h5 file 
-    h5f = h5py.File(QuantisedModelName+'_drop_weights_iteration_'+sys.argv[3]+'.h5','w')
+    h5f = h5py.File(QuantisedModelName+'_drop_weights_iteration_'+sys.argv[2]+'.h5','w')
     for layer, binary_tensor in binaryTensorPerLayer.items():
         h5f.create_dataset('%s'%layer, data = binaryTensorPerLayer[layer])
     h5f.close()
@@ -226,7 +222,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Number of Weights',ha="right",y=1)
     ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
     ax.grid(True)
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_histogram.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram.pdf')
 
         
     plt.clf()
@@ -255,7 +251,7 @@ if __name__ == "__main__":
     ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
     ax.grid(True)
     #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_histogram_logx.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram_logx.pdf')
 
 
     plt.clf()
@@ -281,4 +277,4 @@ if __name__ == "__main__":
     ax.set_xlabel('Absolute Value of Weights',ha="right",x=1)
     ax.grid()
     #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_nonrel_histogram_logx.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_nonrel_histogram_logx.pdf')

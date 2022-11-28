@@ -203,12 +203,16 @@ class E2EQKerasDiffArgMax():
         binweight = self.binWeightLayer(softmax)
         pv,argmax = self.ArgMaxLayer(binweight)
 
+        pvFeatures = self.applyLayerList(pv,self.pvDenseLayers)
         pvFeatures_argmax = self.applyLayerList(argmax,self.pvDenseLayers)
 
         if self.nlatent>0:
             pvPosition_argmax,latentFeatures_argmax = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent_argmax')(pvFeatures_argmax)
+            pvPosition,latentFeatures = tf.keras.layers.Lambda(lambda x: [x[:,0:1],x[:,1:]],name='split_latent')(pvFeatures)
+
         else:
             pvPosition_argmax = pvFeatures_argmax
+            pvPosition = pvFeatures
 
         z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-tf.floor(x[1])),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
 
@@ -224,7 +228,7 @@ class E2EQKerasDiffArgMax():
         
         model = tf.keras.Model(
             inputs=[self.inputTrackZ0,self.inputWeightFeatures,self.inputTrackFeatures],
-            outputs=[pv,assocProbability,weights]
+            outputs=[pvPosition,assocProbability,weights]
         )
 
         def q90loss(w):

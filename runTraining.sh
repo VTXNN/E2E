@@ -7,7 +7,7 @@ conda activate qtf
 
 ###### CHANGE ##########
 export PYTHONPATH=/home/cebrown/Documents/Trigger/E2E/Ops/release:$PYTHONPATH  
-export PYTHONPATH=/home/cebrown/Documents/Trigger/E2E/Train:$PYTHONPATH
+export PYTHONPATH=/home/cebrown/TempE2E/E2E/Train:$PYTHONPATH
 export COMET_API_KEY=expKifKow3Mn4dnjc1UGGOqrg
 
 
