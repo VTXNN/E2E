@@ -1,30 +1,23 @@
-# VTXNN
-Neural network for find primary vertices at L1 and their associated tracks
+# E2E
+End-to-end neural network training
 
-## Setup
+To setup the python environment for Quantised training install anaconda: https://www.anaconda.com/ for your chosen platform then in the Env subdirectory:
 
-1. Install miniconda environment: ```./Env/setupEnv.sh Env/environment.yml Env/env```
-2. Activate environment: ```source Env/env.sh```
-3. Compile custom tensorflow operations: 
-  ```
-  mkdir Ops/build
-  cd Ops/build
-  cmake .. -DCMAKE_INSTALL_PREFIX=../release
-  make && make install
-  ```
-4. Add custom ops to python: ```export PYTHONPATH=<release_dir>:$PYTHONPATH``` (use the absolute path here)
-5. Verify that the ops can be imported: ```python -c "import vtxops"``` (should exit without any errors)
+`conda env create -f environmentQkeras.yml`
 
-For the following steps always make sure that the miniconda environment is active (1.) and that python can find the compiled custom ops (4.).
+`conda activate qtf`
 
-## Training
+Then in the Ops directory:
 
-1. Convert the track information into TFrecord file format: ```Train/convertTFRecords.py```
-2. Train the neural network (ideally on cluster) using the converted files: ```Train/train.py```
-3. The main parts of the NN can be exported separately for HLS4ML: ```Train/exportNN.py```
+`cmake . -DCMAKE_INSTALL_PREFIX=$PWD/release`
 
-Rinse and repeat.
+`make install`
 
-## Model architecture
+To run a basic training loop first training a unquantised network followed by a quantised network you will need to change line 13 of setupQDANewKF.yaml to
+the directory that contains a NewKFData and OldKFData each with a  Train, Test, Val, MET set of folders each with .tfrecord files for training on
+Then you will need a comet_ml account https://www.comet.ml/site/ for logging all the training info and resulting plots and put your API key in line 9 
+of vtxReduced.sh 
 
-Several NN models are defined under: ```Train/vtx/nn```. The default model is ```E2ERef.py```.
+Also update line 7 of vtxReduced.sh to the absolute path of the directory Ops/release
+
+Once done you can simply run vtxReduced.sh which should run the training and evaluation of the model

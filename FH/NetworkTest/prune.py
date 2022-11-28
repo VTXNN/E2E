@@ -1,0 +1,344 @@
+from tensorflow.keras import backend as K
+import tensorflow as tf
+import numpy as np
+
+import qkeras
+
+import sys
+import glob
+
+import h5py
+
+import sklearn.metrics as metrics
+import vtx
+import EvalScripts.eval_funcs as eval_funcs
+import pandas as pd
+
+import yaml
+
+from tensorflow.keras.utils import get_custom_objects
+get_custom_objects().update({"ZeroSomeWeights": vtx.nn.constraints.ZeroSomeWeights})
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import mplhep as hep
+#hep.set_style("CMSTex")
+hep.cms.label()
+hep.cms.text("Simulation")
+
+plt.style.use(hep.style.CMS)
+
+colormap = "jet"
+
+SMALL_SIZE = 20
+MEDIUM_SIZE = 25
+BIGGER_SIZE = 30
+
+LEGEND_WIDTH = 31
+LINEWIDTH = 3
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
+plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
+plt.rc('axes', linewidth=5)              # thickness of axes
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=18)            # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+matplotlib.rcParams['xtick.major.size'] = 20
+matplotlib.rcParams['xtick.major.width'] = 5
+matplotlib.rcParams['xtick.minor.size'] = 10
+matplotlib.rcParams['xtick.minor.width'] = 4
+
+matplotlib.rcParams['ytick.major.size'] = 20
+matplotlib.rcParams['ytick.major.width'] = 5
+matplotlib.rcParams['ytick.minor.size'] = 10
+matplotlib.rcParams['ytick.minor.width'] = 4
+
+def getWeightArray(model):
+    allWeights = []
+    allWeightsNonRel = []
+    allWeightsByLayer = {}
+    allWeightsByLayerNonRel = {}
+    for layer in model.layers:         
+        if layer.name in ['weight_1','weight_2','weight_final','association_0','association_1','association_final']:
+            original_w = layer.get_weights()
+            weightsByLayer = []
+            weightsByLayerNonRel = []
+            for my_weights in original_w:                
+                if len(my_weights.shape) < 2: # bias term, ignore for now
+                    continue
+                #l1norm = tf.norm(my_weights,ord=1)
+                elif len(my_weights.shape) == 2: # Dense or LSTM
+                    tensor_abs = tf.abs(my_weights)
+                    tensor_reduce_max_1 = tf.reduce_max(tensor_abs,axis=-1)
+                    tensor_reduce_max_2 = tf.reduce_max(tensor_reduce_max_1,axis=-1)
+                    #l1norm_val = float(l1norm.eval())
+                    tensor_max = float(tensor_reduce_max_2.numpy())
+                it = np.nditer(my_weights, flags=['multi_index'], op_flags=['readwrite'])   
+                while not it.finished:
+                    w = it[0]
+                    allWeights.append(abs(w)/tensor_max)
+                    allWeightsNonRel.append(abs(w))
+                    weightsByLayer.append(abs(w)/tensor_max)
+                    weightsByLayerNonRel.append(abs(w))
+                    it.iternext()
+            if len(weightsByLayer)>0:
+                allWeightsByLayer[layer.name] = np.array(weightsByLayer)
+                allWeightsByLayerNonRel[layer.name] = np.array(weightsByLayerNonRel)
+    return np.array(allWeights), allWeightsByLayer, np.array(allWeightsNonRel), allWeightsByLayerNonRel
+
+if __name__ == "__main__":
+
+    from qkeras.qlayers import QDense, QActivation
+    from qkeras.quantizers import quantized_bits, quantized_relu
+    from qkeras.utils import _add_supported_quantized_objects
+    co = {}
+    _add_supported_quantized_objects(co)
+
+    kf = sys.argv[1]
+
+    with open(sys.argv[2]+'.yaml', 'r') as f:
+            config = yaml.load(f,Loader=yaml.FullLoader)
+
+    max_ntracks = 250   
+    nlatent = config["Nlatent"]
+    nbins = config['nbins']
+
+    if sys.argv[3] == '1':
+
+        # Qnetwork = vtx.nn.E2EDiffArgMax(
+        #     nbins=nbins,
+        #     ntracks=max_ntracks, 
+        #     nweightfeatures=len(config["weight_features"]), 
+        #     nfeatures=len(config["track_features"]), 
+        #     nweights=1, 
+        #     nlatent = nlatent,
+        #     activation='relu',
+        #     l2regloss=1e-10
+        # )
+
+        Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
+                    nbins=nbins,
+                    ntracks=max_ntracks, 
+                    nweightfeatures=len(config["weight_features"]), 
+                    nfeatures=len(config["track_features"]), 
+                    nweights=1, 
+                    nlatent = nlatent,
+                    activation='relu',
+                    l1regloss = (float)(config['l1regloss']),
+                    l2regloss = (float)(config['l2regloss']),
+                    nweightnodes = config['nweightnodes'],
+                    nweightlayers = config['nweightlayers'],
+                    nassocnodes = config['nassocnodes'],
+                    nassoclayers = config['nassoclayers'],
+                    qconfig = config['QConfig'],
+                )
+
+    else:
+
+        Qnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
+                    nbins=nbins,
+                    ntracks=max_ntracks, 
+                    nweightfeatures=len(config["weight_features"]), 
+                    nfeatures=len(config["track_features"]), 
+                    nweights=1, 
+                    nlatent = nlatent,
+                    activation='relu',
+                    l1regloss = (float)(config['l1regloss']),
+                    l2regloss = (float)(config['l2regloss']),
+                    nweightnodes = config['nweightnodes'],
+                    nweightlayers = config['nweightlayers'],
+                    nassocnodes = config['nassocnodes'],
+                    nassoclayers = config['nassoclayers'],
+                    qconfig = config['QConfig'],
+                    h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(int(sys.argv[3])-1)+'.h5'
+                )
+
+    Qmodel = Qnetwork.createE2EModel()
+    Qmodel.compile(
+        tf.keras.optimizers.Adam(learning_rate=0.01),
+        loss=[
+            tf.keras.losses.MeanAbsoluteError(),
+            tf.keras.losses.BinaryCrossentropy(from_logits=True),
+            lambda y,x: 0.
+        ],
+        metrics=[
+            tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
+        ],
+        loss_weights=[config['z0_loss_weight'],
+                        config['crossentropy_loss_weight'],
+                        0]
+    )
+
+    QuantisedModelName = config["QuantisedModelName"] 
+
+    Qmodel.summary()
+    Qmodel.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3])-1)+".tf").expect_partial()
+    #Qmodel.load_weights(config["UnquantisedModelName"]+".tf").expect_partial()
+
+
+    weightsPerLayer = {}
+    droppedPerLayer = {}
+    binaryTensorPerLayer = {}
+    allWeightsArray,allWeightsByLayer,allWeightsArrayNonRel,allWeightsByLayerNonRel = getWeightArray(Qmodel)
+
+    relative_weight_max = config["relative_weight_max"][int(sys.argv[3])]
+
+    print(relative_weight_max)
+
+        
+    for layer in Qmodel.layers:     
+        droppedPerLayer[layer.name] = []
+        if layer.name in ['weight_1','weight_2','weight_final','association_0','association_1','association_final']:
+            original_w = layer.get_weights()
+            weightsPerLayer[layer.name] = original_w
+            for my_weights in original_w:
+                if len(my_weights.shape) < 2: # bias term, skip for now
+                    continue
+                #l1norm = tf.norm(my_weights,ord=1)
+                elif len(my_weights.shape) == 2: # Dense
+                    tensor_abs = tf.abs(my_weights)
+                    tensor_reduce_max_1 = tf.reduce_max(tensor_abs,axis=-1)
+                    tensor_reduce_max_2 = tf.reduce_max(tensor_reduce_max_1,axis=-1)
+                    #l1norm_val = float(l1norm.eval())
+                    tensor_max = float(tensor_reduce_max_2.numpy())
+                it = np.nditer(my_weights, flags=['multi_index'], op_flags=['readwrite'])                
+                binaryTensorPerLayer[layer.name] = np.ones(my_weights.shape)
+                while not it.finished:
+                    w = it[0]
+                    if abs(w)/tensor_max < relative_weight_max:
+                        #print("small relative weight %e/%e = %e -> 0"%(abs(w), tensor_max, abs(w)/tensor_max))
+                        w[...] = 0
+                        droppedPerLayer[layer.name].append((it.multi_index, abs(w)))
+                        binaryTensorPerLayer[layer.name][it.multi_index] = 0
+                    it.iternext()
+            #print('%i weights dropped from %s out of %i weights'%(len(droppedPerLayer[layer.name]),layer.name,layer.count_params()))
+            #converted_w = convert_kernel(original_w)
+            converted_w = original_w
+            layer.set_weights(converted_w)
+
+
+    print('Summary:')
+    totalDropped = sum([len(droppedPerLayer[layer.name]) for layer in Qmodel.layers])
+    for layer in Qmodel.layers:
+        if layer.name in ['weight_1','weight_2','weight_final','association_0','association_1','association_final']:
+            print('%i weights dropped from %s out of %i weights'%(len(droppedPerLayer[layer.name]),layer.name, layer.count_params()))
+    print('%i total weights dropped out of %i total weights'%(totalDropped,Qmodel.count_params()))
+    print('%.1f%% compression'%(100.*totalDropped/Qmodel.count_params()))
+
+    Qmodel.save_weights(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+".tf")
+
+    # save binary tensor in h5 file 
+    h5f = h5py.File(QuantisedModelName+'_drop_weights_iteration_'+sys.argv[3]+'.h5','w')
+    for layer, binary_tensor in binaryTensorPerLayer.items():
+        h5f.create_dataset('%s'%layer, data = binaryTensorPerLayer[layer])
+    h5f.close()
+
+    # plot the distribution of weights
+
+    from scipy import stats
+
+    your_percentile = int(stats.percentileofscore(allWeightsArray, relative_weight_max))
+    #percentiles = [5,16,50,84,95,your_percentile]
+    percentiles = [5,95,your_percentile]
+    #colors = ['r','r','r','r','r','g']
+    colors = ['r','r','g']
+    vlines = np.percentile(allWeightsArray,percentiles,axis=-1)
+    xmin = np.amin(allWeightsArray[np.nonzero(allWeightsArray)])
+    xmax = np.amax(allWeightsArray)
+    xmin = 6e-8
+    xmax = 1
+    bins = np.linspace(xmin, xmax, 50)
+    logbins = np.geomspace(xmin, xmax, 50)
+
+    labels = []
+    histos = []
+    for key in reversed(sorted(allWeightsByLayer.keys())):
+        labels.append(key)
+        histos.append(allWeightsByLayer[key])        
+    
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    #plt.hist(allWeightsArray,bins=bins)
+    #plt.hist(allWeightsByLayer.values(),bins=bins,histtype='bar',stacked=True,label=allWeightsByLayer.keys())
+    ax.hist(histos,bins=bins,histtype='step',stacked=False,label=labels,linewidth=2)
+    ax.legend(frameon=False)
+    #axis = ax.gca()
+    ymin, ymax = ax.get_ylim()
+    for vline, percentile, color in zip(vlines, percentiles, colors):
+        if percentile==0: continue
+        if vline < xmin: continue
+        ax.axvline(vline, 0, 1, color=color, linestyle='dashed', linewidth=2, label = '%s%%'%percentile)
+        ax.text(vline+0.05*(xmax-xmin), ymax-0.05*(ymax-ymin), '%s%%'%percentile, color=color, horizontalalignment='center')
+    ax.set_ylabel('Number of Weights',ha="right",y=1)
+    ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
+    ax.grid(True)
+    #plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_histogram.pdf')
+
+        
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    #plt.hist(allWeightsArray,bins=logbins)
+    #plt.hist(allWeightsByLayer.values(),bins=logbins,histtype='bar',stacked=True,label=allWeightsByLayer.keys())
+    ax.hist(histos,bins=logbins,histtype='step',stacked=False,label=labels,linewidth=2)
+    ax.semilogx()
+    ax.legend( frameon=False)
+    ymin, ymax = ax.get_ylim()
+    
+    for vline, percentile, color in zip(vlines, percentiles, colors):
+        if percentile==0: continue
+        if vline < xmin: continue
+        xAdd = 0
+        yAdd = 0
+        #if plotPercentile5 and percentile==84:
+        #    xAdd=0.2
+        #if plotPercentile16 and percentile==95:
+        #    xAdd=1.2
+        ax.axvline(vline, 0, 1, color=color, linestyle='dashed', linewidth=2, label = '%s%%'%percentile)
+        ax.text(vline+xAdd, ymax-0.05*(ymax-ymin)+yAdd, '%s%%'%percentile, color=color, horizontalalignment='center')
+    ax.set_ylabel('Number of Weights',ha="right",y=1)
+    ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
+    ax.grid(True)
+    #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
+    #plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_histogram_logx.pdf')
+
+
+    plt.clf()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
+    labels = []
+    histos = []
+    for key in reversed(sorted(allWeightsByLayerNonRel.keys())):
+        histos.append(allWeightsByLayerNonRel[key])
+        key = key + " # " + str(np.count_nonzero(allWeightsByLayerNonRel[key]))
+        labels.append(key)
+        
+    colours_rev=["C5","C4","C3","C2","C1","C0"]
+    colours=["C0","C1","C2","C3","C4","C5"]
+    xmin = np.amin(allWeightsArrayNonRel[np.nonzero(allWeightsArrayNonRel)])
+    xmax = np.amax(allWeightsArrayNonRel)
+    #bins = np.linspace(np.log2(-5), np.log2(2), 7)
+    #bins = np.geomspace(2**-5, 2**2, 8)
+    bins = np.geomspace(2**-21, 2**2, 24)
+
+    #plt.hist(allWeightsArrayNonRel,bins=bins)
+    #plt.hist(allWeightsByLayerNonRel.values(),bins=bins,histtype='bar',stacked=True,label=allWeightsByLayer.keys())
+    ax.hist(histos,bins=bins,histtype='step',stacked=False,linewidth=3,color=colours)
+    labels.reverse()
+    for i,label in enumerate(labels):
+        ax.plot(0,0,label=label,linewidth=3,markersize=0,color=colours_rev[i])
+    ax.semilogx(base=2)
+    ax.legend(frameon=True,edgecolor='w',facecolor='w',loc='upper right',fontsize=17)
+    ax.set_ylabel('Number of Weights',ha="right",y=1)
+    ax.set_xlabel('Absolute Value of Weights',ha="right",x=1)
+    ax.grid()
+    #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_nonrel_histogram_logx.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[3]+'_weight_nonrel_histogram_logx.png')
