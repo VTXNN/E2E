@@ -27,11 +27,36 @@ _add_supported_quantized_objects(co)
 nMaxTracks = 250
 max_z0 = 20.46912512
 
+def decode_data(raw_data):
+    decoded_data = tf.io.parse_example(raw_data,features)
+    #decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,max_ntracks,11])
+    return decoded_data
+
+def setup_pipeline(fileList):
+    ds = tf.data.Dataset.from_tensor_slices(fileList)
+    ds.shuffle(len(fileList),reshuffle_each_iteration=True)
+    ds = ds.interleave(
+        lambda x: tf.data.TFRecordDataset(
+            x, compression_type='GZIP', buffer_size=100000000
+        ),
+        cycle_length=6, 
+        block_length=200, 
+        num_parallel_calls=6
+    )
+    ds = ds.batch(200) #decode in batches (match block_length?)
+    ds = ds.map(decode_data, num_parallel_calls=6)
+    ds = ds.unbatch()
+    ds = ds.shuffle(5000,reshuffle_each_iteration=True)
+    ds = ds.batch(2000)
+    ds = ds.prefetch(5)
+    
+    return ds
+
 if __name__=="__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    test_files = glob.glob(config["data_folder"]+"/TTbar/MET/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
     start = 0
@@ -67,7 +92,6 @@ if __name__=="__main__":
         )
 
     outputFolder = 'plots'
-    trainable = config["trainable"]
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
@@ -1016,34 +1040,36 @@ if __name__=="__main__":
     #########################################################################################
 
     #plt.clf()
-    figure=plotz0_residual([(z0_PV_array-z0_QNN_array)],
+    figure=plotz0_residual([(z0_PV_array-z0_QPNN_array)],
                           [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
-                          ["ArgMax"],
+                          ["QPNN"],
                           ["Base","MVA Cut","No Fakes"])
     plt.savefig("%s/Z0Residual.png" % outputFolder)
     plt.close()
 
     if PVROCs:
 
-        #plt.clf()
-        #figure=plotPV_roc(assoc_PV_array,[assoc_QNN_array],
-        #                 [assoc_FH_array,assoc_FHMVA_array,assoc_FHnoFake_array],
-        #                 ["ArgMax"],
-        #                 ["Base","BDT Cut","No Fakes"])
-        #plt.savefig("%s/PVROC.png" % outputFolder)
+        plt.clf()
+        figure=plotPV_roc([assoc_PV_array,assoc_PV_array,assoc_PV_array],
+                         [assoc_QPNN_array],
+                         [assoc_FH_array,assoc_FHMVA_array,assoc_FHnoFake_array],
+                         ["QPNN"],
+                         ["Base","BDT Cut","No Fakes"])
+        plt.savefig("%s/PVROC.png" % outputFolder)
 
         plt.clf()
-        figure=plotPV_roc(assoc_PV_array,[assoc_DANN_array,assoc_QNN_array,assoc_QPNN_array],
-                        [assoc_FH_array],
-                        ["NN","QNN","QPNN"],
-                        ["Baseline"])
+        figure=plotPV_roc([assoc_PV_array,assoc_PV_array,assoc_PV_array],
+                          [assoc_DANN_array,assoc_QNN_array,assoc_QPNN_array],
+                          [assoc_FH_array],
+                          ["NN","QNN","QPNN"],
+                          ["Baseline"])
         plt.savefig("%s/QcompPVROC.png" % outputFolder)
         plt.close()
 
     plt.clf()
-    figure=plotz0_percentile([(z0_PV_array-z0_QNN_array)],
+    figure=plotz0_percentile([(z0_PV_array-z0_QPNN_array)],
                              [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
-                             ["ArgMax"],
+                             ["QPNN"],
                              ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/Z0percentile.png" % outputFolder)
     plt.close()

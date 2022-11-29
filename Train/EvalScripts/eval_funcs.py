@@ -90,31 +90,6 @@ def fake_res_function(fakes,return_bool = False):
         else:
             return tf.cast(res,tf.float32)
 
-def decode_data(raw_data):
-    decoded_data = tf.io.parse_example(raw_data,features)
-    #decoded_data['trk_hitpattern'] = tf.reshape(decoded_data['trk_hitpattern'],[-1,max_ntracks,11])
-    return decoded_data
-
-def setup_pipeline(fileList):
-    ds = tf.data.Dataset.from_tensor_slices(fileList)
-    ds.shuffle(len(fileList),reshuffle_each_iteration=True)
-    ds = ds.interleave(
-        lambda x: tf.data.TFRecordDataset(
-            x, compression_type='GZIP', buffer_size=100000000
-        ),
-        cycle_length=6, 
-        block_length=200, 
-        num_parallel_calls=6
-    )
-    ds = ds.batch(200) #decode in batches (match block_length?)
-    ds = ds.map(decode_data, num_parallel_calls=6)
-    ds = ds.unbatch()
-    ds = ds.shuffle(5000,reshuffle_each_iteration=True)
-    ds = ds.batch(2000)
-    ds = ds.prefetch(5)
-    
-    return ds
-
 def predictFastHisto(value,weight, res_func, return_index = False):
     z0List = []
     halfBinWidth = 0.5*(2*max_z0)/nbins

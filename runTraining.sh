@@ -10,7 +10,6 @@ export PYTHONPATH=/home/cebrown/Documents/Trigger/E2E/Ops/release:$PYTHONPATH
 export PYTHONPATH=/home/cebrown/TempE2E/E2E/Train:$PYTHONPATH
 export COMET_API_KEY=expKifKow3Mn4dnjc1UGGOqrg
 
-
 export TF_CPP_MIN_LOG_LEVEL=2
 export OMP_NUM_THREADS=8
 
@@ -40,8 +39,20 @@ done
 mkdir PruneIterations
 mv *.pdf PruneIterations
 
-python convertModels.py OldKF $1OldKF False
+mkdir plots
+mkdir SavedArrays
 
+python eval.py setup
+
+mkdir tf_model_files
+mv *.tf.* tf_model_files
+mv *.h5 tf_model_files
+
+### ONLY IF YOU HAVE VIVADO INSTALLED
+source /opt/Xilinx/Vivado/2019.2/settings64.sh
+export PATH="/opt/modelsim/2019.2/modeltech/bin/:$PATH"
+
+python convertModels.py setup
 mkdir ModelFiles
 mv *.pb ModelFiles
 mv *.json ModelFiles
@@ -55,30 +66,10 @@ mv *.png hls4ml_profile
 mkdir hls4ml_models
 mv *hls* hls4ml_models
 
-mkdir plots
-mkdir SavedArrays
+cp upload_comet.py ..
 
-python eval.py setup
+cd ..
 
-mkdir tf_model_files
-mv *.tf.* tf_model_files
-mv *.h5 tf_model_files
-
-mv ModelFiles Assets_${time_stamp}
-mv tf_model_files Assets_${time_stamp}
-mv hls4ml_profile Assets_${time_stamp}
-mv hls4ml_models Assets_${time_stamp}
-mv PruneIterations Assets_${time_stamp}
-
-mv plots Assets_${time_stamp}
-mv SavedArrays Assets_${time_stamp}
-mv *.py Assets_${time_stamp}
-mv Assets_${time_stamp}/__init__.py .
-mv Assets_${time_stamp}/upload_comet.py .
-mv *.yaml Assets_${time_stamp}
-mv experimentkey.txt Assets_${time_stamp}
-mv *checkpoint Assets_${time_stamp}
-
-python upload_comet.py OldKF Assets_${time_stamp}
+python upload_comet.py Assets_${time_stamp}
 
 rm upload_comet.py
