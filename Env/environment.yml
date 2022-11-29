@@ -134,7 +134,7 @@ dependencies:
     - dulwich==0.20.25
     - everett==2.0.1
     - ez-setup==0.9
-    - hls4ml==0.6.0.dev200+g57585cba
+    - hls4ml==0.6.0
     - ipython==7.28.0
     - jedi==0.18.0
     - joblib==1.0.1
