@@ -42,7 +42,7 @@ def setup_pipeline(fileList):
     
     return ds
 
-def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,model_name=[None,None]):
+def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epochs=50,callbacks=None,nlatent=0,model_name=None):
 
     total_steps = 0
     early_stop_patience = 100
@@ -60,7 +60,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         print ("Epoch %i"%epoch)
         
         if epoch>0:
-            model.load_weights(model_name[0]+model_name[1]+".tf")
+            model.load_weights(model_name+".tf")
         
         for step,batch in enumerate(setup_pipeline(train_files)):
 
@@ -133,7 +133,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_WeightFeatures = np.stack([val_batch[feature] for feature in weightfeat],axis=2)
 
             temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
-                        [val_batch['trk_z0'],val_WeightFeatures,val_trackFeatures]
+                        [val_batch['int_z0'],val_WeightFeatures,val_trackFeatures]
                 )
   
             val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
@@ -178,12 +178,12 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         wait += 1
         if val_loss < best_score:
             best_score = val_loss
-            model.save_weights(model_name[0]+model_name[1]+".tf")
+            model.save_weights(model_name+".tf")
             wait = 0
         if wait >= early_stop_patience:
             break
         
-def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None,None]):
+def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None):
 
     predictedZ0_FH = []
     predictedZ0_NN = []
@@ -221,8 +221,8 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=[None
     qz0_NN = np.percentile(z0_NN_array-z0_PV_array,[5,15,50,85,95])
     qz0_FH = np.percentile(z0_FH_array-z0_PV_array,[5,15,50,85,95])
 
-    experiment.log_asset(model_name[0]+model_name[1]+".tf.index")
-    experiment.log_asset(model_name[0]+model_name[1]+".tf.data-00000-of-00001")
+    experiment.log_asset(model_name+".tf.index")
+    experiment.log_asset(model_name+".tf.data-00000-of-00001")
 
     experiment.log_metric("Test_NN_z0_MSE",metrics.mean_squared_error(z0_PV_array,z0_NN_array))
     experiment.log_metric("Test_NN_z0_AE",metrics.mean_absolute_error(z0_PV_array,z0_NN_array))
@@ -287,7 +287,7 @@ if __name__=="__main__":
             nassoclayers = config['nassoclayers'],
         )
 
-        model_name = [config["UnquantisedModelName"] ,""]
+        model_name = config["UnquantisedModelName"]
         epochs = config['epochs']
 
     if trainable == 'QDA':
@@ -310,7 +310,7 @@ if __name__=="__main__":
             qconfig = config['QConfig']
         )
 
-        model_name = [config['QuantisedModelName'],"_prune_iteration_0"]
+        model_name = config['QuantisedModelName']+"_prune_iteration_0"
         epochs = config['epochs']
 
     if trainable == 'QDA_prune':
@@ -333,7 +333,7 @@ if __name__=="__main__":
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[3]+'.h5'
         )
 
-        model_name = [config['QuantisedModelName'],"_prune_iteration_"+str(int(sys.argv[3])+1)]
+        model_name = config['QuantisedModelName']+"_prune_iteration_"+str(int(sys.argv[3])+1)
         epochs = config['qtrain_epochs']
 
 
