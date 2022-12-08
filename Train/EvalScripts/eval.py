@@ -1,5 +1,6 @@
 import glob
 import sys
+import os
 from textwrap import wrap
 
 import comet_ml
@@ -56,7 +57,7 @@ if __name__=="__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
     start = 0
@@ -112,7 +113,6 @@ if __name__=="__main__":
             'trk_gtt_pt',
             'trk_gtt_eta',
             'trk_gtt_phi',
-            'rescaled_trk_word_MVAquality',
             'trk_fake',
             'trk_z0',
             'int_z0',
@@ -302,18 +302,18 @@ if __name__=="__main__":
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
             nBatch = batch['pvz0'].shape[0]
 
-            FH = predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],linear_res_function(batch['trk_gtt_pt']))
+            FH = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],linear_res_function(batch['abs_trk_word_pT']))
             predictedZ0_FH.append(FH)
-            FHeta = predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],eta_res_function(batch['trk_gtt_eta']))
+            FHeta = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],eta_res_function(batch['trk_gtt_eta']))
             predictedZ0_FHz0res.append(FHeta)
-            FHz0MVA = predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],MVA_res_function(batch['rescaled_trk_word_MVAquality']))
+            FHz0MVA = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],MVA_res_function(batch['trk_word_MVAquality']))
             predictedZ0_FHz0MVA.append(FHz0MVA)
-            FHnoFake = predictFastHisto(batch[FH_z0],batch['trk_gtt_pt'],fake_res_function(batch['trk_fake']))
+            FHnoFake = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],fake_res_function(batch['trk_fake']))
             predictedZ0_FHnoFake.append(FHnoFake)
 
             trk_z0.append(batch[FH_z0])
-            trk_MVA.append(batch["rescaled_trk_word_MVAquality"])
-            trk_gtt_pt.append(batch['trk_gtt_pt'])
+            trk_MVA.append(batch["trk_word_MVAquality"])
+            trk_gtt_pt.append(batch['abs_trk_word_pT'])
             trk_gtt_eta.append(batch['trk_gtt_eta'])
             trk_gtt_phi.append(batch['trk_gtt_phi'])
             trk_z0_res.append(batch['trk_z0_res'])
@@ -331,7 +331,7 @@ if __name__=="__main__":
             FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             predictedAssoc_FHres.append(FHassocres)
 
-            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_gtt_eta'],MVA_res_function(batch['rescaled_trk_word_MVAquality'],return_bool=True))
+            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_gtt_eta'],MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
             predictedAssoc_FHMVA.append(FHassocMVA)
 
             FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_fake'],return_bool=True))
@@ -410,39 +410,39 @@ if __name__=="__main__":
             #actual_MET.append(batch['tp_met_pt'])
             #actual_METphi.append(batch['tp_met_phi'])
 
-            temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             actual_trkMET.append(temp_met)
             actual_trkMETphi.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             predictedMET_FHnoFake.append(temp_met)
             predictedMETphi_FHnoFake.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['rescaled_trk_word_MVAquality'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
             predictedMET_FHMVA.append(temp_met)
             predictedMETphi_FHMVA.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],FHassocres,
+            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocres,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FHres.append(temp_met)
             predictedMETphi_FHres.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],FHassoc,
+            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassoc,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FH.append(temp_met)
             predictedMETphi_FH.append(temp_metphi)
 
             if met:
                 for i in range(0,num_threshold):
-                    temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QPNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QPNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_gtt_pt'],batch['trk_gtt_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_DANN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_DANN[str(i/num_threshold)].append(temp_metphi)
 
@@ -859,12 +859,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_mva_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=8, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_mva_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,7)), bins=8, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track MVA", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,7,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-mva.png" %  outputFolder)
     plt.close()
@@ -873,12 +873,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,512)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,512,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-pt.png" %  outputFolder)
     plt.close()
@@ -886,12 +886,12 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,127)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,7)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ resolution [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,127,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,7,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0res.png" %  outputFolder)
     plt.close()
@@ -1649,3 +1649,6 @@ if __name__=="__main__":
         plt.savefig("%s/METphiCentrevsThreshold.png" %  outputFolder)
         plt.close()
     
+    image_list = os.listdir(outputFolder) # returns list
+    for image in image_list:
+        experiment.log_image(image, name=image)

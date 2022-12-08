@@ -83,7 +83,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
-                predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_gtt_pt'],res_func=linear_res_function(batch['trk_gtt_pt']))
+                predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['abs_trk_word_pT'],res_func=linear_res_function(batch['abs_trk_word_pT']))
   
                 predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch['int_z0'],WeightFeatures,trackFeatures] )
 
@@ -126,7 +126,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(predictFastHisto(val_batch['trk_z0'],val_batch['trk_gtt_pt'],res_func=linear_res_function(val_batch['trk_gtt_pt'])).flatten())
+            val_predictedZ0_FH.append(predictFastHisto(val_batch['trk_z0'],val_batch['abs_trk_word_pT'],res_func=linear_res_function(val_batch['abs_trk_word_pT'])).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
 
@@ -199,7 +199,7 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None)
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
 
-        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['trk_gtt_pt'],res_func=linear_res_function(batch['trk_gtt_pt'])))
+        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['abs_trk_word_pT'],res_func=linear_res_function(batch['abs_trk_word_pT'])))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])

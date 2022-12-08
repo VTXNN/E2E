@@ -1,6 +1,6 @@
-comet_project_name : Vertex_CNN_Prune
-comet_experiment_name : Base_model
-description : Baseline Model no changes
+comet_project_name : Vertex_Finder_E2E
+comet_experiment_name : CMSSW_z0_512MaxPt
+description : Baseline Model CMSSW_z0 512MaxPt
 
 weight_features : ['abs_trk_word_pT','trk_word_MVAquality','abs_trk_word_eta']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_word_eta'] #
 track_features :  ['abs_trk_word_pT','trk_word_MVAquality','trk_z0_res']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_z0_res']  #
@@ -20,14 +20,14 @@ Nlatent : 0
 starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
-epochs : 25
-qtrain_epochs : 10
+epochs : 1 #12
+qtrain_epochs : 1 #5
 
 z0_loss_weight : 1.0
 crossentropy_loss_weight : 1.0
 qtrain_z0_loss_weight : 1.0
 qtrain_crossentropy_loss_weight : 1.0
-Huber_delta : 0.5
+Huber_delta : 0.3
 
 l1regloss : 1e-3
 l2regloss : 1e-10
@@ -36,36 +36,36 @@ nweightlayers : 2
 nassocnodes : 20
 nassoclayers : 2
 
-relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.02,0.03,0.05,0.07,0.1]
+relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.03,0.05,0.08,0.1,0.12]
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(10,3,alpha=1)
-    bias_quantizer: quantized_bits(10,3,alpha=1)
-    activation : quantized_relu(16,3)
+    kernel_quantizer: quantized_bits(10,2)
+    bias_quantizer: quantized_bits(10,2)
+    activation : quantized_relu(16,2)
   weight_2:
-    kernel_quantizer : quantized_bits(10,3,alpha=1)
-    bias_quantizer : quantized_bits(10,3,alpha=1)
-    activation : quantized_relu(16,3)
+    kernel_quantizer : quantized_bits(10,2)
+    bias_quantizer : quantized_bits(10,2)
+    activation : quantized_relu(16,2)
   weight_final:
-    kernel_quantizer : quantized_bits(10,3,alpha=1)
-    bias_quantizer : quantized_bits(10,3,alpha=1)
-    activation : quantized_relu(16,3)
+    kernel_quantizer : quantized_bits(10,2)
+    bias_quantizer : quantized_bits(10,2)
+    activation : quantized_relu(16,2)
   conv_1:
-    kernel_quantizer : quantized_bits(6,2,alpha=1)
-    activation : quantized_relu(7,2)
+    kernel_quantizer : quantized_bits(7,1)
+    activation : quantized_relu(7,1)
   PVDense:
-    kernel_quantizer : quantized_bits(10,1,alpha=1)
-    bias_quantizer : quantized_bits(10,1,alpha=1)
+    kernel_quantizer : quantized_bits(10,2)
+    bias_quantizer : quantized_bits(10,2)
   association_0 :
-    kernel_quantizer : quantized_bits(10,3,alpha=1)
-    bias_quantizer : quantized_bits(10,3,alpha=1)
-    activation : quantized_relu(16,3)
+    kernel_quantizer : quantized_bits(10,1)
+    bias_quantizer : quantized_bits(10,1)
+    activation : quantized_relu(16,1)
   association_1 : 
-    kernel_quantizer : quantized_bits(10,3,alpha=1)
-    bias_quantizer : quantized_bits(10,3,alpha=1)
-    activation : quantized_relu(16,3)
+    kernel_quantizer : quantized_bits(10,1)
+    bias_quantizer : quantized_bits(10,1)
+    activation : quantized_relu(16,1)
   association_final : 
-    kernel_quantizer : quantized_bits(10,3,alpha=1)
-    bias_quantizer : quantized_bits(10,3,alpha=1)
+    kernel_quantizer : quantized_bits(10,1)
+    bias_quantizer : quantized_bits(10,1)
 

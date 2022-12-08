@@ -19,6 +19,7 @@ branches = [
     'trk_gtt_pt',
     'trk_gtt_eta',
     'trk_gtt_phi',
+    'trk_gtt_z0',
     'trk_fake', 
     'trk_pt',
     'trk_z0',
@@ -104,7 +105,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #data['corrected_int_z0'] = np.floor(data['corrected_round_z0'] )
 
     data['round_z0'] = round(((data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
-    data['int_z0'] = np.floor(data['round_z0'] )
+    data['int_z0'] = data['trk_gtt_z0']#np.floor(data['round_z0'] )
 
     #################################################
     
@@ -145,11 +146,11 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         res = res_bins[np.digitize(abs(data['trk_eta'][iev][selectTracksInZ0Range]),eta_bins)]
 
         tfData['trk_z0_res']= _float_feature(padArray(np.array(res,np.float32),nMaxTracks)) 
-        tfData['rescaled_trk_z0_res']= _float_feature(padArray(np.array(res*2,np.float32),nMaxTracks)) 
+        tfData['rescaled_trk_z0_res']= _float_feature(padArray(np.array(res/16,np.float32),nMaxTracks)) 
 
         tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
         abs_trk_word_pT = data['trk_gtt_pt'][iev][selectTracksInZ0Range]
-        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 127)
+        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 512)
         abs_trk_word_eta = abs(data['trk_gtt_eta'][iev][selectTracksInZ0Range])
         rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]*32
 

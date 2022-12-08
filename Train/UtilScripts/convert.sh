@@ -23,11 +23,21 @@ mv data* Train/
 
 cd $dir
 
-python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_TTsl.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
+python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_DY.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
 cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
-mkdir MET
+mkdir DY
 
-mv data* MET/
+mv data* DY/
+
+cd $dir
+
+python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_Zp.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
+
+cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
+
+mkdir Zp
+
+mv data* Zp/
 

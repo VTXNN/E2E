@@ -44,32 +44,40 @@ mkdir SavedArrays
 
 python eval.py setup
 
-mkdir tf_model_files
-mv *.tf.* tf_model_files
-mv *.h5 tf_model_files
 
 ### ONLY IF YOU HAVE VIVADO INSTALLED
 source /opt/Xilinx/Vivado/2019.2/settings64.sh
 export PATH="/opt/modelsim/2019.2/modeltech/bin/:$PATH"
 
 python convertModels.py setup
+
 mkdir ModelFiles
 mv *.pb ModelFiles
 mv *.json ModelFiles
 mv *.hdf5 ModelFiles
-mv *_associationModel ModelFiles
-mv *_patternModel ModelFiles
-mv *_weightModel ModelFiles
+
+mkdir tf_model_files
+mv *.tf.* tf_model_files
+mv *.h5 tf_model_files
 
 mkdir hls4ml_profile
 mv *.png hls4ml_profile
 mkdir hls4ml_models
 mv *hls* hls4ml_models
+mv *Model hls4ml_models
 
 cp upload_comet.py ..
+cp experimentkey.txt ..
 
 cd ..
 
-python upload_comet.py Assets_${time_stamp}
+tar -zcvf Assets_${time_stamp}.tgz Assets_${time_stamp}
+
+python upload_comet.py Assets_${time_stamp}.tgz
+
+cp Assets_${time_stamp}.tgz Assets
+
+rm -rf Assets_${time_stamp}
 
 rm upload_comet.py
+rm experimentkey.txt

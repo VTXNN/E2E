@@ -350,10 +350,10 @@ class E2EQKerasDiffArgMaxConstraint():
         #patternconfig['Model']['ReuseFactor'] = 1
 
         patternconfig['LayerName']['hist']['ParallelizationFactor'] = 64
-        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
-        patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 64
-        patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 64
-        patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 64
+        # patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
+        # patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 64
+        # patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 64
+        # patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 64
 
         cfg = hls4ml.converters.create_config(backend='Vivado')
         cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!

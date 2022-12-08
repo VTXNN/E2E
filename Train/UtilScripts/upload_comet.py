@@ -21,6 +21,4 @@ experiment = comet_ml.ExistingExperiment(
             log_env_gpu=True,     # to continue GPU logging
             log_env_cpu=True,     # to continue CPU logging
         )
-
-experiment.log_asset_folder(sys.argv[2], step=None, log_file_name=True)
-experiment.log_asset(sys.argv[2]+'.yaml')
+experiment.log_asset(sys.argv[1], step=None)
