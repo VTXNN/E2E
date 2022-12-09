@@ -20,8 +20,8 @@ Nlatent : 0
 starting_lr : 0.001
 qtrain_starting_lr : 0.0001
 
-epochs : 1 #12
-qtrain_epochs : 1 #5
+epochs : 12
+qtrain_epochs : 5
 
 z0_loss_weight : 1.0
 crossentropy_loss_weight : 1.0
@@ -40,32 +40,32 @@ relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.03,0.05,0.08,0.1,0.12]
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(10,2)
-    bias_quantizer: quantized_bits(10,2)
+    kernel_quantizer: quantized_bits(10,2,alpha=1)
+    bias_quantizer: quantized_bits(10,2,alpha=1)
     activation : quantized_relu(16,2)
   weight_2:
-    kernel_quantizer : quantized_bits(10,2)
-    bias_quantizer : quantized_bits(10,2)
+    kernel_quantizer : quantized_bits(10,2,alpha=1)
+    bias_quantizer : quantized_bits(10,2,alpha=1)
     activation : quantized_relu(16,2)
   weight_final:
-    kernel_quantizer : quantized_bits(10,2)
-    bias_quantizer : quantized_bits(10,2)
+    kernel_quantizer : quantized_bits(10,2,alpha=1)
+    bias_quantizer : quantized_bits(10,2,alpha=1)
     activation : quantized_relu(16,2)
   conv_1:
-    kernel_quantizer : quantized_bits(7,1)
-    activation : quantized_relu(7,1)
+    kernel_quantizer : quantized_bits(7,1,alpha=1)
+    activation : quantized_relu(16,2)
   PVDense:
-    kernel_quantizer : quantized_bits(10,2)
-    bias_quantizer : quantized_bits(10,2)
+    kernel_quantizer : quantized_bits(10,2,alpha=1)
+    bias_quantizer : quantized_bits(10,2,alpha=1)
   association_0 :
-    kernel_quantizer : quantized_bits(10,1)
-    bias_quantizer : quantized_bits(10,1)
+    kernel_quantizer : quantized_bits(10,1,alpha=1)
+    bias_quantizer : quantized_bits(10,1,alpha=1)
     activation : quantized_relu(16,1)
   association_1 : 
-    kernel_quantizer : quantized_bits(10,1)
-    bias_quantizer : quantized_bits(10,1)
+    kernel_quantizer : quantized_bits(10,1,alpha=1)
+    bias_quantizer : quantized_bits(10,1,alpha=1)
     activation : quantized_relu(16,1)
   association_final : 
-    kernel_quantizer : quantized_bits(10,1)
-    bias_quantizer : quantized_bits(10,1)
+    kernel_quantizer : quantized_bits(10,1,alpha=1)
+    bias_quantizer : quantized_bits(10,1,alpha=1)
 

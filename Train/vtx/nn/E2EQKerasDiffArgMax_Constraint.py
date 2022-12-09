@@ -304,6 +304,9 @@ class E2EQKerasDiffArgMaxConstraint():
 
     def export_hls_weight_model(self,modelName,plot=True):
 
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
+
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
         weightconfig['Model']['Strategy'] = 'Resource'
         weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
@@ -340,9 +343,12 @@ class E2EQKerasDiffArgMaxConstraint():
             print('{} Weight accuracy relative to keras: {} \n'.format(modelName,rel_acc),file=f)
 
 
-        hls_weight_model.build(csim=True,synth=True,vsynth=True)
+        hls_weight_model.build(csim=True,synth=True,vsynth=True,cosim=True,validation=True)
 
     def export_hls_pattern_model(self,modelName,plot=True):
+
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
         #patternconfig['Model']['Strategy'] = 'resource'
@@ -350,7 +356,7 @@ class E2EQKerasDiffArgMaxConstraint():
         #patternconfig['Model']['ReuseFactor'] = 1
 
         patternconfig['LayerName']['hist']['ParallelizationFactor'] = 64
-        # patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
         # patternconfig['LayerName']['pattern_1_linear']['ParallelizationFactor'] = 64
         # patternconfig['LayerName']['q_activation_9']['ParallelizationFactor'] = 64
         # patternconfig['LayerName']['q_activation_9_quantized_relu(7,2)']['ParallelizationFactor'] = 64
@@ -386,9 +392,12 @@ class E2EQKerasDiffArgMaxConstraint():
             wph.savefig(modelName+"_Pattern_model_activations_profile_opt.png")
             #aph.savefig(modelName+"_Pattern_model_weights_profile_opt.png")
 
-        hls_pattern_model.build(csim=True,synth=True,vsynth=True)
+        hls_pattern_model.build(csim=True,synth=True,vsynth=True,cosim=True,validation=True)
 
     def export_hls_assoc_model(self,modelName,plot=True):
+
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
         associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
@@ -423,4 +432,4 @@ class E2EQKerasDiffArgMaxConstraint():
         with open('ModelAccuracies.txt', 'a') as f:
             print('{} Association accuracy relative to keras: {} \n'.format(modelName,rel_acc), file=f)
 
-        hls_association_model.build(csim=True,synth=True,vsynth=True)
+        hls_association_model.build(csim=True,synth=True,vsynth=True,cosim=True,validation=True)

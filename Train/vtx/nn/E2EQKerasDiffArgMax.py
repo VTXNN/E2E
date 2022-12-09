@@ -295,6 +295,9 @@ class E2EQKerasDiffArgMax():
 
     def export_hls_weight_model(self,modelName,plot=True):
 
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
+
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
         weightconfig['Model']['Strategy'] = 'Resource'
         weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
@@ -334,6 +337,9 @@ class E2EQKerasDiffArgMax():
         hls_weight_model.build(csim=True,synth=True,vsynth=True)
 
     def export_hls_pattern_model(self,modelName,plot=True):
+        
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
         #patternconfig['Model']['Strategy'] = 'resource'
@@ -341,6 +347,7 @@ class E2EQKerasDiffArgMax():
         #patternconfig['Model']['ReuseFactor'] = 1
 
         patternconfig['LayerName']['hist']['ParallelizationFactor'] = 64
+        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
                 
         cfg = hls4ml.converters.create_config(backend='Vivado')
         cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
@@ -376,6 +383,9 @@ class E2EQKerasDiffArgMax():
         hls_pattern_model.build(csim=True,synth=True,vsynth=True)
 
     def export_hls_assoc_model(self,modelName,plot=True):
+
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
         associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'

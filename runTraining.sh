@@ -77,7 +77,7 @@ python upload_comet.py Assets_${time_stamp}.tgz
 
 cp Assets_${time_stamp}.tgz Assets
 
-rm -rf Assets_${time_stamp}
+#rm -rf Assets_${time_stamp}
 
 rm upload_comet.py
 rm experimentkey.txt
