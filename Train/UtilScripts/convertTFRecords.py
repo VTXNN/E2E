@@ -19,7 +19,7 @@ branches = [
     'trk_gtt_pt',
     'trk_gtt_eta',
     'trk_gtt_phi',
-    'trk_gtt_z0',
+    #'trk_gtt_z0',
     'trk_fake', 
     'trk_pt',
     'trk_z0',
@@ -105,7 +105,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #data['corrected_int_z0'] = np.floor(data['corrected_round_z0'] )
 
     data['round_z0'] = round(((data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
-    data['int_z0'] = data['trk_gtt_z0']#np.floor(data['round_z0'] )
+    #data['int_z0'] = data['trk_gtt_z0']#np.floor(data['round_z0'] )
+    data['int_z0'] = np.floor(data['round_z0'] )
 
     #################################################
     

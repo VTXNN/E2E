@@ -308,7 +308,7 @@ class E2EQKerasDiffArgMaxConstraint():
         hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
-        weightconfig['Model']['Strategy'] = 'Resource'
+        weightconfig['Model']['Strategy'] = 'Latency'
         weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
         weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
 

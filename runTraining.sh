@@ -71,7 +71,7 @@ cp experimentkey.txt ..
 
 cd ..
 
-tar -zcvf Assets_${time_stamp}.tgz Assets_${time_stamp}
+tar --force-local -zcvf Assets_${time_stamp}.tgz Assets_${time_stamp}
 
 python upload_comet.py Assets_${time_stamp}.tgz
 
