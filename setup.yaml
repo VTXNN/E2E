@@ -27,7 +27,7 @@ z0_loss_weight : 1.0
 crossentropy_loss_weight : 1.0
 qtrain_z0_loss_weight : 1.0
 qtrain_crossentropy_loss_weight : 1.0
-Huber_delta : 0.3
+Huber_delta : 0.6
 
 l1regloss : 1e-3
 l2regloss : 1e-10

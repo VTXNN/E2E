@@ -316,7 +316,7 @@ if __name__=="__main__":
             trk_gtt_pt.append(batch['abs_trk_word_pT'])
             trk_gtt_eta.append(batch['trk_gtt_eta'])
             trk_gtt_phi.append(batch['trk_gtt_phi'])
-            trk_z0_res.append(batch['trk_z0_res'])
+            trk_z0_res.append(batch['rescaled_trk_z0_res'])
 
             trk_chi2rphi.append(batch['trk_word_chi2rphi'])
             trk_chi2rz.append(batch['trk_word_chi2rz'])

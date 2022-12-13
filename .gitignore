@@ -25,7 +25,6 @@ Train/Data/*
 Train/NewKFData/*
 Train/OldKFData/*
 Train/NewKFQplots/*
-Train/ConvertFolder/*
 checkpoint
 Train/*.yaml
 Train/*.py
@@ -37,3 +36,5 @@ PretrainedModels/**
 Assets_*/
 Train/NetworkTest/**
 CMSSW_comp/**
+Train/Assets/**
+Train/Assets/oldConvertFolder/**

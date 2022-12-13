@@ -26,6 +26,7 @@ cp ../TrainingScripts/train.py .
 cp ../TrainingScripts/prune.py .
 cp ../UtilScripts/convertModels.py .
 cp ../UtilScripts/upload_comet.py .
+cp -r ../ConvertFolder .
 
 python train.py setup DA
 python train.py setup QDA
@@ -44,27 +45,16 @@ mkdir SavedArrays
 
 python eval.py setup
 
+mkdir ConvertFolder/NetworkFiles
+mv *.tf.* ConvertFolder/NetworkFiles
+mv *.h5 ConvertFolder/NetworkFiles
+cp setup.yaml ConvertFolder
+cd ConvertFolder
 
 ### ONLY IF YOU HAVE VIVADO INSTALLED
-source /opt/Xilinx/Vivado/2019.2/settings64.sh
-export PATH="/opt/modelsim/2019.2/modeltech/bin/:$PATH"
+./conv.sh
 
-python convertModels.py setup
-
-mkdir ModelFiles
-mv *.pb ModelFiles
-mv *.json ModelFiles
-mv *.hdf5 ModelFiles
-
-mkdir tf_model_files
-mv *.tf.* tf_model_files
-mv *.h5 tf_model_files
-
-mkdir hls4ml_profile
-mv *.png hls4ml_profile
-mkdir hls4ml_models
-mv *hls* hls4ml_models
-mv *Model hls4ml_models
+cd ..
 
 cp upload_comet.py ..
 cp experimentkey.txt ..
@@ -77,7 +67,7 @@ python upload_comet.py Assets_${time_stamp}.tgz
 
 cp Assets_${time_stamp}.tgz Assets
 
-#rm -rf Assets_${time_stamp}
+rm -rf Assets_${time_stamp}
 
 rm upload_comet.py
 rm experimentkey.txt
