@@ -17,17 +17,17 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ
 
 Nlatent : 0
 
-starting_lr : 0.001
-qtrain_starting_lr : 0.0001
+starting_lr : 0.004
+qtrain_starting_lr : 0.0004
 
-epochs : 12
+epochs : 15
 qtrain_epochs : 5
 
 z0_loss_weight : 1.0
 crossentropy_loss_weight : 1.0
 qtrain_z0_loss_weight : 1.0
 qtrain_crossentropy_loss_weight : 1.0
-Huber_delta : 0.6
+Huber_delta : 0.8
 
 l1regloss : 1e-3
 l2regloss : 1e-10

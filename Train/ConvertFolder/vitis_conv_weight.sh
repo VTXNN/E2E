@@ -1,4 +1,4 @@
-# #!/bin/bash
+#!/bin/bash
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate qtf
 source /opt/Xilinx/Vivado/2020.2/settings64.sh
@@ -7,10 +7,15 @@ export COMET_API_KEY=expKifKow3Mn4dnjc1UGGOqrg
 export TF_CPP_MIN_LOG_LEVEL=2
 export OMP_NUM_THREADS=8
 
+echo "step 1"
 
 cp -r Quantised_model_prune_iteration_9_hls_weight Quantised_model_prune_iteration_9_hls_weight_vitis
 
+echo "step 2"
+
 source ~/firmware.sh 2021
+
+echo "step 3"
 
 cp nnet_utils_0_6_0/* Quantised_model_prune_iteration_9_hls_weight_vitis/firmware/nnet_utils
 
@@ -21,4 +26,3 @@ cp build_vitis_prj.tcl Quantised_model_prune_iteration_9_hls_weight_vitis
 cd Quantised_model_prune_iteration_9_hls_weight_vitis
 
 vitis_hls -f build_vitis_prj.tcl
-

@@ -52,7 +52,7 @@ cp setup.yaml ConvertFolder
 cd ConvertFolder
 
 ### ONLY IF YOU HAVE VIVADO INSTALLED
-./conv.sh
+./conv.sh 
 
 cd ..
 
@@ -65,7 +65,7 @@ tar --force-local -zcvf Assets_${time_stamp}.tgz Assets_${time_stamp}
 
 python upload_comet.py Assets_${time_stamp}.tgz
 
-cp Assets_${time_stamp}.tgz Assets
+mv Assets_${time_stamp}.tgz Assets
 
 rm -rf Assets_${time_stamp}
 
