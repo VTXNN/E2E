@@ -20,6 +20,7 @@ mkdir -p Assets_${time_stamp}
 
 cd Assets_${time_stamp}
 
+cp ../../Unquantised* .
 cp ../../setup.yaml .
 cp ../EvalScripts/eval.py .
 cp ../TrainingScripts/train.py .
@@ -28,7 +29,7 @@ cp ../UtilScripts/convertModels.py .
 cp ../UtilScripts/upload_comet.py .
 cp -r ../ConvertFolder .
 
-python train.py setup DA
+#python train.py setup DA
 python train.py setup QDA
 
 for iter in {1..8}

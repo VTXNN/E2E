@@ -353,6 +353,7 @@ if __name__=="__main__":
                 'trk_word_MVAquality',
                 'rescaled_trk_word_pT',
                 'rescaled_trk_word_eta',
+                'rescaled_trk_word_MVAquality',
                 'rescaled_trk_z0_res'
     ]
 

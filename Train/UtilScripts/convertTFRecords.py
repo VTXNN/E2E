@@ -151,15 +151,15 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
         abs_trk_word_pT = data['trk_gtt_pt'][iev][selectTracksInZ0Range]
-        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 512)
+        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 128)
         abs_trk_word_eta = abs(data['trk_gtt_eta'][iev][selectTracksInZ0Range])
-        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]*32
+        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]
 
         tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
         tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT*64,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta*256,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality*2,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT*4,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta*2,np.float32),nMaxTracks,num=0))
 
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))

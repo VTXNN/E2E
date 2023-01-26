@@ -55,11 +55,13 @@ class E2EDiffArgMax():
                     nodes,
                     activation=self.activation,
                     trainable=True,
-                    kernel_initializer='orthogonal',
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='weight_'+str(ilayer+1)
                 ),
-                tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.BatchNormalization(),
                 
             ])
             
@@ -67,7 +69,8 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 self.nweights,
                 activation=self.activation, #need to use relu here to remove negative weights
-                kernel_initializer='orthogonal',
+                kernel_initializer='random_normal',
+                bias_initializer='zeros',
                 trainable=True,
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='weight_final'
@@ -93,7 +96,8 @@ class E2EDiffArgMax():
                     kernelSize,
                     padding='same',
                     activation='linear',
-                    kernel_initializer='orthogonal',
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
                 ) ,
@@ -135,18 +139,21 @@ class E2EDiffArgMax():
                 tf.keras.layers.Dense(
                     filterSize,
                     activation=self.activation,
-                    kernel_initializer='orthogonal',
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='association_'+str(ilayer)
                 ),
-                tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.Dropout(0.1),
+                #tf.keras.layers.BatchNormalization(),
             ])
             
         self.assocLayers.extend([
             tf.keras.layers.Dense(
                 1,
                 activation=None,
-                kernel_initializer='orthogonal',
+                kernel_initializer='random_normal',
+                bias_initializer='zeros',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='association_final'
             )
@@ -237,17 +244,17 @@ class E2EDiffArgMax():
         self.associationModel = self.createAssociationModel()
 
         self.weightModel.get_layer('weight_1').set_weights    (largerModel.get_layer('weight_1').get_weights())
-        self.weightModel.get_layer('dropout').set_weights     (largerModel.get_layer('dropout').get_weights())
+        #self.weightModel.get_layer('batch_normalization').set_weights     (largerModel.get_layer('batch_normalization').get_weights())
         self.weightModel.get_layer('weight_2').set_weights     (largerModel.get_layer('weight_2').get_weights())
-        self.weightModel.get_layer('dropout_1').set_weights   (largerModel.get_layer('dropout_1').get_weights())
+        #self.weightModel.get_layer('batch_normalization_1').set_weights   (largerModel.get_layer('batch_normalization_1').get_weights())
         self.weightModel.get_layer('weight_final').set_weights(largerModel.get_layer('weight_final').get_weights())
 
         self.patternModel.get_layer('pattern_1').set_weights(largerModel.get_layer('pattern_1').get_weights())
 
         self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
-        self.associationModel.get_layer('dropout_2').set_weights        (largerModel.get_layer('dropout_2').get_weights()) 
+        #self.associationModel.get_layer('batch_normalization_2').set_weights        (largerModel.get_layer('batch_normalization_2').get_weights()) 
         self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
-        self.associationModel.get_layer('dropout_3').set_weights        (largerModel.get_layer('dropout_3').get_weights()) 
+        #self.associationModel.get_layer('batch_normalization_3').set_weights        (largerModel.get_layer('batch_normalization_3').get_weights()) 
         self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
 
     def write_model_graph(self,modelName):

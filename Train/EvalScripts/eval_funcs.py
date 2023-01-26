@@ -72,6 +72,10 @@ def MVA_res_function(MVA,threshold=0.3,return_bool = False):
         else:
             return tf.cast(res,tf.float32)
 
+def comb_res_function(mva,eta):
+        res = 0.1 + 0.2*eta**2
+        return ((mva)/8)/res
+
 def chi_res_function(chi2rphi,chi2rz,bendchi2,return_bool = False):
         qrphi = chi2rphi < 12 
         qrz =  chi2rz < 9 

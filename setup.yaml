@@ -1,9 +1,9 @@
 comet_project_name : Vertex_Finder_E2E
-comet_experiment_name : CMSSW_z0_512MaxPt
-description : Baseline Model CMSSW_z0 512MaxPt
+comet_experiment_name : CMSSW_z0_128MaxPt
+description : Baseline Model CMSSW_z0 128MaxPt
 
-weight_features : ['abs_trk_word_pT','trk_word_MVAquality','abs_trk_word_eta']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_word_eta'] #
-track_features :  ['abs_trk_word_pT','trk_word_MVAquality','trk_z0_res']  #['unscaled_trk_word_pT','unscaled_trk_word_MVAquality','unscaled_trk_z0_res']  #
+weight_features : ['rescaled_trk_word_pT','rescaled_trk_word_MVAquality','rescaled_trk_word_eta'] #['abs_trk_word_pT','trk_word_MVAquality','abs_trk_word_eta']  #['rescaled_trk_word_pT','rescaled_trk_word_MVAquality','rescaled_trk_word_eta'] #
+track_features :  ['rescaled_trk_word_pT','rescaled_trk_word_MVAquality','rescaled_trk_z0_res']  #['abs_trk_word_pT','trk_word_MVAquality','trk_z0_res']  #['rescaled_trk_word_pT','rescaled_trk_word_MVAquality','rescaled_trk_z0_res']  #
 
 UnquantisedModelName : Unquantised_model
 QuantisedModelName : Quantised_model
@@ -17,17 +17,17 @@ data_folder : /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ
 
 Nlatent : 0
 
-starting_lr : 0.004
-qtrain_starting_lr : 0.0004
+starting_lr : 0.005
+qtrain_starting_lr : 0.0001
 
-epochs : 15
-qtrain_epochs : 5
+epochs : 18
+qtrain_epochs : 8
 
 z0_loss_weight : 1.0
-crossentropy_loss_weight : 1.0
+crossentropy_loss_weight : 1.2
 qtrain_z0_loss_weight : 1.0
-qtrain_crossentropy_loss_weight : 1.0
-Huber_delta : 0.8
+qtrain_crossentropy_loss_weight : 1.2
+Huber_delta : 0.6
 
 l1regloss : 1e-3
 l2regloss : 1e-10
@@ -40,32 +40,32 @@ relative_weight_max : [0.0,0.001,0.005,0.01,0.015,0.03,0.05,0.08,0.1,0.12]
 
 QConfig:
   weight_1: 
-    kernel_quantizer: quantized_bits(10,2,alpha=1)
-    bias_quantizer: quantized_bits(10,2,alpha=1)
-    activation : quantized_relu(16,2)
+    kernel_quantizer: quantized_bits(8,2,alpha=1) #8,2
+    bias_quantizer: quantized_bits(6,1,alpha=1) #9,1
+    activation : quantized_relu(8,2) #10,2
   weight_2:
-    kernel_quantizer : quantized_bits(10,2,alpha=1)
-    bias_quantizer : quantized_bits(10,2,alpha=1)
-    activation : quantized_relu(16,2)
+    kernel_quantizer : quantized_bits(8,2,alpha=1) #8,2
+    bias_quantizer : quantized_bits(6,1,alpha=1) #9,1
+    activation : quantized_relu(8,2)  #10,2
   weight_final:
-    kernel_quantizer : quantized_bits(10,2,alpha=1)
-    bias_quantizer : quantized_bits(10,2,alpha=1)
-    activation : quantized_relu(16,2)
+    kernel_quantizer : quantized_bits(5,2,alpha=1)  #5,2
+    bias_quantizer : quantized_bits(6,1,alpha=1) #6,1
+    activation : quantized_relu(8,2) #10,2
   conv_1:
-    kernel_quantizer : quantized_bits(7,1,alpha=1)
-    activation : quantized_relu(16,2)
+    kernel_quantizer : quantized_bits(6,2,alpha=1) #2,6
+    activation : quantized_relu(8,2) #8,2
   PVDense:
-    kernel_quantizer : quantized_bits(10,2,alpha=1)
-    bias_quantizer : quantized_bits(10,2,alpha=1)
+    kernel_quantizer : quantized_bits(16,6,alpha=1)
+    bias_quantizer : quantized_bits(16,6,alpha=1)
   association_0 :
-    kernel_quantizer : quantized_bits(10,1,alpha=1)
-    bias_quantizer : quantized_bits(10,1,alpha=1)
-    activation : quantized_relu(16,1)
+    kernel_quantizer : quantized_bits(8,1,alpha=1) #12,1
+    bias_quantizer : quantized_bits(6,1,alpha=1) #8,2
+    activation : quantized_relu(8,2)
   association_1 : 
-    kernel_quantizer : quantized_bits(10,1,alpha=1)
-    bias_quantizer : quantized_bits(10,1,alpha=1)
-    activation : quantized_relu(16,1)
+    kernel_quantizer : quantized_bits(8,1,alpha=1) #12,1
+    bias_quantizer : quantized_bits(5,1,alpha=1) #5,1
+    activation : quantized_relu(8,2)
   association_final : 
-    kernel_quantizer : quantized_bits(10,1,alpha=1)
-    bias_quantizer : quantized_bits(10,1,alpha=1)
+    kernel_quantizer : quantized_bits(7,1,alpha=1) #7,1
+    bias_quantizer : quantized_bits(4,1,alpha=1) #4,1
 

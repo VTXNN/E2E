@@ -122,7 +122,8 @@ if __name__=="__main__":
             'trk_word_MVAquality',
             'rescaled_trk_word_pT',
             'rescaled_trk_word_eta',
-            'rescaled_trk_z0_res'
+            'rescaled_trk_z0_res',
+            'rescaled_trk_word_MVAquality'
         ]
 
     for trackFeature in trackFeatures:
@@ -238,7 +239,9 @@ if __name__=="__main__":
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
     predictedZ0_FHz0MVA = []
+    predictedZ0_FHcombinedfunc = []
     predictedZ0_FHnoFake = []
+    predictedZ0_NNWeights_FH = []
     predictedZ0_QNN = []
     predictedZ0_QPNN = []
     predictedZ0_DANN = []
@@ -310,6 +313,8 @@ if __name__=="__main__":
             predictedZ0_FHz0MVA.append(FHz0MVA)
             FHnoFake = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],fake_res_function(batch['trk_fake']))
             predictedZ0_FHnoFake.append(FHnoFake)
+            FHcombined = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],comb_res_function(batch['trk_word_MVAquality'],batch['trk_gtt_eta']))
+            predictedZ0_FHcombinedfunc.append(FHcombined)
 
             trk_z0.append(batch[FH_z0])
             trk_MVA.append(batch["trk_word_MVAquality"])
@@ -385,6 +390,9 @@ if __name__=="__main__":
             predictedAssoc_QPNN.append(predictedAssoc_QPNN_temp)
             predictedQPWeights.append(predictedQWeights_QPNN)
 
+            NN_weightsFH = predictFastHisto(batch[FH_z0],np.squeeze(predictedQWeights_QPNN,axis=-1),linear_res_function(np.squeeze(predictedQWeights_QPNN,axis=-1)))
+            predictedZ0_NNWeights_FH.append(NN_weightsFH)
+
             #### DA NETWORK #########################################################################################################################
             XX = DAmodel.input 
             YY = DAmodel.layers[9].output
@@ -454,6 +462,8 @@ if __name__=="__main__":
         z0_FHres_array = np.concatenate(predictedZ0_FHz0res).ravel()
         z0_FHMVA_array = np.concatenate(predictedZ0_FHz0MVA).ravel()
         z0_FHnoFake_array = np.concatenate(predictedZ0_FHnoFake).ravel()
+        z0_FHcombined_array = np.concatenate(predictedZ0_FHcombinedfunc).ravel()
+        z0_FHNNweight_array = np.concatenate(predictedZ0_NNWeights_FH).ravel()
         z0_PV_array = np.concatenate(actual_PV).ravel()
 
         predictedQWeightsarray = np.concatenate(predictedQWeights).ravel()
@@ -571,6 +581,8 @@ if __name__=="__main__":
         np.save(savingfolder+"z0_FHres_array",z0_FHres_array)
         np.save(savingfolder+"z0_FHMVA_array",z0_FHMVA_array)
         np.save(savingfolder+"z0_FHnoFake_array",z0_FHnoFake_array)
+        np.save(savingfolder+"z0_FHcombined_array",z0_FHcombined_array)
+        np.save(savingfolder+"z0_FHNNweight_array",z0_FHNNweight_array)
         np.save(savingfolder+"z0_PV_array",z0_PV_array)
         np.save(savingfolder+"predictedQWeightsarray",predictedQWeightsarray)
         np.save(savingfolder+"predictedQPWeightsarray",predictedQPWeightsarray)
@@ -640,6 +652,8 @@ if __name__=="__main__":
         z0_FHres_array = np.load(savingfolder+"z0_FHres_array.npy")
         z0_FHMVA_array = np.load(savingfolder+"z0_FHMVA_array.npy")
         z0_FHnoFake_array = np.load(savingfolder+"z0_FHnoFake_array.npy")
+        z0_FHcombined_array = np.load(savingfolder+"z0_FHcombined_array.npy")
+        z0_FHNNweight_array = np.load(savingfolder+"z0_FHNNweight_array.npy")
         z0_PV_array = np.load(savingfolder+"z0_PV_array.npy")
         predictedQWeightsarray = np.load(savingfolder+"predictedQWeightsarray.npy")
         predictedQPWeightsarray = np.load(savingfolder+"predictedQPWeightsarray.npy")
@@ -873,12 +887,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,512)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,128)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,512,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,128,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-pt.png" %  outputFolder)
     plt.close()
@@ -1082,6 +1096,14 @@ if __name__=="__main__":
     plt.savefig("%s/QcompZ0Residual.png" % outputFolder)
     plt.close()
 
+
+    plt.clf()
+    figure=plotz0_residual([(z0_PV_array-z0_QPNN_array)],
+                          [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHcombined_array),(z0_PV_array-z0_FHNNweight_array)],
+                          ["QPNN            "],
+                          ["Baseline         ","Analyical Function", "NN Weighting Function"])
+    plt.savefig("%s/WeightingFunctionsZ0Residual.png" % outputFolder)
+    plt.close()
 
     if met:
 

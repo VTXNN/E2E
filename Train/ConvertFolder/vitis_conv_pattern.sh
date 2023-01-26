@@ -1,7 +1,7 @@
 # #!/bin/bash
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate qtf
-source /opt/Xilinx/Vivado/2020.2/settings64.sh
+source /opt/Xilinx/Vivado/2021.2/settings64.sh
 export PATH="/opt/modelsim/2019.2/modeltech/bin/:$PATH"
 export COMET_API_KEY=expKifKow3Mn4dnjc1UGGOqrg
 export TF_CPP_MIN_LOG_LEVEL=2
