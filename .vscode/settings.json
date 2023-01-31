@@ -1,8 +1,0 @@
-{
-    "cmake.configureOnOpen": false,
-    "files.associations": {
-        "*.py": "python",
-        "Plotter.C": "cpp",
-        "vtxPlotter.C": "cpp"
-    }
-}
