@@ -13,7 +13,7 @@ cp -r Quantised_model_prune_iteration_9_hls_weight Quantised_model_prune_iterati
 
 echo "step 2"
 
-source ~/firmware.sh 2021
+#source ~/firmware.sh 2021
 
 echo "step 3"
 
