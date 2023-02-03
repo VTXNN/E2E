@@ -1,6 +1,7 @@
 # #!/bin/bash
-source /opt/Xilinx/Vivado/2021.2/settings64.sh
+source /opt/Xilinx/Vivado/2019.2/settings64.sh
 export PATH="/opt/modelsim/2019.2/modeltech/bin/:$PATH"
+export LD_LIBRARY_PATH=/opt/cactus/lib:$LD_LIBRARY_PATH
 
 python convertModels.py setup
 

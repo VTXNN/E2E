@@ -66,7 +66,7 @@ def eta_res_function(eta):
         return 1/res
     
 def MVA_res_function(MVA,threshold=0.3,return_bool = False):
-        res = MVA > threshold
+        res = (MVA)/7 > threshold
         if return_bool:
             return res
         else:
@@ -74,7 +74,7 @@ def MVA_res_function(MVA,threshold=0.3,return_bool = False):
 
 def comb_res_function(mva,eta):
         res = 0.1 + 0.2*eta**2
-        return ((mva)/8)/res
+        return (mva/7)/res
 
 def chi_res_function(chi2rphi,chi2rz,bendchi2,return_bool = False):
         qrphi = chi2rphi < 12 

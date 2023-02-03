@@ -384,7 +384,7 @@ if __name__=="__main__":
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
-    loss_function = tf.keras.losses.Huber(0.8)
+    loss_function = tf.keras.losses.Huber(0.9)
     
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(learning_rate=startingLR)
