@@ -57,7 +57,7 @@ if __name__=="__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
     start = 0
@@ -67,7 +67,7 @@ if __name__=="__main__":
     save = True
     savingfolder = "SavedArrays/"
     PVROCs = True
-    met = False
+    met = True
 
     nlatent = config["Nlatent"]
     nbins = config['nbins']
