@@ -12,7 +12,7 @@ export OMP_NUM_THREADS=8
 
 cp -r Quantised_model_prune_iteration_9_hls_association Quantised_model_prune_iteration_9_hls_association_vitis
 
-source ~/firmware.sh 2021
+#source ~/firmware.sh 2021
 
 cp nnet_utils_0_6_0/* Quantised_model_prune_iteration_9_hls_association_vitis/firmware/nnet_utils
 
