@@ -126,14 +126,14 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['tp_met_pt'] = _float_feature(np.array([tp_met_pt],np.float32))
         tfData['tp_met_phi'] = _float_feature(np.array([tp_met_phi],np.float32))
 
-        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= max_z0)
+        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= 100)
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
         selectPUTracks = (data['trk_fake'][iev]!=1)
 
-        if (np.sum(1.*selectPVTracks)<1):
-            continue
+        #if (np.sum(1.*selectPVTracks)<1):
+        #    continue
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
 
@@ -157,9 +157,9 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
         tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality*2,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT*4,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta*2,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
+        tfData['rescaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
 
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))
