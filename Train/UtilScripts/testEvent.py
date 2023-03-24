@@ -145,8 +145,8 @@ for step,batch in enumerate(setup_pipeline(test_file)):
             for i,track in enumerate(batch['int_z0'][iev]):
                 print('Track['+str(i)+'] z0: ',batch['int_z0'][iev].numpy()[i] ,' pT: ',batch['rescaled_trk_word_pT'][iev].numpy()[i], ' MVA: ',batch['rescaled_trk_word_MVAquality'][iev].numpy()[i],  ' Eta: ', batch['rescaled_trk_word_eta'][iev].numpy()[i])
                 print('Track['+str(i)+'] weight: ',weight[iev][i][0])
-        for i,entry in enumerate(hist[iev]):
-            print('Histogram['+str(i)+']:',entry)
+            for i,entry in enumerate(hist[iev]):
+                print('Histogram['+str(i)+']:',entry)
 
 
 
