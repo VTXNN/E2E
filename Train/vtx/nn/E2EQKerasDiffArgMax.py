@@ -5,7 +5,6 @@ from qkeras import QActivation
 from qkeras import QDense, QConv1D, QBatchNormalization
 from qkeras.quantizers import quantized_bits, quantized_relu
 import numpy
-import hls4ml
 import numpy as np
 from sklearn.metrics import accuracy_score
 
@@ -13,7 +12,7 @@ class E2EQKerasDiffArgMax():
     def __init__(self,
         nbins=256,
         start=0,
-        end=256,
+        end=255,
         max_z0 = 20.46912512,
         ntracks=250, 
         nweightfeatures=1,
@@ -27,7 +26,9 @@ class E2EQKerasDiffArgMax():
         l1regloss=1e-3,
         l2regloss=1e-10,
         temperature=1e-4,
-        qconfig={}
+        weightqconfig={},
+        patternqconfig={},
+        associationqconfig={},
     ):
         self.nbins = nbins
         self.start = start
@@ -38,6 +39,18 @@ class E2EQKerasDiffArgMax():
         self.nweights = nweights
         self.nlatent = nlatent
         self.max_z0 = max_z0
+
+        self.l1regloss = l1regloss
+        self.l2regloss = l2regloss
+
+        self.nweightnodes = nweightnodes
+        self.nweightlayers = nweightlayers
+        self.nassocnodes = nassocnodes
+        self.nassoclayers = nassoclayers
+
+        self.weightqconfig = weightqconfig
+        self.patternqconfig = patternqconfig
+        self.associationqconfig = associationqconfig
 
         self.temperature = temperature
 
@@ -57,12 +70,12 @@ class E2EQKerasDiffArgMax():
                     trainable=True,
                     kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-                    kernel_quantizer=qconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
-                    bias_quantizer=qconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
-                    activation='linear',
+                    kernel_quantizer=self.weightqconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
+                    bias_quantizer=self.weightqconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
+                    activation=None,
                     name='weight_'+str(ilayer+1)
                 ),
-                QActivation(qconfig['weight_'+str(ilayer+1)]['activation']),
+                QActivation(self.weightqconfig['weight_'+str(ilayer+1)]['activation'],name='weight_'+str(ilayer+1)+'_relu'),
             ])
             
         self.weightLayers.extend([
@@ -70,14 +83,16 @@ class E2EQKerasDiffArgMax():
                 self.nweights,
                 kernel_initializer='orthogonal',
                 trainable=True,
-                kernel_quantizer=qconfig['weight_final']['kernel_quantizer'],
-                bias_quantizer=qconfig['weight_final']['bias_quantizer'],
-                activation='linear',
+                kernel_quantizer=self.weightqconfig['weight_final']['kernel_quantizer'],
+                bias_quantizer=self.weightqconfig['weight_final']['bias_quantizer'],
+                activation=None,
                 kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                 name='weight_final'
             ),
-            QActivation(qconfig['weight_final']['activation'])
+            QActivation(self.weightqconfig['weight_final']['activation'],name='weight_final_relu')
         ])
+
+        self.zerolayer = vtx.nn.ZeroWeighting()
         
         self.kdeLayer = vtx.nn.KDELayer(
             nbins=self.nbins,
@@ -98,11 +113,11 @@ class E2EQKerasDiffArgMax():
                     padding='same',
                     trainable=True,
                     use_bias= False,
-                    kernel_quantizer=qconfig['conv_'+str(ilayer+1)]['kernel_quantizer'],
-                    activation='linear',
+                    kernel_quantizer=self.patternqconfig['pattern_'+str(ilayer+1)]['kernel_quantizer'],
+                    activation=None,
                     name='pattern_'+str(ilayer+1)
                 ),
-                QActivation(qconfig['conv_'+str(ilayer+1)]['activation'])
+                QActivation(self.patternqconfig['pattern_'+str(ilayer+1)]['activation'],name='pattern_'+str(ilayer+1)+'_relu')
             ])
 
         self.softMaxLayer = tf.keras.layers.Softmax(axis=1)
@@ -129,8 +144,8 @@ class E2EQKerasDiffArgMax():
                 use_bias= True,
                 kernel_initializer='ones',
                 name='position_final',
-                kernel_quantizer=qconfig['PVDense']['kernel_quantizer'],
-                bias_quantizer=qconfig['PVDense']['bias_quantizer'],
+                kernel_quantizer='quantized_bits(16,6)',
+                bias_quantizer='quantized_bits(16,6)',
             )
         ]
           
@@ -141,12 +156,12 @@ class E2EQKerasDiffArgMax():
                     filterSize,
                     kernel_initializer='orthogonal',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
-                    kernel_quantizer=qconfig['association_'+str(ilayer)]['kernel_quantizer'],
-                    bias_quantizer=qconfig['association_'+str(ilayer)]['bias_quantizer'],
+                    kernel_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['kernel_quantizer'],
+                    bias_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['bias_quantizer'],
                     activation=None,
-                    name='association_'+str(ilayer)
+                    name='association_'+str(ilayer+1)
                 ),
-                QActivation(qconfig['association_'+str(ilayer)]['activation']),
+                QActivation(self.associationqconfig['association_'+str(ilayer+1)]['activation'],name='association_'+str(ilayer+1)+"_relu"),
             ])
             
         self.assocLayers.extend([
@@ -155,8 +170,8 @@ class E2EQKerasDiffArgMax():
                 activation=None,
                 kernel_initializer='orthogonal',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
-                kernel_quantizer=qconfig['association_final']['kernel_quantizer'],
-                bias_quantizer=qconfig['association_final']['bias_quantizer'],
+                kernel_quantizer=self.associationqconfig['association_final']['kernel_quantizer'],
+                bias_quantizer=self.associationqconfig['association_final']['bias_quantizer'],
                 name='association_final'
             )
         ])
@@ -170,32 +185,99 @@ class E2EQKerasDiffArgMax():
         return outputs
 
     def createWeightModel(self):
-        weightInput = tf.keras.layers.Input(shape=(self.nweightfeatures),name="weight")
-        weights = self.applyLayerList(weightInput,self.weightLayers)
-        return tf.keras.Model(inputs=[weightInput],outputs=[weights])
+        weightInput = tf.keras.layers.Input(shape=(self.nweightfeatures),name="input_weight")
+        weightLayers = []
+        for ilayer,nodes in enumerate([self.nweightnodes]*self.nweightlayers):
+            weightLayers.extend([
+                QDense(
+                    nodes,
+                    trainable=True,
+                    kernel_initializer='orthogonal',
+                    kernel_regularizer=tf.keras.regularizers.L1L2(self.l1regloss,self.l2regloss),
+                    kernel_quantizer=self.weightqconfig['weight_'+str(ilayer+1)]['kernel_quantizer'],
+                    bias_quantizer=self.weightqconfig['weight_'+str(ilayer+1)]['bias_quantizer'],
+                    activation=None,
+                    name='weight_'+str(ilayer+1)
+                ),
+                QActivation(self.weightqconfig['weight_'+str(ilayer+1)]['activation'],name='weight_'+str(ilayer+1)+'_relu'),
+            ])
+            
+        weightLayers.extend([
+            QDense(
+                self.nweights,
+                kernel_initializer='orthogonal',
+                trainable=True,
+                kernel_quantizer=self.weightqconfig['weight_final']['kernel_quantizer'],
+                bias_quantizer=self.weightqconfig['weight_final']['bias_quantizer'],
+                activation=None,
+                kernel_regularizer=tf.keras.regularizers.L1L2(self.l1regloss,self.l2regloss),
+                name='weight_final'
+            ),
+            QActivation(self.weightqconfig['weight_final']['activation'],name='weight_final_relu')
+        ])
+
+        outputs = self.applyLayerList(weightInput,weightLayers)
+
+        return tf.keras.Model(inputs=weightInput,outputs=outputs)
     
     def createPatternModel(self):
         histInput = tf.keras.layers.Input(shape=(self.nbins,self.nweights),name="hist")
-        convs = self.applyLayerList(histInput,self.patternConvLayers)
-        return tf.keras.Model(inputs=[histInput],outputs=[convs])
-
-    def createPositionModel(self):
-        convsInput = tf.keras.layers.Input(shape=(self.nbins),name="conv")
-        temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)
-        softmax = self.softMaxLayer(temp)
-        binweight = self.binWeightLayer(softmax)
-        argmax = self.ArgMaxLayer(binweight)
-        return tf.keras.Model(inputs=[convsInput],outputs=[argmax])
+        patternConvLayers = []
+        for ilayer,(filterSize,kernelSize) in enumerate([
+            [1,3]
+        ]):
+            patternConvLayers.extend([
+                QConv1D(
+                    filterSize,
+                    kernelSize,
+                    kernel_initializer='orthogonal',
+                    padding='same',
+                    trainable=True,
+                    use_bias= False,
+                    kernel_quantizer=self.patternqconfig['pattern_'+str(ilayer+1)]['kernel_quantizer'],
+                    activation=None,
+                    name='pattern_'+str(ilayer+1)
+                ),
+                QActivation(self.patternqconfig['pattern_'+str(ilayer+1)]['activation'],name='pattern_'+str(ilayer+1)+'_relu')
+            ])
+        convs = self.applyLayerList(histInput,patternConvLayers)
+        return tf.keras.Model(inputs=histInput,outputs=convs)
     
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
-        assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        #assocProbability = self.outputSoftmax(assocProbability)
-        return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
+        assocLayers = []
+        for ilayer,filterSize in enumerate(([self.nassocnodes]*self.nassoclayers)):
+            assocLayers.extend([
+                QDense(
+                    filterSize,
+                    kernel_initializer='orthogonal',
+                    kernel_regularizer=tf.keras.regularizers.L1L2(self.l1regloss,self.l2regloss),
+                    kernel_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['kernel_quantizer'],
+                    bias_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['bias_quantizer'],
+                    activation=None,
+                    name='association_'+str(ilayer+1)
+                ),
+                QActivation(self.associationqconfig['association_'+str(ilayer+1)]['activation'],name='association_'+str(ilayer+1)+"_relu"),
+            ])
+            
+        assocLayers.extend([
+            QDense(
+                1,
+                activation=None,
+                kernel_initializer='orthogonal',
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
+                kernel_quantizer=self.associationqconfig['association_final']['kernel_quantizer'],
+                bias_quantizer=self.associationqconfig['association_final']['bias_quantizer'],
+                name='association_final'
+            )
+        ])
+        assocProbability = self.applyLayerList(assocInput,assocLayers)
+        return tf.keras.Model(inputs=assocInput,outputs=assocProbability)
         
     def createE2EModel(self):
         
         weights = self.applyLayerList(self.inputWeightFeatures,self.weightLayers)
+        weights = self.zerolayer(self.inputWeightFeatures,weights)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
         convs = self.applyLayerList(hists,self.patternConvLayers)
         temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
@@ -254,19 +336,19 @@ class E2EQKerasDiffArgMax():
         self.associationModel.summary()
 
         self.weightModel.get_layer('weight_1').set_weights       (largerModel.get_layer('weight_1').get_weights())
-        self.weightModel.get_layer('q_activation').set_weights   (largerModel.get_layer('q_activation').get_weights())
+        self.weightModel.get_layer('weight_1_relu').set_weights   (largerModel.get_layer('weight_1_relu').get_weights())
         self.weightModel.get_layer('weight_2').set_weights       (largerModel.get_layer('weight_2').get_weights())
-        self.weightModel.get_layer('q_activation_1').set_weights (largerModel.get_layer('q_activation_1').get_weights())
+        self.weightModel.get_layer('weight_2_relu').set_weights (largerModel.get_layer('weight_2_relu').get_weights())
         self.weightModel.get_layer('weight_final').set_weights   (largerModel.get_layer('weight_final').get_weights())
-        self.weightModel.get_layer('q_activation_2').set_weights (largerModel.get_layer('q_activation_2').get_weights())
+        self.weightModel.get_layer('weight_final_relu').set_weights (largerModel.get_layer('weight_final_relu').get_weights())
 
         self.patternModel.get_layer('pattern_1').set_weights     (largerModel.get_layer('pattern_1').get_weights())
-        self.patternModel.get_layer('q_activation_3').set_weights(largerModel.get_layer('q_activation_3').get_weights())
+        self.patternModel.get_layer('pattern_1_relu').set_weights(largerModel.get_layer('pattern_1_relu').get_weights())
 
-        self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
-        self.associationModel.get_layer('q_activation_4').set_weights   (largerModel.get_layer('q_activation_4').get_weights()) 
-        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
-        self.associationModel.get_layer('q_activation_5').set_weights   (largerModel.get_layer('q_activation_5').get_weights()) 
+        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights())
+        self.associationModel.get_layer('association_1_relu').set_weights   (largerModel.get_layer('association_1_relu').get_weights()) 
+        self.associationModel.get_layer('association_2').set_weights    (largerModel.get_layer('association_2').get_weights()) 
+        self.associationModel.get_layer('association_2_relu').set_weights   (largerModel.get_layer('association_2_relu').get_weights()) 
         self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
 
     def write_model_graph(self,modelName):
@@ -295,16 +377,16 @@ class E2EQKerasDiffArgMax():
 
     def export_hls_weight_model(self,modelName,plot=True):
 
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND')
         hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
         weightconfig['Model']['Strategy'] = 'Resource'
-        weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
-        weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
+        #weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
+        #weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
 
         cfg = hls4ml.converters.create_config(backend='Vivado')
-        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        #cfg['IOType']     = 'io_serial' # Must set this if using CNNs!
         cfg['HLSConfig']  = weightconfig
         cfg['KerasModel'] = self.weightModel
         cfg['OutputDir']  = modelName+'_hls_weight/'
@@ -338,7 +420,7 @@ class E2EQKerasDiffArgMax():
 
     def export_hls_pattern_model(self,modelName,plot=True):
         
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND')
         hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
@@ -384,15 +466,15 @@ class E2EQKerasDiffArgMax():
 
     def export_hls_assoc_model(self,modelName,plot=True):
 
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
+        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND')
         hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
         associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
-        associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
-        associationconfig['Model']['Precision'] =  'ap_fixed<22,9>' 
+        #associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
+        #associationconfig['Model']['Precision'] =  'ap_fixed<22,9>' 
 
         cfg = hls4ml.converters.create_config(backend='Vivado')
-        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
+        #cfg['IOType']     = 'io_serial' # Must set this if using CNNs!
         cfg['HLSConfig']  = associationconfig
         cfg['KerasModel'] = self.associationModel
         cfg['OutputDir']  = modelName+'_hls_association/'

@@ -24,3 +24,17 @@ class BintoVertex(Layer):
         z0 = start+(end-start)*z0Index/nbins 
 
         return z0,z0Index
+
+class ZeroWeighting(Layer):
+
+    def __init__(self, **kwargs):
+        super(ZeroWeighting, self).__init__(**kwargs)
+
+    def call(self, input, weight):
+        inputsum =tf.math.reduce_sum(input,axis=2)
+        inputsumzeros = tf.math.not_equal(inputsum, 0)
+        zeros = tf.zeros_like(inputsumzeros,dtype=tf.float32)
+        newweight = tf.where(inputsumzeros,tf.squeeze(weight,axis=2),zeros )
+        newweight = tf.expand_dims(newweight,axis=2)
+
+        return newweight

@@ -53,54 +53,54 @@ QuantisedPrunedModelName = config["QuantisedPrunedModelName"]
 QuantisedModelName = config["QuantisedModelName"] + "_prune_iteration_0"
 UnQuantisedModelName = config["UnquantisedModelName"] 
 
-weight_report = getReports(UnQuantisedModelName+"_hls_weight")
+weight_report = getReports(UnQuantisedModelName+"_hls_weight",True)
 print("\n Resource usage and latency: Weight Model")
 print(weight_report)
 
-q_weight_report = getReports(QuantisedModelName+"_hls_weight")
+q_weight_report = getReports(QuantisedModelName+"_hls_weight",True)
 print("\n Quantised Resource usage and latency: Weight Model")
 print(q_weight_report)
 
-qp_weight_report = getReports(QuantisedPrunedModelName+"_hls_weight")
+qp_weight_report = getReports(QuantisedPrunedModelName+"_hls_weight",True)
 print("\n Quantised Pruned Resource usage and latency: Weight Model")
 print(qp_weight_report)
 
-qpv_weight_report = getReports(QuantisedPrunedModelName+"_hls_weight_vitis",True)
-print("\n Quantised Pruned Vitis Resource usage and latency: Weight Model")
-print(qpv_weight_report)
+# qpv_weight_report = getReports(QuantisedPrunedModelName+"_hls_weight_vitis",True)
+# print("\n Quantised Pruned Vitis Resource usage and latency: Weight Model")
+# print(qpv_weight_report)
 
 ############################################################################
 
-association_report = getReports(UnQuantisedModelName+"_hls_association")
+association_report = getReports(UnQuantisedModelName+"_hls_assoc",True)
 print("\n Resource usage and latency: Association Model")
 print(association_report)
 
-q_association_report = getReports(QuantisedModelName+"_hls_association")
+q_association_report = getReports(QuantisedModelName+"_hls_assoc",True)
 print("\n Quantised Resource usage and latency: Association Model")
 print(q_association_report)
 
-qp_association_report = getReports(QuantisedPrunedModelName+"_hls_association")
+qp_association_report = getReports(QuantisedPrunedModelName+"_hls_assoc",True)
 print("\n Quantised Pruned Resource usage and latency: Association Model")
 print(qp_association_report)
 
-qpv_association_report = getReports(QuantisedPrunedModelName+"_hls_association_vitis",True)
-print("\n Quantised Pruned Vitis Resource usage and latency: Association Model")
-print(qpv_association_report)
+# qpv_association_report = getReports(QuantisedPrunedModelName+"_hls_assoc",True)
+# print("\n Quantised Pruned Vitis Resource usage and latency: Association Model")
+# print(qpv_association_report)
 
 ############################################################################
 
-pattern_report = getReports(UnQuantisedModelName+"_hls_pattern")
+pattern_report = getReports(UnQuantisedModelName+"_hls_pattern",True)
 print("\n Resource usage and latency: Pattern Model")
 print(pattern_report)
 
-q_pattern_report = getReports(QuantisedModelName+"_hls_pattern")
+q_pattern_report = getReports(QuantisedModelName+"_hls_pattern",True)
 print("\n Quantised Resource usage and latency: Pattern Model")
 print(q_pattern_report)
 
-qp_pattern_report = getReports(QuantisedPrunedModelName+"_hls_pattern")
+qp_pattern_report = getReports(QuantisedPrunedModelName+"_hls_pattern",True)
 print("\n Quantised Pruned Resource usage and latency: Pattern Model")
 print(qp_pattern_report)
 
-qpv_pattern_report = getReports(QuantisedPrunedModelName+"_hls_pattern_vitis",True)
-print("\n Quantised Pruned Vitis Resource usage and latency: Pattern Model")
-print(qpv_pattern_report)
+# qpv_pattern_report = getReports(QuantisedPrunedModelName+"_hls_pattern_vitis",True)
+# print("\n Quantised Pruned Vitis Resource usage and latency: Pattern Model")
+# print(qpv_pattern_report)

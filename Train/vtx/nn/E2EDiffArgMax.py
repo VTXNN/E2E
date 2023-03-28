@@ -2,14 +2,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import vtx
 import numpy
-import hls4ml
 import numpy as np
 from sklearn.metrics import accuracy_score
 class E2EDiffArgMax():
     def __init__(self,
         nbins=256,
         start=0,
-        end=256,
+        end=255,
         max_z0 = 20.46912512,
         ntracks=250, 
         nweightfeatures=1,
@@ -35,6 +34,12 @@ class E2EDiffArgMax():
         self.activation = activation
         self.max_z0 = max_z0
 
+        self.nweightnodes = nweightnodes
+        self.nweightlayers = nweightlayers
+
+        self.nassocnodes = nassocnodes
+        self.nassoclayers = nassoclayers
+
         self.l2regloss = l2regloss
 
         self.temperature = temperature
@@ -53,30 +58,31 @@ class E2EDiffArgMax():
             self.weightLayers.extend([
                 tf.keras.layers.Dense(
                     nodes,
-                    activation=self.activation,
+                    activation=None,
                     trainable=True,
                     kernel_initializer='random_normal',
                     bias_initializer='zeros',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='weight_'+str(ilayer+1)
                 ),
-                #tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.BatchNormalization(),
+                tf.keras.layers.Activation(self.activation,name='weight_'+str(ilayer+1)+'_relu'),
                 
             ])
             
         self.weightLayers.extend([
             tf.keras.layers.Dense(
                 self.nweights,
-                activation=self.activation, #need to use relu here to remove negative weights
+                activation=None, #need to use relu here to remove negative weights
                 kernel_initializer='random_normal',
                 bias_initializer='zeros',
                 trainable=True,
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='weight_final'
             ),
+            tf.keras.layers.Activation(self.activation,name='weight_final_relu'),
         ])
 
+        self.zerolayer = vtx.nn.ZeroWeighting()
         
         self.kdeLayer = vtx.nn.KDELayer(
             nbins=self.nbins,
@@ -95,13 +101,13 @@ class E2EDiffArgMax():
                     filterSize,
                     kernelSize,
                     padding='same',
-                    activation='linear',
+                    activation=None,
                     kernel_initializer='random_normal',
                     bias_initializer='zeros',
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
                 ) ,
-                tf.keras.layers.Activation(self.activation), 
+                tf.keras.layers.Activation(self.activation,name='pattern_'+str(ilayer+1)+'_relu'), 
             ])
         
 
@@ -138,14 +144,13 @@ class E2EDiffArgMax():
             self.assocLayers.extend([
                 tf.keras.layers.Dense(
                     filterSize,
-                    activation=self.activation,
+                    activation=None,
                     kernel_initializer='random_normal',
                     bias_initializer='zeros',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
-                    name='association_'+str(ilayer)
+                    name='association_'+str(ilayer+1)
                 ),
-                #tf.keras.layers.Dropout(0.1),
-                #tf.keras.layers.BatchNormalization(),
+                tf.keras.layers.Activation(self.activation,name='association_'+str(ilayer+1)+'_relu'),
             ])
             
         self.assocLayers.extend([
@@ -168,31 +173,97 @@ class E2EDiffArgMax():
         return outputs
 
     def createWeightModel(self):
-        weightInput = tf.keras.layers.Input(shape=(self.nweightfeatures),name="weight")
-        weights = self.applyLayerList(weightInput,self.weightLayers)
-        return tf.keras.Model(inputs=[weightInput],outputs=[weights])
+        weightInput = tf.keras.layers.Input(shape=(self.nweightfeatures),name='input_weight')
+        weightLayers = []
+        for ilayer,nodes in enumerate([self.nweightnodes]*self.nweightlayers):
+            weightLayers.extend([
+                tf.keras.layers.Dense(
+                    nodes,
+                    activation=None,
+                    trainable=True,
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
+                    kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
+                    name='weight_'+str(ilayer+1)
+                ),  
+                tf.keras.layers.Activation(self.activation,name='weight_'+str(ilayer+1)+'_relu'),
+            ])
+            
+        weightLayers.extend([
+            tf.keras.layers.Dense(
+                self.nweights,
+                activation=None, #need to use relu here to remove negative weights
+                kernel_initializer='random_normal',
+                bias_initializer='zeros',
+                trainable=True,
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
+                name='weight_final'
+            ),
+            tf.keras.layers.Activation(self.activation,name='weight_final_relu'),
+        ])
+
+        outputs = self.applyLayerList(weightInput,weightLayers)
+
+        return tf.keras.Model(inputs=weightInput,outputs=outputs)
     
     def createPatternModel(self):
         histInput = tf.keras.layers.Input(shape=(self.nbins,self.nweights),name="hist")
-        convs = self.applyLayerList(histInput,self.patternConvLayers)
-        return tf.keras.Model(inputs=[histInput],outputs=[convs])
 
-    def createPositionModel(self):
-        convsInput = tf.keras.layers.Input(shape=(self.nbins),name="conv")
-        temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)
-        softmax = self.softMaxLayer(temp)
-        binweight = self.binWeightLayer(softmax)
-        argmax = self.ArgMaxLayer(binweight)
-        return tf.keras.Model(inputs=[convsInput],outputs=[argmax])
-    
+        patternConvLayers = []
+        for ilayer,(filterSize,kernelSize) in enumerate([
+            [1,3]
+        ]):
+            patternConvLayers.extend([
+                tf.keras.layers.Conv1D(
+                    filterSize,
+                    kernelSize,
+                    padding='same',
+                    activation=None,
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
+                    use_bias= False,
+                    name='pattern_'+str(ilayer+1)
+                ) ,
+                tf.keras.layers.Activation(self.activation,name='pattern_'+str(ilayer+1)+'_relu'), 
+            ])
+        convs = self.applyLayerList(histInput,patternConvLayers)
+
+        return tf.keras.Model(inputs=histInput,outputs=convs)
+
     def createAssociationModel(self):
         assocInput = tf.keras.layers.Input(shape=(self.nfeatures+1+self.nlatent),name="assoc")
-        assocProbability = self.applyLayerList(assocInput,self.assocLayers)
-        return tf.keras.Model(inputs=[assocInput],outputs=[assocProbability])
+        assocLayers = []
+        for ilayer,filterSize in enumerate(([self.nassocnodes]*self.nassoclayers)):
+            assocLayers.extend([
+                tf.keras.layers.Dense(
+                    filterSize,
+                    activation=None,
+                    kernel_initializer='random_normal',
+                    bias_initializer='zeros',
+                    kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
+                    name='association_'+str(ilayer+1)
+                ),
+                tf.keras.layers.Activation(self.activation,name='association_'+str(ilayer+1)+'_relu'),
+            ])
+            
+        assocLayers.extend([
+            tf.keras.layers.Dense(
+                1,
+                activation=None,
+                kernel_initializer='random_normal',
+                bias_initializer='zeros',
+                kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
+                name='association_final'
+            )
+        ])
+        assocProbability = self.applyLayerList(assocInput,assocLayers)
+
+        return tf.keras.Model(inputs=assocInput,outputs=assocProbability)
         
     def createE2EModel(self):
         
         weights = self.applyLayerList(self.inputWeightFeatures,self.weightLayers)
+        weights = self.zerolayer(self.inputWeightFeatures,weights)
         hists = self.kdeLayer([self.inputTrackZ0,weights])
         convs = self.applyLayerList(hists,self.patternConvLayers)
         temp = tf.keras.layers.Lambda(lambda x: x / self.temperature)(convs)
@@ -244,17 +315,19 @@ class E2EDiffArgMax():
         self.associationModel = self.createAssociationModel()
 
         self.weightModel.get_layer('weight_1').set_weights    (largerModel.get_layer('weight_1').get_weights())
-        #self.weightModel.get_layer('batch_normalization').set_weights     (largerModel.get_layer('batch_normalization').get_weights())
+        self.weightModel.get_layer('weight_1_relu').set_weights    (largerModel.get_layer('weight_1_relu').get_weights())
         self.weightModel.get_layer('weight_2').set_weights     (largerModel.get_layer('weight_2').get_weights())
-        #self.weightModel.get_layer('batch_normalization_1').set_weights   (largerModel.get_layer('batch_normalization_1').get_weights())
+        self.weightModel.get_layer('weight_2_relu').set_weights     (largerModel.get_layer('weight_2_relu').get_weights())
         self.weightModel.get_layer('weight_final').set_weights(largerModel.get_layer('weight_final').get_weights())
+        self.weightModel.get_layer('weight_final_relu').set_weights(largerModel.get_layer('weight_final_relu').get_weights())
 
         self.patternModel.get_layer('pattern_1').set_weights(largerModel.get_layer('pattern_1').get_weights())
+        self.patternModel.get_layer('pattern_1_relu').set_weights(largerModel.get_layer('pattern_1_relu').get_weights())
 
-        self.associationModel.get_layer('association_0').set_weights    (largerModel.get_layer('association_0').get_weights())
-        #self.associationModel.get_layer('batch_normalization_2').set_weights        (largerModel.get_layer('batch_normalization_2').get_weights()) 
-        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights()) 
-        #self.associationModel.get_layer('batch_normalization_3').set_weights        (largerModel.get_layer('batch_normalization_3').get_weights()) 
+        self.associationModel.get_layer('association_1').set_weights    (largerModel.get_layer('association_1').get_weights())
+        self.associationModel.get_layer('association_1_relu').set_weights    (largerModel.get_layer('association_1_relu').get_weights())
+        self.associationModel.get_layer('association_2').set_weights    (largerModel.get_layer('association_2').get_weights()) 
+        self.associationModel.get_layer('association_2_relu').set_weights    (largerModel.get_layer('association_2_relu').get_weights()) 
         self.associationModel.get_layer('association_final').set_weights(largerModel.get_layer('association_final').get_weights()) 
 
     def write_model_graph(self,modelName):
@@ -280,132 +353,3 @@ class E2EDiffArgMax():
             f.write(self.associationModel.to_json())
         self.associationModel.save_weights(modelName+"_associationModel_weights.hdf5")
         self.associationModel.save(modelName+"_associationModel")
-
-    def export_hls_weight_model(self,modelName,plot=True):
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
-
-        weightconfig = hls4ml.utils.config_from_keras_model(self.weightModel, granularity='name')
-        weightconfig['Model']['Strategy'] = 'Resource'
-        weightconfig['LayerName']['weight']['Precision']['result'] =  'ap_fixed<22,9>'
-        weightconfig['Model']['Precision'] =  'ap_fixed<22,9>'
-
-        cfg = hls4ml.converters.create_config(backend='Vivado')
-        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
-        cfg['HLSConfig']  = weightconfig
-        cfg['KerasModel'] = self.weightModel
-        cfg['OutputDir']  = modelName+'_hls_weight/'
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
-        cfg['ClockPeriod'] = 2.7
-
-        random_weight_data = np.random.rand(1000,3)
-
-        hls_weight_model = hls4ml.converters.keras_to_hls(cfg)
-        hls_weight_model.compile()
-
-        if plot:
-            hls4ml.utils.plot_model(hls_weight_model, show_shapes=True, show_precision=True, to_file=modelName+"_weight_model.png")
-            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.weightModel, hls_model=hls_weight_model)
-
-            #wp.savefig(modelName+"_Weight_model_activations_profile.png")
-            #ap.savefig(modelName+"_Weight_model_weights_profile.png")
-            wph.savefig(modelName+"_Weight_model_activations_profile_opt.png")
-            #aph.savefig(modelName+"_Weight_model_weights_profile_opt.png")
-
-        y_keras = self.weightModel.predict(random_weight_data)
-        y_hls4ml   = hls_weight_model.predict(random_weight_data)
-        
-        # "Accuracy" of hls4ml predictions vs keras
-        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
-        with open('ModelAccuracies.txt', 'a') as f:
-            print('{} Weight accuracy relative to keras: {} \n'.format(modelName,rel_acc),file=f)
-
-
-        hls_weight_model.build(csim=True,synth=True,vsynth=True)
-
-    def export_hls_pattern_model(self,modelName,plot=True):
-
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
-
-        patternconfig = hls4ml.utils.config_from_keras_model(self.patternModel, granularity='name')
-        #patternconfig['Model']['Strategy'] = 'resource'
-        #patternconfig['Model']['Precision'] = 'ap_fixed<22,9>'
-        #patternconfig['Model']['ReuseFactor'] = 1
-
-        patternconfig['LayerName']['hist']['ParallelizationFactor'] = 64
-        patternconfig['LayerName']['pattern_1']['ParallelizationFactor'] = 64
-        
-        cfg = hls4ml.converters.create_config(backend='Vivado')
-        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
-        cfg['HLSConfig']  = patternconfig
-        cfg['KerasModel'] = self.patternModel
-        cfg['OutputDir']  = modelName+'_hls_pattern/'
-        cfg['ParallelizationFactor'] = 64
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
-        cfg['ClockPeriod'] = 2.7
-
-        random_pattern_data = np.random.rand(1000,256,1)
-        hls_pattern_model = hls4ml.converters.keras_to_hls(cfg)
-        hls_pattern_model.compile()
-
-        # Model under test predictions and accuracy
-        y_keras = self.patternModel.predict(random_pattern_data)
-        y_hls4ml   = hls_pattern_model.predict(random_pattern_data)
-        
-        # "Accuracy" of hls4ml predictions vs keras
-        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
-        with open('ModelAccuracies.txt', 'a') as f:
-            print('{} Pattern accuracy relative to keras: {} \n'.format(modelName,rel_acc),file=f)
-
-        if plot:
-            hls4ml.utils.plot_model(hls_pattern_model, show_shapes=True, show_precision=True, to_file=modelName+"_pattern_model.png")
-            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.patternModel, hls_model=hls_pattern_model)
-
-            #wp.savefig(modelName+"_Pattern_model_activations_profile.png")
-            #ap.savefig(modelName+"_Pattern_model_weights_profile.png")
-            wph.savefig(modelName+"_Pattern_model_activations_profile_opt.png")
-            #aph.savefig(modelName+"_Pattern_model_weights_profile_opt.png")
-
-        hls_pattern_model.build(csim=True,synth=True,vsynth=True)
-
-    def export_hls_assoc_model(self,modelName,plot=True):
-    
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(rounding_mode='AP_RND_CONV')
-        hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
-
-        associationconfig = hls4ml.utils.config_from_keras_model(self.associationModel, granularity='name')
-        associationconfig['LayerName']['assoc']['Precision']['result'] =  'ap_fixed<22,9>'
-        associationconfig['Model']['Precision'] =  'ap_fixed<22,9>' 
-
-        cfg = hls4ml.converters.create_config(backend='Vivado')
-        cfg['IOType']     = 'io_parallel' # Must set this if using CNNs!
-        cfg['HLSConfig']  = associationconfig
-        cfg['KerasModel'] = self.associationModel
-        cfg['OutputDir']  = modelName+'_hls_association/'
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
-        cfg['ClockPeriod'] = 2.7
-
-        random_association_data = np.random.rand(1000,4+self.nlatent)
-        
-        hls_association_model = hls4ml.converters.keras_to_hls(cfg)
-        hls_association_model.compile()
-
-        if plot:
-            hls4ml.utils.plot_model(hls_association_model, show_shapes=True, show_precision=True, to_file=modelName+"_association_model.png")
-            wp, wph, ap, aph = hls4ml.model.profiling.numerical(model=self.associationModel, hls_model=hls_association_model) 
-            #wp.savefig(modelName+"_Association_model_activations_profile.png")
-            #ap.savefig(modelName+"_Association_model_weights_profile.png")
-            wph.savefig(modelName+"_Association_model_activations_profile_opt.png")
-            #aph.savefig(modelName+"_Association_model_weights_profile_opt.png")
-
-        y_keras = self.associationModel.predict(random_association_data)
-        y_hls4ml   = hls_association_model.predict(random_association_data)
-        
-        # "Accuracy" of hls4ml predictions vs keras
-        rel_acc = accuracy_score(np.argmax(y_keras, axis=1), np.argmax(y_hls4ml, axis=1))
-        with open('ModelAccuracies.txt', 'a') as f:
-            print('{} Association accuracy relative to keras: {} \n'.format(modelName,rel_acc), file=f)
-
-        hls_association_model.build(csim=True,synth=True,vsynth=True)
-

@@ -30,9 +30,13 @@ branches = [
     "trk_word_bendchi2",
     "trk_word_MVAquality",
     "tp_eventid",
+    "tp_charge",
     "tp_d0",
     "tp_pt",
-    "tp_phi"
+    "tp_phi",
+    #"gen_pt",
+    #"gen_phi",
+    #"gen_pdgid"
 ]
 
 trackFeatures = [
@@ -45,7 +49,7 @@ trackFeatures = [
     "trk_word_chi2rphi",
     "trk_word_chi2rz",
     "trk_word_bendchi2",
-    "trk_word_MVAquality"
+    "trk_word_MVAquality",
 ]
 
 max_z0 = 20.46912512
@@ -79,7 +83,7 @@ chi2rz_bins   = np.array([0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6
 chi2rphi_bins = np.array([0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 10.0, 15.0, 20.0, 35.0, 60.0, 200.0, np.inf])
 bendchi2_bins = np.array([0, 0.75, 1.0, 1.5, 2.25, 3.5, 5.0, 20.0,np.inf])
 
-nMaxTracks = 250
+nMaxTracks = 500
 
 chunkread = 5000
 
@@ -100,12 +104,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     
     #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
     #ad-hoc correction of track z0
-    #data['corrected_trk_z0']= (data['trk_z0'] + (data['trk_z0']>0.)*0.03 - (data['trk_z0']<0.)*0.03) 
-    #data['corrected_round_z0'] = round(((data['corrected_trk_z0']+max_z0 )*256/(max_z0*2)),2)
-    #data['corrected_int_z0'] = np.floor(data['corrected_round_z0'] )
 
     data['round_z0'] = round(((data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
-    #data['int_z0'] = data['trk_gtt_z0']#np.floor(data['round_z0'] )
     data['int_z0'] = np.floor(data['round_z0'] )
 
     #################################################
@@ -115,8 +115,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
     for iev in range(len(data['trk_pt'])):
         
-        selectPVTPs = (data['tp_eventid'][iev]==0)
-        selectPromptPVS =  ((data['tp_eventid'][iev]==0) & (abs(data['tp_d0'][iev]) < 0.01))
+        selectPVTPs = ((data['tp_eventid'][iev]==0) & (data['tp_charge'][iev]!=0))
         #tp met
         tp_met_px = np.sum(data['tp_pt'][iev][selectPVTPs]*np.cos(data['tp_phi'][iev][selectPVTPs]))
         tp_met_py = np.sum(data['tp_pt'][iev][selectPVTPs]*np.sin(data['tp_phi'][iev][selectPVTPs]))
@@ -126,19 +125,23 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         tfData['tp_met_pt'] = _float_feature(np.array([tp_met_pt],np.float32))
         tfData['tp_met_phi'] = _float_feature(np.array([tp_met_phi],np.float32))
 
-        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= max_z0)
+        selectTracksInZ0Range = (abs(data['trk_z0'][iev]) <= 100)
 
         #calc PV position as pt-weighted z0 average of PV tracks
         selectPVTracks = (data['trk_fake'][iev]==1)
-        selectPUTracks = (data['trk_fake'][iev]!=1)
+        selectPUTracks = (data['trk_fake'][iev]==2)
 
         if (np.sum(1.*selectPVTracks)<1):
-            continue
+            PVtrack_weight = 0 
+            PUtrack_weight = 1
+
+        else:
+            PVtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+            PUtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPUTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
         
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
 
-        PVtrack_weight = (1/len(data['trk_pt'][iev][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
-        PUtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPUTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+       
         track_weight = np.where((data['trk_fake'][iev][selectTracksInZ0Range]==1), PVtrack_weight, PUtrack_weight)
 
         tfData['trk_class_weight'] = _float_feature(padArray(track_weight,nMaxTracks))
@@ -147,19 +150,14 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         res = res_bins[np.digitize(abs(data['trk_eta'][iev][selectTracksInZ0Range]),eta_bins)]
 
         tfData['trk_z0_res']= _float_feature(padArray(np.array(res,np.float32),nMaxTracks)) 
-        tfData['rescaled_trk_z0_res']= _float_feature(padArray(np.array(res/16,np.float32),nMaxTracks)) 
 
         tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
-        abs_trk_word_pT = data['trk_gtt_pt'][iev][selectTracksInZ0Range]
-        abs_trk_word_pT = np.clip(abs_trk_word_pT,0, 128)
-        abs_trk_word_eta = abs(data['trk_gtt_eta'][iev][selectTracksInZ0Range])
-        rescaled_trk_word_MVAquality = data['trk_word_MVAquality'][iev][selectTracksInZ0Range]
+        trk_word_pT = data['trk_gtt_pt'][iev][selectTracksInZ0Range]
+        trk_word_pT = np.clip(trk_word_pT,0, 128)
+        trk_word_eta = abs(data['trk_gtt_eta'][iev][selectTracksInZ0Range])
 
-        tfData['abs_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT,np.float32),nMaxTracks,num=0))
-        tfData['abs_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_MVAquality'] = _float_feature(padArray(np.array(rescaled_trk_word_MVAquality*2,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_pT'] = _float_feature(padArray(np.array(abs_trk_word_pT*4,np.float32),nMaxTracks,num=0))
-        tfData['rescaled_trk_word_eta'] = _float_feature(padArray(np.array(abs_trk_word_eta*2,np.float32),nMaxTracks,num=0))
+        tfData['trk_word_pT'] = _float_feature(padArray(np.array(trk_word_pT,np.float32),nMaxTracks,num=0))
+        tfData['trk_word_eta'] = _float_feature(padArray(np.array(trk_word_eta,np.float32),nMaxTracks,num=0))
 
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))

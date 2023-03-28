@@ -25,7 +25,7 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-nMaxTracks = 250
+nMaxTracks = 500
 max_z0 = 20.46912512
 
 def decode_data(raw_data):
@@ -67,7 +67,7 @@ if __name__=="__main__":
     save = True
     savingfolder = "SavedArrays/"
     PVROCs = True
-    met = True
+    met = False
 
     nlatent = config["Nlatent"]
     nbins = config['nbins']
@@ -87,6 +87,7 @@ if __name__=="__main__":
 
     experiment = comet_ml.ExistingExperiment(
             previous_experiment=EXPERIMENT_KEY,
+            display_summary_level = 0,
             log_env_details=True, # to continue env logging
             log_env_gpu=True,     # to continue GPU logging
             log_env_cpu=True,     # to continue CPU logging
@@ -102,7 +103,9 @@ if __name__=="__main__":
 
     features = {
             "pvz0": tf.io.FixedLenFeature([1], tf.float32),
-            "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32)
+            "trk_fromPV":tf.io.FixedLenFeature([nMaxTracks], tf.float32),
+            "tp_met_pt": tf.io.FixedLenFeature([1], tf.float32),
+            "tp_met_phi": tf.io.FixedLenFeature([1], tf.float32)
     }
 
     trackFeatures = [
@@ -117,17 +120,22 @@ if __name__=="__main__":
             'trk_z0',
             'int_z0',
             'trk_class_weight',
-            'abs_trk_word_pT',
-            'abs_trk_word_eta',
+            'trk_word_pT',
+            'trk_word_eta',
+            'trk_z0_res',
             'trk_word_MVAquality',
-            'rescaled_trk_word_pT',
-            'rescaled_trk_word_eta',
-            'rescaled_trk_z0_res',
-            'rescaled_trk_word_MVAquality'
         ]
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
+
+    with open(config['UnquantisedModelName']+'_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+    with open(config['UnquantisedModelName']+'_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+    with open(config['UnquantisedModelName']+'_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
+
 
     qnetwork = vtx.nn.E2EQKerasDiffArgMax(
             nbins=nbins,
@@ -145,7 +153,9 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            qconfig = config['QConfig']
+            weightqconfig = weightqconfig,
+            patternqconfig = patternqconfig,
+            associationqconfig = associationqconfig,
     )
 
     qmodel = qnetwork.createE2EModel()
@@ -195,6 +205,14 @@ if __name__=="__main__":
                         0]
     )
 
+    with open(config['QuantisedModelName']+'_prune_iteration_9_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+    with open(config['QuantisedModelName']+'_prune_iteration_9_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+    with open(config['QuantisedModelName']+'_prune_iteration_9_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
+
+
     QPnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
             nbins=nbins,
             ntracks=nMaxTracks, 
@@ -212,10 +230,12 @@ if __name__=="__main__":
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
             temperature = 1e-4,
-            qconfig = config['QConfig'],
+            weightqconfig = weightqconfig,
+            patternqconfig = patternqconfig,
+            associationqconfig = associationqconfig,
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(config['prune_iterations'])+'.h5'
         )
-
+    
     QPmodel = QPnetwork.createE2EModel()
     QPmodel.compile(
         tf.keras.optimizers.Adam(learning_rate=0.01),
@@ -235,6 +255,12 @@ if __name__=="__main__":
     DAmodel.load_weights(UnQuantisedModelName+".tf").expect_partial()
     qmodel.load_weights(QuantisedModelName+".tf").expect_partial()
     QPmodel.load_weights(QuantisedPrunedModelName+".tf").expect_partial()
+
+    print("#=========================================#")
+    print("|                                         |")
+    print("|            Start of Evaluation          |")
+    print("|                                         |")
+    print("#=========================================#")
 
     predictedZ0_FH = []
     predictedZ0_FHz0res = []
@@ -303,25 +329,28 @@ if __name__=="__main__":
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
+            WeightFeatures = WeightFeatures[np.all(WeightFeatures != 0, axis = 2)]
+            trackFeatures = trackFeatures[np.all(trackFeatures != 0, axis = 2)]
+
             nBatch = batch['pvz0'].shape[0]
 
-            FH = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],linear_res_function(batch['abs_trk_word_pT']))
+            FH = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],linear_res_function(batch['trk_gtt_pt']))
             predictedZ0_FH.append(FH)
-            FHeta = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],eta_res_function(batch['trk_gtt_eta']))
+            FHeta = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],eta_res_function(batch['trk_gtt_eta']))
             predictedZ0_FHz0res.append(FHeta)
-            FHz0MVA = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],MVA_res_function(batch['trk_word_MVAquality']))
+            FHz0MVA = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],MVA_res_function(batch['trk_word_MVAquality']))
             predictedZ0_FHz0MVA.append(FHz0MVA)
-            FHnoFake = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],fake_res_function(batch['trk_fake']))
+            FHnoFake = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],fake_res_function(batch['trk_fake']))
             predictedZ0_FHnoFake.append(FHnoFake)
-            FHcombined = predictFastHisto(batch[FH_z0],batch['abs_trk_word_pT'],comb_res_function(batch['trk_word_MVAquality'],batch['trk_gtt_eta']))
+            FHcombined = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],comb_res_function(batch['trk_word_MVAquality'],batch['trk_gtt_eta']))
             predictedZ0_FHcombinedfunc.append(FHcombined)
 
             trk_z0.append(batch[FH_z0])
             trk_MVA.append(batch["trk_word_MVAquality"])
-            trk_gtt_pt.append(batch['abs_trk_word_pT'])
+            trk_gtt_pt.append(batch['trk_gtt_pt'])
             trk_gtt_eta.append(batch['trk_gtt_eta'])
             trk_gtt_phi.append(batch['trk_gtt_phi'])
-            trk_z0_res.append(batch['rescaled_trk_z0_res'])
+            trk_z0_res.append(batch['trk_z0_res'])
 
             trk_chi2rphi.append(batch['trk_word_chi2rphi'])
             trk_chi2rz.append(batch['trk_word_chi2rz'])
@@ -330,7 +359,7 @@ if __name__=="__main__":
             actual_Assoc.append(batch["trk_fromPV"])
             actual_PV.append(batch['pvz0'])
 
-            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_class_weight'],return_bool=True))
             predictedAssoc_FH.append(FHassoc)
 
             FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
@@ -350,14 +379,14 @@ if __name__=="__main__":
 
             #### Q NETWORK #########################################################################################################################
             XX = qmodel.input 
-            YY = qmodel.layers[5].output
+            YY = qmodel.layers[8].output
             new_model = Model(XX, YY)
 
             predictedQWeights_QNN = new_model.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures])
+                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
 
             predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures]
+                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
                         )
 
             predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
@@ -371,14 +400,14 @@ if __name__=="__main__":
 
             #### QP NETWORK #########################################################################################################################
             XX = QPmodel.input 
-            YY = QPmodel.layers[5].output
+            YY = QPmodel.layers[8].output
             new_model = Model(XX, YY)
 
             predictedQWeights_QPNN = new_model.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures])
+                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
 
             predictedZ0_QPNN_temp, predictedAssoc_QPNN_temp, QWeights_QPNN = QPmodel.predict_on_batch(
-                            [batch[z0],WeightFeatures,trackFeatures]
+                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
                         )
 
             predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
@@ -395,15 +424,15 @@ if __name__=="__main__":
 
             #### DA NETWORK #########################################################################################################################
             XX = DAmodel.input 
-            YY = DAmodel.layers[9].output
+            YY = DAmodel.layers[8].output
             new_model = Model(XX, YY)
 
             predictedDAWeights_DANN = new_model.predict_on_batch(
-                                [batch[z0],WeightFeatures,trackFeatures])
+                                [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
 
 
             predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
-                                [batch[z0],WeightFeatures,trackFeatures]
+                                [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
                             )
 
             predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
@@ -415,42 +444,42 @@ if __name__=="__main__":
             predictedAssoc_DANN.append(predictedAssoc_DANN_temp)
             predictedDAWeights.append(predictedDAWeights_DANN)
 
-            #actual_MET.append(batch['tp_met_pt'])
-            #actual_METphi.append(batch['tp_met_phi'])
+            actual_MET.append(batch['tp_met_pt'])
+            actual_METphi.append(batch['tp_met_phi'])
 
-            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             actual_trkMET.append(temp_met)
             actual_trkMETphi.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
             predictedMET_FHnoFake.append(temp_met)
             predictedMETphi_FHnoFake.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
             predictedMET_FHMVA.append(temp_met)
             predictedMETphi_FHMVA.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassocres,
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocres,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FHres.append(temp_met)
             predictedMETphi_FHres.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],FHassoc,
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassoc,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FH.append(temp_met)
             predictedMETphi_FH.append(temp_metphi)
 
             if met:
                 for i in range(0,num_threshold):
-                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QPNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QPNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['abs_trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_DANN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_DANN[str(i/num_threshold)].append(temp_metphi)
 
@@ -557,11 +586,13 @@ if __name__=="__main__":
                 MET_DANN_Centre_array[i] = qMET[1]
                 METphi_DANN_Centre_array[i] = qMETphi[1]
 
+            
             Quartilethreshold_choice = '0.7'#str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
             RMSthreshold_choice= '0.6'#str(np.argmin(MET_QNN_RMS_array)/num_threshold)
             Quartilethreshold_choice_DNN = '0.7' #str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
             RMSthreshold_choice_DNN = '0.6' #str(np.argmin(MET_DANN_RMS_array)/num_threshold)
-            
+                    
+
             MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[Quartilethreshold_choice]).ravel()
             METphi_QNN_bestQ_array = np.concatenate(predictedMETphi_QNN[Quartilethreshold_choice]).ravel()
 
@@ -714,7 +745,12 @@ if __name__=="__main__":
             METphi_DANN_bestQ_array = np.load(savingfolder+"METphi_DANN_bestQ_array.npy")
             MET_DANN_bestRMS_array = np.load(savingfolder+"MET_DANN_bestRMS_array.npy")
             METphi_DANN_bestRMS_array = np.load(savingfolder+"METphi_DANN_bestRMS_array.npy")
-
+    if met:
+        Quartilethreshold_choice = str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
+        RMSthreshold_choice= str(np.argmin(MET_QNN_RMS_array)/num_threshold)
+        Quartilethreshold_choice_DNN = str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
+        RMSthreshold_choice_DNN = str(np.argmin(MET_DANN_RMS_array)/num_threshold)
+            
     pv_track_sel = assoc_PV_array == 1
     pu_track_sel = assoc_PV_array == 0
 
@@ -859,7 +895,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(-20,20)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-20,20)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -873,9 +909,9 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_mva_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,7)), bins=8, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_mva_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,7)), bins=8, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
-    ax.set_ylabel("Track MVA", horizontalalignment='right', y=1.0)
+    ax.set_ylabel("Track BDT Score", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
     ax.vlines(0,0,7,linewidth=3,linestyle='dashed',color='k')
@@ -887,7 +923,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,128)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_gtt_pt_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,128)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $p_T$ [GeV]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -900,12 +936,12 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hidst2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,7)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,128)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ resolution [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,7,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,0,128,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0res.png" %  outputFolder)
     plt.close()
@@ -915,7 +951,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], np.abs(trk_gtt_eta_array[nonzero_Qweights]), range=((Qweightmin,Qweightmax),(0,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], np.abs(trk_gtt_eta_array[nonzero_Qweights]), range=((QPweightmin,QPweightmax),(0,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -929,7 +965,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_gtt_eta_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(-2.4,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_gtt_eta_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-2.4,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -943,7 +979,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_chi2rphi_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_chi2rphi_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{r\\phi}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -957,7 +993,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_chi2rz_array[nonzero_Qweights], range=((Qweightmin,Qweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_chi2rz_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,16)), bins=(50,16), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{rz}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -971,7 +1007,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQWeightsarray[nonzero_Qweights], trk_bendchi2_array[nonzero_Qweights] , range=((Qweightmin,Qweightmax),(0,8)), bins=(50,8), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_bendchi2_array[nonzero_Qweights] , range=((QPweightmin,QPweightmax),(0,8)), bins=(50,8), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\chi^2_{bend}$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1057,7 +1093,7 @@ if __name__=="__main__":
     figure=plotz0_residual([(z0_PV_array-z0_QPNN_array)],
                           [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHMVA_array),(z0_PV_array-z0_FHnoFake_array)],
                           ["QPNN"],
-                          ["Base","MVA Cut","No Fakes"])
+                          ["Base","BDT Cut","No Fakes"])
     plt.savefig("%s/Z0Residual.png" % outputFolder)
     plt.close()
 
@@ -1099,9 +1135,9 @@ if __name__=="__main__":
 
     plt.clf()
     figure=plotz0_residual([(z0_PV_array-z0_QPNN_array)],
-                          [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHcombined_array),(z0_PV_array-z0_FHNNweight_array)],
+                          [(z0_PV_array-z0_FH_array),(z0_PV_array-z0_FHNNweight_array)],
                           ["QPNN            "],
-                          ["Baseline         ","Analyical Function", "NN Weighting Function"])
+                          ["Baseline         ", "NN Weighting Function"])
     plt.savefig("%s/WeightingFunctionsZ0Residual.png" % outputFolder)
     plt.close()
 
@@ -1112,7 +1148,6 @@ if __name__=="__main__":
         #                                   MET Residual Plots                                  #  
         #                                                                                       #
         #########################################################################################
-
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestQ_array )],
                                 [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],

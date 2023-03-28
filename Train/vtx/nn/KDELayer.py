@@ -2,7 +2,7 @@ import tensorflow as tf
 import vtxops
 
 class KDELayer(tf.keras.layers.Layer):
-    def __init__(self, nbins=256, start=-20.46912512, end=20.46912512, kernel='flat', bandwidth=1e-12, add_overflow=True, **kwargs):
+    def __init__(self, nbins=256, start=0, end=255, kernel='flat', bandwidth=1e-12, add_overflow=True, **kwargs):
         self.nbins = nbins
         self.start = start
         self.end = end
@@ -57,5 +57,17 @@ class KDELayer(tf.keras.layers.Layer):
         
         value_shape, weights_shape = input_shape
         return (weights_shape[0], self.nbins, weights_shape[2])
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+        "nbins": self.nbins,
+        "start": self.start,
+        "end":self.end,
+        "kernel":self.kernel,
+        "bandwidth":self.bandwidth,
+        "add_overflow":self.add_overflow
+        })
+        return config
         
 

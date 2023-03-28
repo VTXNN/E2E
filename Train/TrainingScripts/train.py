@@ -15,7 +15,7 @@ import pandas as pd
 import yaml
 
 max_z0 = 20.46912512
-max_ntracks = 250
+max_ntracks = 500
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -66,12 +66,12 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
 
-            WeightFeatures = np.stack([batch[feature] for feature in weightfeat ],axis=2)
+            WeightFeatures = np.stack([batch[feature] for feature in weightfeat ],axis=2)           
 
             nBatch = batch['pvz0'].shape[0]
                                   
             result = model.train_on_batch([batch['int_z0'],WeightFeatures,trackFeatures], [batch['pvz0'],batch['trk_fromPV'],np.zeros([nBatch,max_ntracks,1])], 
-                                          sample_weight = [np.ones([nBatch,max_ntracks,1]),np.expand_dims(batch['trk_class_weight'],axis=-1),np.ones([nBatch,max_ntracks,1])])   
+                                          sample_weight = [np.expand_dims(batch['trk_class_weight'],axis=-1),np.expand_dims(batch['trk_class_weight'],axis=-1),np.ones([nBatch,max_ntracks,1])])   
 
             result = dict(zip(model.metrics_names,result))
 
@@ -83,7 +83,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             experiment.log_metric("assoc_loss",result['association_final_loss'],step=total_steps,epoch=epoch)
 
             if step%10==0:
-                predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['abs_trk_word_pT'],res_func=linear_res_function(batch['abs_trk_word_pT']))
+                predictedZ0_FH = predictFastHisto(batch['trk_z0'],batch['trk_word_pT'],res_func=linear_res_function(batch['trk_word_pT']))
   
                 predictedZ0_NN, predictedAssoc_NN,predicted_weights = model.predict_on_batch( [batch['int_z0'],WeightFeatures,trackFeatures] )
 
@@ -126,14 +126,21 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         val_actual_assoc = []
 
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
-            val_predictedZ0_FH.append(predictFastHisto(val_batch['trk_z0'],val_batch['abs_trk_word_pT'],res_func=linear_res_function(val_batch['abs_trk_word_pT'])).flatten())
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
 
             val_WeightFeatures = np.stack([val_batch[feature] for feature in weightfeat],axis=2)
 
+            val_predictedZ0_FH.append(predictFastHisto(val_batch['trk_z0'],val_batch['trk_word_pT'],res_func=fake_res_function(val_batch['trk_class_weight'])).flatten())
+
+            print(WeightFeatures[np.all(val_WeightFeatures != 0, axis = 2)])
+            print(WeightFeatures[np.all(val_WeightFeatures != 0, axis = 2)].shape)
+
+            print(val_batch['int_z0'][np.all(val_WeightFeatures != 0, axis = 2)])
+            print(val_batch['int_z0'][np.all(val_WeightFeatures != 0, axis = 2)].shape)
+
             temp_predictedZ0_NN, temp_predictedAssoc_NN,predicted_weights  = model.predict_on_batch(
-                        [val_batch['int_z0'],val_WeightFeatures,val_trackFeatures]
+                        [val_batch['int_z0'][np.all(val_WeightFeatures != 0, axis = 2)],val_WeightFeatures[np.all(val_WeightFeatures != 0, axis = 2)],val_trackFeatures[np.all(val_WeightFeatures != 0, axis = 2)]]
                 )
   
             val_predictedZ0_NN.append(temp_predictedZ0_NN.flatten())
@@ -141,7 +148,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
             val_actual_PV.append(val_batch['pvz0'].numpy().flatten()) 
             val_actual_assoc.append(val_batch["trk_fromPV"].numpy().flatten())
 
-            val_predictedAssoc_FH.append(FastHistoAssoc(val_batch['pvz0'],val_batch['trk_z0'],val_batch['trk_gtt_eta'],res_func=linear_res_function(val_batch['trk_gtt_eta'])).flatten())
+            val_predictedAssoc_FH.append(FastHistoAssoc(val_batch['pvz0'],val_batch['trk_z0'],val_batch['trk_gtt_eta'],res_func=fake_res_function(val_batch['trk_class_weight'])).flatten())
         val_z0_NN_array = np.concatenate(val_predictedZ0_NN).ravel()
         val_z0_FH_array = np.concatenate(val_predictedZ0_FH).ravel()
         val_z0_PV_array = np.concatenate(val_actual_PV).ravel()
@@ -199,13 +206,13 @@ def test_model(model,experiment,test_files,trackfeat,weightfeat,model_name=None)
         trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
         WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
 
-        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['abs_trk_word_pT'],res_func=linear_res_function(batch['abs_trk_word_pT'])))
+        predictedZ0_FH.append(predictFastHisto(batch['trk_z0'],batch['trk_word_pT'],res_func=fake_res_function(batch['trk_class_weight'])))
 
         actual_Assoc.append(batch["trk_fromPV"])
         actual_PV.append(batch['pvz0'])
 
-        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch['trk_z0'],batch['trk_gtt_eta'],res_func=linear_res_function(batch['trk_gtt_eta'])))
-        predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch['int_z0'],WeightFeatures,trackFeatures] )
+        predictedAssoc_FH.append(FastHistoAssoc(batch['pvz0'],batch['trk_z0'],batch['trk_gtt_eta'],res_func=fake_res_function(batch['trk_class_weight'])))
+        predictedZ0_NN_temp, predictedAssoc_NN_temp,predicted_weights = model.predict_on_batch( [batch['int_z0'][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures[np.all(WeightFeatures != 0, axis = 2)],trackFeatures[np.all(trackFeatures != 0, axis = 2)]] )
 
         predictedZ0_NN.append(predictedZ0_NN_temp)
         predictedAssoc_NN.append(predictedAssoc_NN_temp)
@@ -292,6 +299,13 @@ if __name__=="__main__":
 
     if trainable == 'QDA':
 
+        with open(config['UnquantisedModelName']+'_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['UnquantisedModelName']+'_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['UnquantisedModelName']+'_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
+
         network = vtx.nn.E2EQKerasDiffArgMax(
             nbins = nbins,
             start = start,
@@ -307,13 +321,23 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            qconfig = config['QConfig']
+            weightqconfig = weightqconfig,
+            patternqconfig = patternqconfig,
+            associationqconfig = associationqconfig
         )
 
         model_name = config['QuantisedModelName']+"_prune_iteration_0"
         epochs = config['epochs']
 
     if trainable == 'QDA_prune':
+
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[3])-1)+'_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[3])-1)+'_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[3])-1)+'_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
+
         network = vtx.nn.E2EQKerasDiffArgMaxConstraint(
             nbins = nbins,
             start = start,
@@ -329,7 +353,9 @@ if __name__=="__main__":
             nweightlayers = config['nweightlayers'],
             nassocnodes = config['nassocnodes'],
             nassoclayers = config['nassoclayers'],
-            qconfig = config['QConfig'],
+            weightqconfig = weightqconfig,
+            patternqconfig = patternqconfig,
+            associationqconfig = associationqconfig,
             h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+sys.argv[3]+'.h5'
         )
 
@@ -343,18 +369,15 @@ if __name__=="__main__":
 
     trackFeatures = [
                 'trk_z0',
-                'abs_trk_word_pT',
-                'abs_trk_word_eta',
+                'trk_word_pT',
+                'trk_word_eta',
+                'trk_word_MVAquality',
                 'trk_gtt_pt',
                 'trk_gtt_eta',
                 'trk_z0_res',
                 'int_z0',
                 'trk_class_weight',
-                'trk_word_MVAquality',
-                'rescaled_trk_word_pT',
-                'rescaled_trk_word_eta',
-                'rescaled_trk_word_MVAquality',
-                'rescaled_trk_z0_res'
+                'trk_z0_res'
     ]
 
     print ("Input Train files: ",len(train_files))
@@ -374,6 +397,7 @@ if __name__=="__main__":
         project_name=config["comet_project_name"],
         auto_metric_logging=True,
         auto_param_logging=True,
+        display_summary_level = 0,
         auto_histogram_weight_logging=True,
         auto_histogram_gradient_logging=True,
         auto_histogram_activation_logging=True,
@@ -384,7 +408,7 @@ if __name__=="__main__":
       fh.write(experiment.get_key())
 
     startingLR = config['starting_lr']
-    loss_function = tf.keras.losses.Huber(0.9)
+    loss_function = tf.keras.losses.Huber(config['Huber_delta'])
     
     model = network.createE2EModel()
     optimizer = tf.keras.optimizers.Adam(learning_rate=startingLR)
@@ -403,13 +427,18 @@ if __name__=="__main__":
                       0
                       ]
     )
-    model.summary()
 
     if trainable == 'DA':
         experiment.set_name(config['comet_experiment_name'])
         model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
         model.get_layer('position_final').set_weights([np.array([position_final_weights], dtype=np.float32), np.array(position_final_bias, dtype=np.float32)])
-        
+        print("#=========================================#")
+        print("|                                         |")
+        print("|    Start of Floating Point Training     |")
+        print("|                                         |")
+        print("#=========================================#")
+
+
     elif trainable == 'QDA':
         experiment.set_name(config['comet_experiment_name']+str("_Quantised"))
         DAnetwork = vtx.nn.E2EDiffArgMax(
@@ -441,21 +470,39 @@ if __name__=="__main__":
                         config['crossentropy_loss_weight'],
                         0]
         )
-        DAmodel.summary()
         DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
         model.get_layer('weight_1').set_weights    (DAmodel.get_layer('weight_1').get_weights())
-        model.get_layer('weight_2').set_weights    (DAmodel.get_layer('weight_2').get_weights()) 
+        model.get_layer('weight_1_relu').set_weights    (DAmodel.get_layer('weight_1_relu').get_weights())
+        model.get_layer('weight_2').set_weights    (DAmodel.get_layer('weight_2').get_weights())
+        model.get_layer('weight_2_relu').set_weights    (DAmodel.get_layer('weight_2_relu').get_weights()) 
         model.get_layer('weight_final').set_weights(DAmodel.get_layer('weight_final').get_weights()) 
+        model.get_layer('weight_final_relu').set_weights(DAmodel.get_layer('weight_final_relu').get_weights()) 
+
         model.get_layer('pattern_1').set_weights(DAmodel.get_layer('pattern_1').get_weights()) 
+        model.get_layer('pattern_1_relu').set_weights(DAmodel.get_layer('pattern_1_relu').get_weights()) 
         model.get_layer('Bin_weight').set_weights       (DAmodel.get_layer('Bin_weight').get_weights()) 
         model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
-        model.get_layer('association_0').set_weights    (DAmodel.get_layer('association_0').get_weights()) 
         model.get_layer('association_1').set_weights    (DAmodel.get_layer('association_1').get_weights()) 
+        model.get_layer('association_1_relu').set_weights    (DAmodel.get_layer('association_1_relu').get_weights()) 
+        model.get_layer('association_2').set_weights    (DAmodel.get_layer('association_2').get_weights()) 
+        model.get_layer('association_2_relu').set_weights    (DAmodel.get_layer('association_2_relu').get_weights()) 
         model.get_layer('association_final').set_weights(DAmodel.get_layer('association_final').get_weights())
+
+        print("#=========================================#")
+        print("|                                         |")
+        print("|      Start of Quantised Training        |")
+        print("|                                         |")
+        print("#=========================================#")
 
     elif trainable == 'QDA_prune':
         experiment.set_name(config['comet_experiment_name']+"_Quantised_prune_#"+str(sys.argv[3]))
         model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[3]+".tf").expect_partial()
+
+        print("#=========================================#")
+        print("|                                         |")
+        print("|       Start of Prune "+sys.argv[3]+" Training         |")
+        print("|                                         |")
+        print("#=========================================#")
     
     reduceLR = TrainingScripts.Callbacks.OwnReduceLROnPlateau(
         monitor='loss', factor=0.1, patience=6, verbose=1,

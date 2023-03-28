@@ -64,11 +64,18 @@ if __name__ == "__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
             config = yaml.load(f,Loader=yaml.FullLoader)
 
-    max_ntracks = 250   
+    max_ntracks = 500   
     nlatent = config["Nlatent"]
     nbins = config['nbins']
 
     if sys.argv[2] == '1':
+
+        with open(config['QuantisedModelName']+'_prune_iteration_0_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_0_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_0_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
 
         Qnetwork = vtx.nn.E2EQKerasDiffArgMax(
                     nbins=nbins,
@@ -82,10 +89,19 @@ if __name__ == "__main__":
                     nweightlayers = config['nweightlayers'],
                     nassocnodes = config['nassocnodes'],
                     nassoclayers = config['nassoclayers'],
-                    qconfig = config['QConfig'],
+                    weightqconfig = weightqconfig,
+                    patternqconfig = patternqconfig,
+                    associationqconfig = associationqconfig,
                 )
 
     else:
+
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[2])-1)+'_WeightQConfig.yaml', 'r') as f:
+            weightqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[2])-1)+'_PatternQConfig.yaml', 'r') as f:
+            patternqconfig = yaml.load(f,Loader=yaml.FullLoader)
+        with open(config['QuantisedModelName']+'_prune_iteration_'+str(int(sys.argv[2])-1)+'_AssociationQConfig.yaml', 'r') as f:
+            associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
 
         Qnetwork = vtx.nn.E2EQKerasDiffArgMaxConstraint(
                     nbins=nbins,
@@ -99,7 +115,9 @@ if __name__ == "__main__":
                     nweightlayers = config['nweightlayers'],
                     nassocnodes = config['nassocnodes'],
                     nassoclayers = config['nassoclayers'],
-                    qconfig = config['QConfig'],
+                    weightqconfig = weightqconfig,
+                    patternqconfig = patternqconfig,
+                    associationqconfig = associationqconfig,
                     h5fName = config['QuantisedModelName']+'_drop_weights_iteration_'+str(int(sys.argv[2])-1)+'.h5'
                 )
 
@@ -120,24 +138,24 @@ if __name__ == "__main__":
     )
 
     QuantisedModelName = config["QuantisedModelName"] 
-
-    Qmodel.summary()
     Qmodel.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[2])-1)+".tf").expect_partial()
 
-
+    print("#=========================================#")
+    print("|                                         |")
+    print("|       Start of Prune "+sys.argv[2]+" Pruning          |")
+    print("|                                         |")
+    print("#=========================================#")
+    
     weightsPerLayer = {}
     droppedPerLayer = {}
     binaryTensorPerLayer = {}
     allWeightsArray,allWeightsByLayer,allWeightsArrayNonRel,allWeightsByLayerNonRel = getWeightArray(Qmodel)
 
     relative_weight_max = config["relative_weight_max"][int(sys.argv[2])]
-
-    print(relative_weight_max)
-
         
     for layer in Qmodel.layers:     
         droppedPerLayer[layer.name] = []
-        if layer.name in ['weight_1','weight_2','weight_final','association_0','association_1','association_final']:
+        if layer.name in ['weight_1','weight_2','weight_final','association_1','association_2','association_final']:
             original_w = layer.get_weights()
             weightsPerLayer[layer.name] = original_w
             for my_weights in original_w:
@@ -169,7 +187,7 @@ if __name__ == "__main__":
     print('Summary:')
     totalDropped = sum([len(droppedPerLayer[layer.name]) for layer in Qmodel.layers])
     for layer in Qmodel.layers:
-        if layer.name in ['weight_1','weight_2','weight_final','association_0','association_1','association_final']:
+        if layer.name in ['weight_1','weight_2','weight_final','association_1','association_2','association_final']:
             print('%i weights dropped from %s out of %i weights'%(len(droppedPerLayer[layer.name]),layer.name, layer.count_params()))
     print('%i total weights dropped out of %i total weights'%(totalDropped,Qmodel.count_params()))
     print('%.1f%% compression'%(100.*totalDropped/Qmodel.count_params()))
@@ -222,7 +240,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Number of Weights',ha="right",y=1)
     ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
     ax.grid(True)
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram.png')
 
         
     plt.clf()
@@ -251,7 +269,7 @@ if __name__ == "__main__":
     ax.set_xlabel('Absolute Relative Weights',ha="right",x=1)
     ax.grid(True)
     #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram_logx.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_histogram_logx.png')
 
 
     plt.clf()
@@ -277,4 +295,4 @@ if __name__ == "__main__":
     ax.set_xlabel('Absolute Value of Weights',ha="right",x=1)
     ax.grid()
     #plt.figtext(0.35, 0.90,'preliminary', style='italic', wrap=True, horizontalalignment='center', fontsize=14) 
-    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_nonrel_histogram_logx.pdf')
+    plt.savefig(QuantisedModelName+"_prune_iteration_"+sys.argv[2]+'_weight_nonrel_histogram_logx.png')

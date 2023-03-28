@@ -65,8 +65,8 @@ def eta_res_function(eta):
         res = 0.1 + 0.2*eta**2
         return 1/res
     
-def MVA_res_function(MVA,threshold=0.3,return_bool = False):
-        res = (MVA)/7 > threshold
+def MVA_res_function(MVA,threshold=0.7,return_bool = False):
+        res = MVA > threshold
         if return_bool:
             return res
         else:
@@ -74,7 +74,7 @@ def MVA_res_function(MVA,threshold=0.3,return_bool = False):
 
 def comb_res_function(mva,eta):
         res = 0.1 + 0.2*eta**2
-        return (mva/7)/res
+        return mva/res
 
 def chi_res_function(chi2rphi,chi2rz,bendchi2,return_bool = False):
         qrphi = chi2rphi < 12 
@@ -204,8 +204,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     items = 0
     for i,FH in enumerate(FHdiff):
         if relative:
-            FH = (FH - actual[i]) / actual[i]
-            temp_actual = actual[i][~np.isnan(FH)]
+            FH = (FH - actual) / actual
+            temp_actual = actual[~np.isnan(FH)]
             FH = FH[~np.isnan(FH)]
             temp_actual = temp_actual[np.isfinite(FH)]
             FH = FH[np.isfinite(FH)]
@@ -214,8 +214,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
                 FH = FH + 1
             
         else:
-            FH = (FH - actual[i])
-            temp_actual = actual[i]
+            FH = (FH - actual)
+            temp_actual = actual
         qz0_FH = np.percentile(FH,[32,50,68])
 
         ax[0].hist(FH,bins=bins,histtype="step",
@@ -230,8 +230,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
 
     for i,NN in enumerate(NNdiff):
         if relative:
-            NN = (NN - actual[i])/actual[i]
-            temp_actual = actual[i][~np.isnan(NN)]
+            NN = (NN - actual)/actual
+            temp_actual = actual[~np.isnan(NN)]
             NN = NN[~np.isnan(NN)]
             temp_actual = temp_actual[np.isfinite(NN)]
             NN = NN[np.isfinite(NN)]
@@ -240,8 +240,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
                 NN = NN + 1
 
         else:
-            NN = (NN - actual[i])
-            temp_actual = actual[i]
+            NN = (NN - actual)
+            temp_actual = actual
         qz0_NN = np.percentile(NN,[32,50,68])
         ax[0].hist(NN,bins=bins,histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
@@ -338,8 +338,8 @@ def plotPV_roc(actual,NNpred,FHpred,NNnames,FHnames,Nthresholds=50,colours=colou
         recallFH = tpFH / (tpFH + fnFH) 
         TPRFH = recallFH
         FPRFH = fpFH / (fpFH + tnFH) 
-        ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o')
-        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual[i],FH)),LEGEND_WIDTH)),color=colours[items],marker='o')
+        ax[0].plot(recallFH,precisionFH,label=str(FHnames[i]),linewidth=LINEWIDTH,color=colours[items],marker='o',markersize=MARKERSIZE/2)
+        ax[1].plot(TPRFH,FPRFH,label='\n'.join(wrap(f"%s AUC: %.4f" %(FHnames[i],metrics.roc_auc_score(actual[i],FH)),LEGEND_WIDTH)),color=colours[items],marker='o',markersize=MARKERSIZE/2)
         items+=1
 
     for i,NN in enumerate(NNpred):
@@ -467,8 +467,8 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
         Et_bin_widths.append((Et_bins[i+1] - Et_bins[i]) / 2)
 
     for i,FH in enumerate(FHpred):
-        FH = (FH - actual[i]) / actual[i]
-        temp_actual = actual[i][~np.isnan(FH)]
+        FH = (FH - actual) / actual
+        temp_actual = actual[~np.isnan(FH)]
         FH = FH[~np.isnan(FH)]
         temp_actual = temp_actual[np.isfinite(FH)]
         FH = FH[np.isfinite(FH)]
@@ -486,8 +486,8 @@ def plotMET_resolution(NNpred,FHpred,NNnames,FHnames,colours=colours,actual=None
     for i,NN in enumerate(NNpred):
         NN_means = []
         NN_sdevs = []
-        NN = (NN - actual[i])/actual[i]
-        temp_actual = actual[i][~np.isnan(NN)]
+        NN = (NN - actual)/actual
+        temp_actual = actual[~np.isnan(NN)]
         NN = NN[~np.isnan(NN)]
         temp_actual = temp_actual[np.isfinite(NN)]
         NN = NN[np.isfinite(NN)]
