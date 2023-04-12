@@ -11,9 +11,10 @@ import matplotlib.pyplot as plt
 tf.compat.v1.disable_eager_execution()
 
 ###### USAGE #####
-# python convertTFRecords.py path-to-input-file/file.root path-to-output-folder
+# python convertTFRecords.py path-to-input-file/file.root path-to-output-folder skip_noPV_events
 
 f = uproot.open(sys.argv[1])
+skip_noPV_events = sys.argv[2]
 
 branches = [ 
     'trk_gtt_pt',
@@ -132,11 +133,18 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         selectPVTracks = (data['trk_fake'][iev]==1)
         selectPUTracks = (data['trk_fake'][iev]!=1)
 
-        #if (np.sum(1.*selectPVTracks)<1):
-        #    continue
-        
         tfData['trk_fromPV'] = _float_feature(padArray(1.*selectPVTracks*selectTracksInZ0Range,nMaxTracks))
-
+        
+        if (np.sum(1.*selectPVTracks)<1):
+            if skip_noPV_events:
+                continue
+            else:
+                PVtrack_weight = 0 
+                PUtrack_weight = 1
+        else:
+            PVtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+            PUtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPUTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
+        
         PVtrack_weight = (1/len(data['trk_pt'][iev][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
         PUtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPUTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
         track_weight = np.where((data['trk_fake'][iev][selectTracksInZ0Range]==1), PVtrack_weight, PUtrack_weight)
