@@ -9,7 +9,7 @@ dir=$PWD
 
 mkdir /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
-python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_TT.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
+python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_TT.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData True
 
 cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
@@ -23,7 +23,7 @@ mv data* Train/
 
 cd $dir
 
-python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_DY.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
+python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/GTT_TrackNtuple_DY.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData False
 
 cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_EmuTQ/NewData
 
