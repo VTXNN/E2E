@@ -295,7 +295,7 @@ class E2EDiffArgMax():
         cfg['HLSConfig']  = weightconfig
         cfg['KerasModel'] = self.weightModel
         cfg['OutputDir']  = modelName+'_hls_weight/'
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['Part'] = 'xcvu13p-flga2577-2-e'
         cfg['ClockPeriod'] = 2.7
 
         random_weight_data = np.random.rand(1000,3)
@@ -342,7 +342,7 @@ class E2EDiffArgMax():
         cfg['KerasModel'] = self.patternModel
         cfg['OutputDir']  = modelName+'_hls_pattern/'
         cfg['ParallelizationFactor'] = 64
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['Part'] = 'xcvu13p-flga2577-2-e'
         cfg['ClockPeriod'] = 2.7
 
         random_pattern_data = np.random.rand(1000,256,1)
@@ -383,7 +383,7 @@ class E2EDiffArgMax():
         cfg['HLSConfig']  = associationconfig
         cfg['KerasModel'] = self.associationModel
         cfg['OutputDir']  = modelName+'_hls_association/'
-        cfg['Part'] = 'xcvu9p-flga2104-2L-e'
+        cfg['Part'] = 'xcvu13p-flga2577-2-e'
         cfg['ClockPeriod'] = 2.7
 
         random_association_data = np.random.rand(1000,4+self.nlatent)
