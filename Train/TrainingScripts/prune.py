@@ -64,7 +64,7 @@ if __name__ == "__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
             config = yaml.load(f,Loader=yaml.FullLoader)
 
-    max_ntracks = 500   
+    max_ntracks = 250   
     nlatent = config["Nlatent"]
     nbins = config['nbins']
 

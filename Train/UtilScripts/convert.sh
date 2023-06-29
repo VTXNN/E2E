@@ -7,26 +7,44 @@ conda activate qtf
 
 dir=$PWD
 
-python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_TT_new12.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+# python convertTFRecords.py /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_TT_new12.root /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12 True
 
-cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+# cd /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
 
-mkdir Val
-mkdir Test
-mkdir Train
+# mkdir Val
+# mkdir Test
+# mkdir Train
 
-mv data{0..2}.* Val/
-mv data{3..6}.* Test/
-mv data* Train/
+# mv data{0..2}.* Val/
+# mv data{3..6}.* Test/
+# mv data* Train/
 
-cd $dir
+# cd $dir
 
-python convertTFRecords.py /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_TTsl_new12.root /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+# python convertTFRecords.py /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_TT_new12_noPU.root /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12 False
 
-cd /home/cebrown/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+# cd /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
 
-mkdir MET
+# mkdir MET
 
-mv data* MET/
+# mv data* MET/
+
+# cd $dir
+
+# python convertTFRecords.py /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_DY_new12.root /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12 False
+
+# cd /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+
+# mkdir DY
+
+# mv data* DY/
+
+python convertTFRecords.py /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12/GTT_TrackNtuple_TTsl_new12.root /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12 False
+
+cd /home/cb719/Documents/Datasets/VertexDatasets/OldKFGTTData_New12
+
+mkdir TTsl
+
+mv data* TTsl/
 
 

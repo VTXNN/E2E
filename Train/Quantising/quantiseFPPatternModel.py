@@ -23,8 +23,8 @@ from EvalScripts.eval_funcs import *
 from sklearn.metrics import mean_squared_error
 
 
-nMaxTracks = 500
-max_z0 = 20.46912512
+nMaxTracks = 250
+max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -66,7 +66,7 @@ if __name__=="__main__":
 
     trainable = sys.argv[2]
 
-    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
     z0 = 'int_z0' 
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
@@ -77,12 +77,22 @@ if __name__=="__main__":
     }
 
     trackFeatures = [
-            'int_z0',
-            'trk_word_pT',
-            'trk_word_eta',
-            'trk_z0_res',
-            'trk_word_MVAquality'
-        ]
+                'trk_z0',
+                'trk_word_pT',
+                'trk_word_eta',
+                'trk_word_MVAquality',
+                'trk_nstub',
+                'trk_MVA1',
+                'trk_gtt_pt',
+                'trk_eta',
+                'trk_z0_res',
+                'int_z0',
+                'trk_class_weight',
+                'trk_z0_res',
+                "trk_word_chi2rphi",
+                "trk_word_chi2rz",
+                "trk_word_bendchi2",
+                ]
 
     filename = ""
 
@@ -126,8 +136,8 @@ if __name__=="__main__":
         model.load_weights(UnQuantisedModelName+".tf").expect_partial()
         filename = UnQuantisedModelName+"_"
 
-        lowerlim_cut = 16
-        upperlim_cut = 6
+        lowerlim_cut = 20
+        upperlim_cut = 10
 
         print("#=========================================#")
         print("|                                         |")
@@ -186,7 +196,7 @@ if __name__=="__main__":
         model.load_weights(QuantisedModelName+".tf").expect_partial()
         filename = QuantisedModelName+"_"
 
-        lowerlim_cut = 12
+        lowerlim_cut = 16
         upperlim_cut = 6
 
         print("#=========================================#")
@@ -245,7 +255,7 @@ if __name__=="__main__":
         model.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3]))+".tf").expect_partial()
         filename = QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3]))+"_"
 
-        lowerlim_cut = 12
+        lowerlim_cut = 16
         upperlim_cut = 6
 
         print("#=========================================#")

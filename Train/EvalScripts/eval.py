@@ -25,8 +25,8 @@ from qkeras.utils import _add_supported_quantized_objects
 co = {}
 _add_supported_quantized_objects(co)
 
-nMaxTracks = 500
-max_z0 = 20.46912512
+nMaxTracks = 250
+max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -57,18 +57,39 @@ if __name__=="__main__":
     with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
     start = 0
     end = 255
     bit = True
 
-    save = True
-    savingfolder = "SavedArrays/"
-    PVROCs = True
-    met = False
+    if sys.argv[2] == "TT":
+        save = True
+        savingfolder = "SavedArrays/TT/"
+        PVROCs = True
+        met = False
+        test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+        outputFolder = 'plots/TT'
 
+    if sys.argv[2] == "TTsl":
+        save = True
+        savingfolder = "SavedArrays/TTsl/"
+        PVROCs = True
+        met = True
+        test_files = glob.glob(config["data_folder"]+"/TTsl/*.tfrecord")
+        outputFolder = 'plots/TTsl'
+
+    if sys.argv[2] == "DY":
+        save = True
+        savingfolder = "SavedArrays/DY/"
+        PVROCs = True
+        met = False
+        test_files = glob.glob(config["data_folder"]+"/DY/*.tfrecord")
+        outputFolder = 'plots/DY'
+
+    os.system("mkdir -p %s" % outputFolder)
+    os.system("mkdir -p %s" % savingfolder)
+    
     nlatent = config["Nlatent"]
     nbins = config['nbins']
 
@@ -93,7 +114,6 @@ if __name__=="__main__":
             log_env_cpu=True,     # to continue CPU logging
         )
 
-    outputFolder = 'plots'
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
 
@@ -114,7 +134,7 @@ if __name__=="__main__":
             'trk_word_bendchi2',
             'trk_z0_res',
             'trk_gtt_pt',
-            'trk_gtt_eta',
+            'trk_eta',
             'trk_gtt_phi',
             'trk_fake',
             'trk_z0',
@@ -124,6 +144,8 @@ if __name__=="__main__":
             'trk_word_eta',
             'trk_z0_res',
             'trk_word_MVAquality',
+            'trk_nstub',
+            'trk_MVA1'
         ]
 
     for trackFeature in trackFeatures:
@@ -194,6 +216,7 @@ if __name__=="__main__":
             optimizer,
             loss=[
                 tf.keras.losses.MeanAbsoluteError(),
+                lambda y,x: 0,
                 tf.keras.losses.BinaryCrossentropy(from_logits=True),
                 lambda y,x: 0.
             ],
@@ -201,6 +224,7 @@ if __name__=="__main__":
                 tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
             ],
             loss_weights=[config['z0_loss_weight'],
+                          0,
                         config['crossentropy_loss_weight'],
                         0]
     )
@@ -241,6 +265,7 @@ if __name__=="__main__":
         tf.keras.optimizers.Adam(learning_rate=0.01),
         loss=[
             tf.keras.losses.MeanAbsoluteError(),
+            lambda y,x: 0,
             tf.keras.losses.BinaryCrossentropy(from_logits=True),
             lambda y,x: 0.
         ],
@@ -248,6 +273,7 @@ if __name__=="__main__":
             tf.keras.metrics.BinaryAccuracy(threshold=0.,name='assoc_acc') #use thres=0 here since logits are used
         ],
         loss_weights=[config['z0_loss_weight'],
+                      0,
                         config['crossentropy_loss_weight'],
                         0]
     )
@@ -315,7 +341,7 @@ if __name__=="__main__":
     trk_MVA = []
     trk_gtt_phi = []
     trk_gtt_pt = []
-    trk_gtt_eta = []
+    trk_eta = []
     trk_z0_res = []
 
     trk_chi2rphi = []
@@ -329,47 +355,45 @@ if __name__=="__main__":
 
             trackFeatures = np.stack([batch[feature] for feature in trackfeat],axis=2)
             WeightFeatures = np.stack([batch[feature] for feature in weightfeat],axis=2)
-            WeightFeatures = WeightFeatures[np.all(WeightFeatures != 0, axis = 2)]
-            trackFeatures = trackFeatures[np.all(trackFeatures != 0, axis = 2)]
-
+            
             nBatch = batch['pvz0'].shape[0]
 
             FH = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],linear_res_function(batch['trk_gtt_pt']))
             predictedZ0_FH.append(FH)
-            FHeta = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],eta_res_function(batch['trk_gtt_eta']))
+            FHeta = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],eta_res_function(batch['trk_eta']))
             predictedZ0_FHz0res.append(FHeta)
             FHz0MVA = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],MVA_res_function(batch['trk_word_MVAquality']))
             predictedZ0_FHz0MVA.append(FHz0MVA)
             FHnoFake = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],fake_res_function(batch['trk_fake']))
             predictedZ0_FHnoFake.append(FHnoFake)
-            FHcombined = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],comb_res_function(batch['trk_word_MVAquality'],batch['trk_gtt_eta']))
+            FHcombined = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],comb_res_function(batch['trk_word_MVAquality'],batch['trk_eta']))
             predictedZ0_FHcombinedfunc.append(FHcombined)
 
-            trk_z0.append(batch[FH_z0])
-            trk_MVA.append(batch["trk_word_MVAquality"])
-            trk_gtt_pt.append(batch['trk_gtt_pt'])
-            trk_gtt_eta.append(batch['trk_gtt_eta'])
-            trk_gtt_phi.append(batch['trk_gtt_phi'])
-            trk_z0_res.append(batch['trk_z0_res'])
+            trk_z0.append(batch[FH_z0][np.all(WeightFeatures != -999, axis = 2)])
+            trk_MVA.append(batch["trk_word_MVAquality"][np.all(WeightFeatures != -999, axis = 2)])
+            trk_gtt_pt.append(batch['trk_gtt_pt'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_eta.append(batch['trk_eta'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_gtt_phi.append(batch['trk_gtt_phi'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_z0_res.append(batch['trk_z0_res'][np.all(WeightFeatures != -999, axis = 2)])
 
-            trk_chi2rphi.append(batch['trk_word_chi2rphi'])
-            trk_chi2rz.append(batch['trk_word_chi2rz'])
-            trk_bendchi2.append(batch['trk_word_bendchi2'])
+            trk_chi2rphi.append(batch['trk_word_chi2rphi'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_chi2rz.append(batch['trk_word_chi2rz'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_bendchi2.append(batch['trk_word_bendchi2'][np.all(WeightFeatures != -999, axis = 2)])
 
-            actual_Assoc.append(batch["trk_fromPV"])
+            actual_Assoc.append(batch["trk_fromPV"][np.all(WeightFeatures != -999, axis = 2)])
             actual_PV.append(batch['pvz0'])
 
-            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_class_weight'],return_bool=True))
-            predictedAssoc_FH.append(FHassoc)
+            FHassoc = FastHistoAssoc(FH,batch[FH_z0],batch['trk_eta'],linear_res_function(batch['trk_eta'],return_bool=True))
+            predictedAssoc_FH.append(FHassoc[np.all(WeightFeatures != -999, axis = 2)])
 
-            FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_gtt_eta'],linear_res_function(batch['trk_gtt_eta'],return_bool=True))
-            predictedAssoc_FHres.append(FHassocres)
+            FHassocres = FastHistoAssoc(FHeta,batch[FH_z0],batch['trk_eta'],linear_res_function(batch['trk_eta'],return_bool=True))
+            predictedAssoc_FHres.append(FHassocres[np.all(WeightFeatures != -999, axis = 2)])
 
-            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_gtt_eta'],MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
-            predictedAssoc_FHMVA.append(FHassocMVA)
+            FHassocMVA = FastHistoAssoc(FHz0MVA,batch[FH_z0],batch['trk_eta'],MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
+            predictedAssoc_FHMVA.append(FHassocMVA[np.all(WeightFeatures != -999, axis = 2)])
 
-            FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_gtt_eta'],fake_res_function(batch['trk_fake'],return_bool=True))
-            predictedAssoc_FHnoFake.append(FHassocnoFake)
+            FHassocnoFake = FastHistoAssoc(FHnoFake,batch[FH_z0],batch['trk_eta'],fake_res_function(batch['trk_fake'],return_bool=True))
+            predictedAssoc_FHnoFake.append(FHassocnoFake[np.all(WeightFeatures != -999, axis = 2)])
 
             #for i,event in enumerate(batch[z0]):
             #    if abs(FH[i] - batch['pvz0'][i]) > 100:
@@ -382,12 +406,14 @@ if __name__=="__main__":
             YY = qmodel.layers[8].output
             new_model = Model(XX, YY)
 
-            predictedQWeights_QNN = new_model.predict_on_batch(
-                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
+            predictedQWeights_QNN = new_model.predict(
+                            [batch[z0],WeightFeatures,trackFeatures])
 
-            predictedZ0_QNN_temp, predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict_on_batch(
-                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
+            predictedZ0_QNN_temp,predictedAssoc_QNN_temp, QWeights_QNN = qmodel.predict(
+                            [batch[z0],WeightFeatures,trackFeatures]
                         )
+            
+            predictedAssoc_QNN_temp = predictedAssoc_QNN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
             predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
@@ -396,19 +422,21 @@ if __name__=="__main__":
 
             predictedZ0_QNN.append(predictedZ0_QNN_temp)
             predictedAssoc_QNN.append(predictedAssoc_QNN_temp)
-            predictedQWeights.append(predictedQWeights_QNN)
+            predictedQWeights.append(predictedQWeights_QNN[np.all(WeightFeatures != -999, axis = 2)])
 
             #### QP NETWORK #########################################################################################################################
             XX = QPmodel.input 
             YY = QPmodel.layers[8].output
             new_model = Model(XX, YY)
 
-            predictedQWeights_QPNN = new_model.predict_on_batch(
-                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
+            predictedQWeights_QPNN = new_model.predict(
+                            [batch[z0],WeightFeatures,trackFeatures])
 
-            predictedZ0_QPNN_temp, predictedAssoc_QPNN_temp, QWeights_QPNN = QPmodel.predict_on_batch(
-                            [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
+            predictedZ0_QPNN_temp, predictedAssoc_QPNN_temp, QWeights_QPNN = QPmodel.predict(
+                            [batch[z0],WeightFeatures,trackFeatures]
                         )
+
+            predictedAssoc_QPNN_temp = predictedAssoc_QPNN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
             predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
@@ -417,7 +445,7 @@ if __name__=="__main__":
 
             predictedZ0_QPNN.append(predictedZ0_QPNN_temp)
             predictedAssoc_QPNN.append(predictedAssoc_QPNN_temp)
-            predictedQPWeights.append(predictedQWeights_QPNN)
+            predictedQPWeights.append(predictedQWeights_QPNN[np.all(WeightFeatures != -999, axis = 2)])
 
             NN_weightsFH = predictFastHisto(batch[FH_z0],np.squeeze(predictedQWeights_QPNN,axis=-1),linear_res_function(np.squeeze(predictedQWeights_QPNN,axis=-1)))
             predictedZ0_NNWeights_FH.append(NN_weightsFH)
@@ -427,13 +455,15 @@ if __name__=="__main__":
             YY = DAmodel.layers[8].output
             new_model = Model(XX, YY)
 
-            predictedDAWeights_DANN = new_model.predict_on_batch(
-                                [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures])
+            predictedDAWeights_DANN = new_model.predict(
+                                [batch[z0],WeightFeatures,trackFeatures])
 
 
-            predictedZ0_DANN_temp, predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict_on_batch(
-                                [batch[z0][np.all(WeightFeatures != 0, axis = 2)],WeightFeatures,trackFeatures]
+            predictedZ0_DANN_temp,  predictedAssoc_DANN_temp, DAWeights_DANN = DAmodel.predict(
+                                [batch[z0],WeightFeatures,trackFeatures]
                             )
+
+            predictedAssoc_DANN_temp = predictedAssoc_DANN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
             predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
                                                     tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
@@ -442,16 +472,16 @@ if __name__=="__main__":
 
             predictedZ0_DANN.append(predictedZ0_DANN_temp)
             predictedAssoc_DANN.append(predictedAssoc_DANN_temp)
-            predictedDAWeights.append(predictedDAWeights_DANN)
+            predictedDAWeights.append(predictedDAWeights_DANN[np.all(WeightFeatures != -999, axis = 2)])
 
             actual_MET.append(batch['tp_met_pt'])
             actual_METphi.append(batch['tp_met_phi'])
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             actual_trkMET.append(temp_met)
             actual_trkMETphi.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_gtt_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             predictedMET_FHnoFake.append(temp_met)
             predictedMETphi_FHnoFake.append(temp_metphi)
 
@@ -502,7 +532,7 @@ if __name__=="__main__":
         trk_z0_array = np.concatenate(trk_z0).ravel()
         trk_mva_array = np.concatenate(trk_MVA).ravel()
         trk_gtt_pt_array = np.concatenate(trk_gtt_pt).ravel()
-        trk_gtt_eta_array = np.concatenate(trk_gtt_eta).ravel()
+        trk_eta_array = np.concatenate(trk_eta).ravel()
         trk_z0_res_array = np.concatenate(trk_z0_res).ravel()
         trk_gtt_phi_array = np.concatenate(trk_gtt_phi).ravel()
 
@@ -550,8 +580,8 @@ if __name__=="__main__":
             METphi_DANN_Centre_array = np.zeros([num_threshold])
 
             for i in range(0,num_threshold):
-                MET_QNN_array = np.concatenate(predictedMET_QNN[str(i/num_threshold)]).ravel()
-                METphi_QNN_array = np.concatenate(predictedMETphi_QNN[str(i/num_threshold)]).ravel()
+                MET_QNN_array = np.concatenate(predictedMET_QPNN[str(i/num_threshold)]).ravel()
+                METphi_QNN_array = np.concatenate(predictedMETphi_QPNN[str(i/num_threshold)]).ravel()
 
                 Diff = MET_QNN_array - actual_MET_array
                 PhiDiff = METphi_QNN_array - actual_METphi_array
@@ -587,10 +617,10 @@ if __name__=="__main__":
                 METphi_DANN_Centre_array[i] = qMETphi[1]
 
             
-            Quartilethreshold_choice = '0.7'#str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
-            RMSthreshold_choice= '0.6'#str(np.argmin(MET_QNN_RMS_array)/num_threshold)
-            Quartilethreshold_choice_DNN = '0.7' #str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
-            RMSthreshold_choice_DNN = '0.6' #str(np.argmin(MET_DANN_RMS_array)/num_threshold)
+            Quartilethreshold_choice = str(np.argmin(MET_QNN_Quartile_array)/num_threshold)
+            RMSthreshold_choice= str(np.argmin(MET_QNN_RMS_array)/num_threshold)
+            Quartilethreshold_choice_DNN = str(np.argmin(MET_DANN_Quartile_array)/num_threshold)
+            RMSthreshold_choice_DNN = str(np.argmin(MET_DANN_RMS_array)/num_threshold)
                     
 
             MET_QNN_bestQ_array = np.concatenate(predictedMET_QNN[Quartilethreshold_choice]).ravel()
@@ -621,7 +651,7 @@ if __name__=="__main__":
         np.save(savingfolder+"trk_z0_array",trk_z0_array)
         np.save(savingfolder+"trk_mva_array",trk_mva_array)
         np.save(savingfolder+"trk_gtt_pt_array",trk_gtt_pt_array)
-        np.save(savingfolder+"trk_gtt_eta_array",trk_gtt_eta_array)
+        np.save(savingfolder+"trk_eta_array",trk_eta_array)
         np.save(savingfolder+"trk_z0_res_array",trk_z0_res_array)
         np.save(savingfolder+"trk_gtt_phi_array",trk_gtt_phi_array)
         np.save(savingfolder+"trk_chi2rphi_array",trk_chi2rphi_array)
@@ -692,7 +722,7 @@ if __name__=="__main__":
         trk_z0_array = np.load(savingfolder+"trk_z0_array.npy")
         trk_mva_array = np.load(savingfolder+"trk_mva_array.npy")
         trk_gtt_pt_array = np.load(savingfolder+"trk_gtt_pt_array.npy")
-        trk_gtt_eta_array = np.load(savingfolder+"trk_gtt_eta_array.npy")
+        trk_eta_array = np.load(savingfolder+"trk_eta_array.npy")
         trk_z0_res_array = np.load(savingfolder+"trk_z0_res_array.npy")
         trk_gtt_phi_array = np.load(savingfolder+"trk_gtt_phi_array.npy")
         trk_chi2rphi_array = np.load(savingfolder+"trk_chi2rphi_array.npy")
@@ -895,12 +925,12 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-20,20)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-15,15)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,-20,20,linewidth=3,linestyle='dashed',color='k')
+    ax.vlines(0,-15,15,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0.png" %  outputFolder)
     plt.close()
@@ -936,12 +966,12 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hidst2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(0,128)), bins=(50,127), norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hidst2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_z0_res_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(np.min(trk_z0_res_array[nonzero_Qweights]),np.max(trk_z0_res_array[nonzero_Qweights]))), bins=(50,int(np.max(trk_z0_res_array[nonzero_Qweights])-np.min(trk_z0_res_array[nonzero_Qweights]))), norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $z_0$ resolution [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
     cbar.set_label('# Tracks')
-    ax.vlines(0,0,128,linewidth=3,linestyle='dashed',color='k')
+    #ax.vlines(0,,128,linewidth=3,linestyle='dashed',color='k')
     plt.tight_layout()
     plt.savefig("%s/Qcorr-z0res.png" %  outputFolder)
     plt.close()
@@ -951,7 +981,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], np.abs(trk_gtt_eta_array[nonzero_Qweights]), range=((QPweightmin,QPweightmax),(0,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], np.abs(trk_eta_array[nonzero_Qweights]), range=((QPweightmin,QPweightmax),(0,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $|\\eta|$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -965,7 +995,7 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_gtt_eta_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-2.4,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
+    hist2d = ax.hist2d(predictedQPWeightsarray[nonzero_Qweights], trk_eta_array[nonzero_Qweights], range=((QPweightmin,QPweightmax),(-2.4,2.4)), bins=50, norm=matplotlib.colors.LogNorm(),cmap=colormap)
     ax.set_xlabel("Weights", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Track $\\eta$", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1075,7 +1105,7 @@ if __name__=="__main__":
         fig,ax = plt.subplots(1,1,figsize=(10,10))
         hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
         
-        ax.scatter(predictedQWeightsarray, trk_gtt_eta_array, label="eta")
+        ax.scatter(predictedQWeightsarray, trk_eta_array, label="eta")
         ax.set_xlabel("weight")
         ax.set_ylabel("variable")
         ax.set_title("Correlation between predicted weight and track variables")
@@ -1150,40 +1180,44 @@ if __name__=="__main__":
         #########################################################################################
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestQ_array )],
-                                [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + Quartilethreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
+                                [(MET_FH_array ),(MET_FHMVA_array )],
+                                ["QPNN thresh=" + Quartilethreshold_choice],
+                                ["Baseline","BDT Cut"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/METbestQresidual.png" % outputFolder)
         plt.close()
 
         plt.clf()
         figure=plotMETphi_residual([(METphi_QNN_bestQ_array )],
-                                [(METphi_FH_array ),(METphi_FHMVA_array ),(METphi_FHnoFake_array ),(actual_trkMETphi_array)],
-                                ["ArgMax thresh=" + Quartilethreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
+                                [(METphi_FH_array ),(METphi_FHMVA_array )],
+                                ["QPNN thresh=" + Quartilethreshold_choice],
+                                ["Baseline","BDT Cut"],actual=actual_METphi_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/METphibestQresidual.png" % outputFolder)
         plt.close()
 
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestRMS_array )],
-                                [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + RMSthreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
+                                [(MET_FH_array ),(MET_FHMVA_array )],
+                                ["QPNN thresh=" + RMSthreshold_choice],
+                                ["Baseline","BDT Cut"],range=(-100,100),logrange=(-300,300),actual=actual_MET_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/METbestRMSresidual.png" % outputFolder)
         plt.close()
 
         plt.clf()
         figure=plotMETphi_residual([(METphi_QNN_bestRMS_array )],
-                                [(METphi_FH_array ),(METphi_FHMVA_array ),(METphi_FHnoFake_array ),(actual_trkMETphi_array )],
+                                [(METphi_FH_array ),(METphi_FHMVA_array )],
                                 ["ArgMax thresh=" + RMSthreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],actual=actual_METphi_array)
+                                ["Baseline","BDT Cut"],actual=actual_METphi_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/METphibestRMSresidual.png" % outputFolder)
         plt.close()
 
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestQ_array ),(MET_QNN_bestQ_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + Quartilethreshold_choice_DNN+"    ","QNN thresh = " + Quartilethreshold_choice+"    "],
+                                ["NN thresh =  " + Quartilethreshold_choice_DNN+"    ","QPNN thresh = " + Quartilethreshold_choice+"    "],
                                 ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/QcompMETbestQresidual.png" % outputFolder)
         plt.close()
@@ -1191,7 +1225,7 @@ if __name__=="__main__":
         plt.clf()
         figure=plotMET_residual([(MET_DANN_bestRMS_array ),(MET_QNN_bestRMS_array )],
                                 [(MET_FH_array )],
-                                ["NN thresh =  " + RMSthreshold_choice_DNN+"    ","QNN thresh = " + RMSthreshold_choice+"    "],
+                                ["NN thresh =  " + RMSthreshold_choice_DNN+"    ","QPNN thresh = " + RMSthreshold_choice+"    "],
                                 ["Baseline            "],range=(-100,100),logrange=(-300,300),actual=actual_MET_array)
         plt.savefig("%s/QcompMETbestRMSresidual.png" % outputFolder)
         plt.close()
@@ -1205,17 +1239,19 @@ if __name__=="__main__":
 
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestQ_array )],
-                                [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + Quartilethreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
+                                [(MET_FH_array ),(MET_FHMVA_array )],
+                                ["QPNN thresh=" + Quartilethreshold_choice],
+                                ["Baseline","BDT Cut"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/relMETbestQresidual.png" % outputFolder)
         plt.close()
 
         plt.clf()
         figure=plotMET_residual([(MET_QNN_bestRMS_array )],
-                                [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                                ["ArgMax thresh=" + RMSthreshold_choice],
-                                ["Base","BDT Cut","No Fakes","PV Tracks"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array)
+                                [(MET_FH_array ),(MET_FHMVA_array )],
+                                ["QPNN thresh=" + RMSthreshold_choice],
+                                ["Baseline","BDT Cut"],range=(-1,2),logrange=(-1,30),relative=True,actual=actual_MET_array,
+                                colours=["red","purple","orange"])
         plt.savefig("%s/relMETbestRMSresidual.png" % outputFolder)
         plt.close()
 
@@ -1253,17 +1289,19 @@ if __name__=="__main__":
 
         plt.clf()
         plotMET_resolution([(MET_QNN_bestRMS_array )],
-                        [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                        ["QNN"],["Baseline","BDT Cut","No Fakes","PV Tracks"],
-                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
+                        [(MET_FH_array ),(MET_FHMVA_array )],
+                        ["QPNN"],["Baseline","BDT Cut"],
+                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300],
+                        colours=["red","purple","orange"])
         plt.savefig("%s/relMETbestRMSresolution.png" % outputFolder)
         plt.close()
 
         plt.clf()
         plotMET_resolution([(MET_QNN_bestQ_array )],
-                        [(MET_FH_array ),(MET_FHMVA_array ),(MET_FHnoFake_array ),(actual_trkMET_array )],
-                        ["QNN"],["Baseline","BDT Cut","No Fakes","PV Tracks"],
-                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300])
+                        [(MET_FH_array ),(MET_FHMVA_array )],
+                        ["QPNN"],["Baseline","BDT Cut"],
+                        actual=actual_MET_array,Et_bins = [0,10,20,30,40,50,60,70,80,90,100,120,140,160,180,200,240,280,300],
+                        colours=["red","purple","orange"])
         plt.savefig("%s/relMETbestQresolution.png" % outputFolder)
         plt.close()
 

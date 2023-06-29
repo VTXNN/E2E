@@ -23,8 +23,8 @@ from EvalScripts.eval_funcs import *
 from sklearn.metrics import mean_squared_error
 
 
-nMaxTracks = 500
-max_z0 = 20.46912512
+nMaxTracks = 250
+max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -64,7 +64,7 @@ if __name__=="__main__":
 
     trainable = sys.argv[2]
 
-    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
     z0 = 'int_z0' 
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
@@ -75,12 +75,22 @@ if __name__=="__main__":
     }
 
     trackFeatures = [
-            'int_z0',
-            'trk_word_pT',
-            'trk_word_eta',
-            'trk_z0_res',
-            'trk_word_MVAquality'
-        ]
+                'trk_z0',
+                'trk_word_pT',
+                'trk_word_eta',
+                'trk_word_MVAquality',
+                'trk_nstub',
+                'trk_MVA1',
+                'trk_gtt_pt',
+                'trk_eta',
+                'trk_z0_res',
+                'int_z0',
+                'trk_class_weight',
+                'trk_z0_res',
+                "trk_word_chi2rphi",
+                "trk_word_chi2rz",
+                "trk_word_bendchi2",
+                ]
 
     for trackFeature in trackFeatures:
         features[trackFeature] = tf.io.FixedLenFeature([nMaxTracks], tf.float32)
@@ -122,8 +132,8 @@ if __name__=="__main__":
         model.load_weights(UnQuantisedModelName+".tf").expect_partial()
         filename = UnQuantisedModelName+"_"
 
-        lowerlim_cut = 16
-        upperlim_cut = 6
+        lowerlim_cut = 20
+        upperlim_cut = 10
 
         print("#=========================================#")
         print("|                                         |")
@@ -182,8 +192,8 @@ if __name__=="__main__":
         model.load_weights(QuantisedModelName+".tf").expect_partial()
         filename = QuantisedModelName+"_"
 
-        lowerlim_cut = 12
-        upperlim_cut = 6
+        lowerlim_cut = 20
+        upperlim_cut = 10
 
         print("#=========================================#")
         print("|                                         |")
@@ -241,8 +251,8 @@ if __name__=="__main__":
         model.load_weights(QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3]))+".tf").expect_partial()
         filename = QuantisedModelName+"_prune_iteration_"+str(int(sys.argv[3]))+"_"
 
-        lowerlim_cut = 12
-        upperlim_cut = 6
+        lowerlim_cut = 20
+        upperlim_cut = 10
 
         print("#=========================================#")
         print("|                                         |")
@@ -266,6 +276,7 @@ if __name__=="__main__":
     )
 
     assoc_input = [[],[],[],[]]
+    assoc_input = [[] for _ in range(len(trackfeat) + 1)]
 
     for step,batch in enumerate(setup_pipeline(test_files)):
         if step > 0:
@@ -279,18 +290,17 @@ if __name__=="__main__":
         assoc_in = new_model.predict_on_batch(
                                 [batch[z0],WeightFeatures,trackFeatures])
 
-        assoc_input[0].append(assoc_in[:,:,0])
-        assoc_input[1].append(assoc_in[:,:,1])
-        assoc_input[2].append(assoc_in[:,:,2])
-        assoc_input[3].append(assoc_in[:,:,3])
+        for iassoc in range(len(trackfeat) + 1):
+            print(iassoc)
+            assoc_input[iassoc].append(assoc_in[:,:,iassoc])
 
-    assoc_input_0 = np.concatenate(assoc_input[0]).ravel()
-    assoc_input_1 = np.concatenate(assoc_input[1]).ravel()
-    assoc_input_2 = np.concatenate(assoc_input[2]).ravel()
-    assoc_input_3 = np.concatenate(assoc_input[3]).ravel()
+    assoc_inputs = []
+    for iassoc in range(len(trackfeat) + 1):
+        assoc_inputs.append(np.concatenate(assoc_input[iassoc]).ravel())
 
-    assoc_array = np.vstack([assoc_input_0,assoc_input_1,assoc_input_2,assoc_input_3]).T
-    zeros = np.vstack([assoc_input_0,assoc_input_1,assoc_input_2]).T
+    assoc_array = np.vstack(assoc_inputs).T
+    assoc_inputs.pop()
+    zeros = np.vstack(assoc_inputs).T
     assoc_array = assoc_array[~np.all(zeros == 0, axis=1)]
         
     weight_summary = hls4ml.model.profiling.weights_keras(model=assocmodel,fmt="summary")
@@ -322,7 +332,7 @@ if __name__=="__main__":
     hls4ml.model.optimizer.get_optimizer('output_rounding_saturation_mode').configure(saturation_mode='AP_SAT')
 
     assocconfig = hls4ml.utils.config_from_keras_model(assocmodel, granularity='name')
-    assocconfig['Model']['Strategy'] = 'Resource'
+    assocconfig['Model']['Strategy'] = 'Latency'
     assocconfig['Model']['TraceOutput'] = True
         
     assocconfig['LayerName']['assoc']['Trace'] = True

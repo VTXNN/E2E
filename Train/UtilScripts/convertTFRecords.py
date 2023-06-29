@@ -14,6 +14,7 @@ tf.compat.v1.disable_eager_execution()
 # python convertTFRecords.py path-to-input-file/file.root path-to-output-folder
 
 f = uproot.open(sys.argv[1])
+skip_noPV_events = sys.argv[2]
 
 branches = [ 
     'trk_gtt_pt',
@@ -24,11 +25,13 @@ branches = [
     'trk_pt',
     'trk_z0',
     'trk_eta',
+    'trk_nstub',
     'pv_MC',
     "trk_word_chi2rphi",
     "trk_word_chi2rz",
     "trk_word_bendchi2",
     "trk_word_MVAquality",
+    "trk_MVA1",
     "tp_eventid",
     "tp_charge",
     "tp_d0",
@@ -42,7 +45,7 @@ branches = [
 trackFeatures = [
     'trk_z0',
     'trk_gtt_pt',
-    'trk_gtt_eta',
+    'trk_eta',
     'trk_gtt_phi',
     'int_z0',
     'trk_fake',
@@ -50,9 +53,11 @@ trackFeatures = [
     "trk_word_chi2rz",
     "trk_word_bendchi2",
     "trk_word_MVAquality",
+    "trk_MVA1",
+    'trk_nstub',
 ]
 
-max_z0 = 20.46912512
+max_z0 = 15
 
 def unpackbits(x, num_bits):
     if np.issubdtype(x.dtype, np.floating):
@@ -75,7 +80,7 @@ def _float_feature(value):
 
 
 eta_bins = np.linspace(0,2.5,127)
-res_bins = np.floor(1/(0.1+0.2*(eta_bins**2))*12.7)
+res_bins = np.floor(1/(0.1+0.2*(eta_bins**2)))
 
 res_bins = np.append(res_bins,0)
 
@@ -83,9 +88,12 @@ chi2rz_bins   = np.array([0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6
 chi2rphi_bins = np.array([0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 10.0, 15.0, 20.0, 35.0, 60.0, 200.0, np.inf])
 bendchi2_bins = np.array([0, 0.75, 1.0, 1.5, 2.25, 3.5, 5.0, 20.0,np.inf])
 
-nMaxTracks = 500
+nMaxTracks = 250
 
 chunkread = 5000
+
+
+flip = 1
 
 for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,entrysteps=chunkread)):
     data = {k.decode('utf-8'):v for k,v in data.items() }
@@ -105,7 +113,7 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
     #### THIS NEEDS TO BE REMOVED AT SOME POINT #####
     #ad-hoc correction of track z0
 
-    data['round_z0'] = round(((data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
+    data['round_z0'] = round(((flip*data['trk_z0']+max_z0 )*256/(max_z0*2)),2)
     data['int_z0'] = np.floor(data['round_z0'] )
 
     #################################################
@@ -131,9 +139,15 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
         selectPVTracks = (data['trk_fake'][iev]==1)
         selectPUTracks = (data['trk_fake'][iev]==2)
 
+        # selectPVTracks = (data['trk_fake'][iev]==1)
+        # selectPUTracks = (data['trk_fake'][iev]==0)
+
         if (np.sum(1.*selectPVTracks)<1):
-            PVtrack_weight = 0 
-            PUtrack_weight = 1
+            if skip_noPV_events:
+                continue
+            else:
+                PVtrack_weight = 0 
+                PUtrack_weight = 1
 
         else:
             PVtrack_weight = (1/len(data['trk_pt'][iev][selectTracksInZ0Range][selectPVTracks]))*((len(data['trk_pt'][iev][selectTracksInZ0Range]))/2)
@@ -151,7 +165,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         tfData['trk_z0_res']= _float_feature(padArray(np.array(res,np.float32),nMaxTracks)) 
 
-        tfData['pvz0'] = _float_feature(np.array(pvz0,np.float32))
+
+        tfData['pvz0'] = _float_feature(np.array(flip*pvz0,np.float32))
         trk_word_pT = data['trk_gtt_pt'][iev][selectTracksInZ0Range]
         trk_word_pT = np.clip(trk_word_pT,0, 128)
         trk_word_eta = abs(data['trk_gtt_eta'][iev][selectTracksInZ0Range])
@@ -161,6 +176,8 @@ for ibatch,data in enumerate(f['L1TrackNtuple']['eventTree'].iterate(branches,en
 
         for trackFeature in trackFeatures:
             tfData[trackFeature] = _float_feature(padArray(data[trackFeature][iev][selectTracksInZ0Range],nMaxTracks))
+        tfData['trk_z0'] =  _float_feature(padArray(np.array(flip*data['trk_z0'][iev][selectTracksInZ0Range],np.float32),nMaxTracks)) 
+        tfData['trk_eta'] =  _float_feature(padArray(np.array(flip*data['trk_eta'][iev][selectTracksInZ0Range],np.float32),nMaxTracks)) 
 
         example = tf.train.Example(features = tf.train.Features(feature = tfData))
         tfwriter.write(example.SerializeToString())

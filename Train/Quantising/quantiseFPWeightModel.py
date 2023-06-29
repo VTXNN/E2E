@@ -23,8 +23,8 @@ from EvalScripts.eval_funcs import *
 from sklearn.metrics import mean_squared_error
 
 
-nMaxTracks = 500
-max_z0 = 20.46912512
+nMaxTracks = 250
+max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -66,7 +66,7 @@ if __name__=="__main__":
 
     trainable = sys.argv[2]
 
-    test_files = glob.glob(config["data_folder"]+"/MET/*.tfrecord")
+    test_files = glob.glob(config["data_folder"]+"/Test/*.tfrecord")
     z0 = 'int_z0' 
     trackfeat = config["track_features"] 
     weightfeat = config["weight_features"] 
@@ -77,13 +77,22 @@ if __name__=="__main__":
     }
 
     trackFeatures = [
-            'int_z0',
-            'trk_word_pT',
-            'trk_word_eta',
-            'trk_z0_res',
-            'trk_word_MVAquality'
-        ]
-
+                'trk_z0',
+                'trk_word_pT',
+                'trk_word_eta',
+                'trk_word_MVAquality',
+                'trk_nstub',
+                'trk_MVA1',
+                'trk_gtt_pt',
+                'trk_eta',
+                'trk_z0_res',
+                'int_z0',
+                'trk_class_weight',
+                'trk_z0_res',
+                "trk_word_chi2rphi",
+                "trk_word_chi2rz",
+                "trk_word_bendchi2",
+                ]
     filename = ""
 
     for trackFeature in trackFeatures:
@@ -269,7 +278,7 @@ if __name__=="__main__":
                 ]
         )
 
-    weight_input = [[],[],[],[]]
+    weight_input = [[] for _ in range(len(weightfeat))]
 
     for step,batch in enumerate(setup_pipeline(test_files)):
         if step > 0:
@@ -283,15 +292,15 @@ if __name__=="__main__":
         weight_in = new_model.predict_on_batch(
                                 [batch[z0],WeightFeatures,trackFeatures])
 
-        weight_input[0].append(weight_in[:,:,0])
-        weight_input[1].append(weight_in[:,:,1])
-        weight_input[2].append(weight_in[:,:,2])
+        for iwgt in range(len(weightfeat)):
+            print(iwgt)
+            weight_input[iwgt].append(weight_in[:,:,iwgt])
 
-    weight_input_0 = np.concatenate(weight_input[0]).ravel()
-    weight_input_1 = np.concatenate(weight_input[1]).ravel()
-    weight_input_2 = np.concatenate(weight_input[2]).ravel()
+    weight_inputs = []
+    for iwgt in range(len(weightfeat)):
+            weight_inputs.append(np.concatenate(weight_input[iwgt]).ravel())
 
-    weight_array = np.vstack([weight_input_0,weight_input_1,weight_input_2]).T
+    weight_array = np.vstack(weight_inputs).T
     weight_array = weight_array[~np.all(weight_array == 0, axis=1)]
 
     weight_summary = hls4ml.model.profiling.weights_keras(model=weightmodel,fmt="summary")
@@ -325,7 +334,7 @@ if __name__=="__main__":
     
 
     weightconfig = hls4ml.utils.config_from_keras_model(weightmodel, granularity='name')
-    weightconfig['Model']['Strategy'] = 'Resource'
+    weightconfig['Model']['Strategy'] = 'Latency'
     weightconfig['Model']['TraceOutput'] = True
         
     weightconfig['LayerName']['input_weight']['Trace'] = True

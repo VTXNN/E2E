@@ -12,9 +12,9 @@ import yaml
 from tensorflow.keras.models import Model
 import glob
 
-nMaxTracks = 500
+nMaxTracks = 250
 nbins = 256
-max_z0 = 20.46912512
+max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)

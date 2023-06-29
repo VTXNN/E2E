@@ -27,7 +27,7 @@ LINEWIDTH = 3
 MARKERSIZE = 20
 
 nbins = 256
-max_z0 = 20.46912512
+max_z0 = 15
 
 colormap = "jet"
 
@@ -265,8 +265,8 @@ def plotMET_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,range=(-50,50
     ax[1].legend(loc='upper right', bbox_to_anchor=(0.95, 0.95))
 
     if relative:
-        ax[0].set_xlabel('$E_{T}^{miss}$ Resolution \\Frac{Gen - True}{True}',ha="right",x=1)
-        ax[1].set_xlabel('$E_{T}^{miss}$ Resolution \\Frac{Gen - True}{True}',ha="right",x=1)
+        ax[0].set_xlabel('$E_{T}^{miss}$ Resolution $\\frac{Gen - True}{True}$',ha="right",x=1)
+        ax[1].set_xlabel('$E_{T}^{miss}$ Resolution $\\frac{Gen - True}{True}$',ha="right",x=1)
     else:
         ax[0].set_xlabel('$E_{T}^{miss}$ Residual [GeV]',ha="right",x=1)
         ax[1].set_xlabel('$E_{T}^{miss}$ Residual [GeV]',ha="right",x=1)

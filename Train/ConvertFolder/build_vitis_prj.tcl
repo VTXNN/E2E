@@ -13,7 +13,8 @@ set_part {xcvu13p-flga2577-2-e}
 create_clock -period 2.8 -name default
 config_compile -name_max_length 80
 config_schedule -enable_dsp_full_reg=false
-config_compile -pipeline_style flp
+config_compile -pipeline_style frp 
+# flp when vitis 2021
 set_clock_uncertainty 0.35 default
 
 puts "***** C/RTL SYNTHESIS *****"

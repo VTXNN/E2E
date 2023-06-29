@@ -15,7 +15,7 @@ class E2EQKerasDiffArgMaxConstraint():
         nbins=256,
         start=0,
         end=255,
-        max_z0 = 20.46912512,
+        max_z0 = 15,
         ntracks=250, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -121,7 +121,7 @@ class E2EQKerasDiffArgMaxConstraint():
                     padding='same',
                     trainable=True,
                     use_bias= False,
-                    kernel_initializer='orthogonal',
+                    kernel_initializer=tf.keras.initializers.Constant(value=0.1),
                     kernel_quantizer=self.patternqconfig['pattern_'+str(ilayer+1)]['kernel_quantizer'],
                     activation=None,
                     name='pattern_'+str(ilayer+1)
@@ -164,6 +164,7 @@ class E2EQKerasDiffArgMaxConstraint():
                 QDense(
                     filterSize,
                     kernel_initializer='orthogonal',
+                    bias_initializer='ones',
                     kernel_regularizer=tf.keras.regularizers.L1L2(l1regloss,l2regloss),
                     kernel_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['bias_quantizer'],
@@ -179,6 +180,7 @@ class E2EQKerasDiffArgMaxConstraint():
                 1,
                 activation=None,
                 kernel_initializer='orthogonal',
+                bias_initializer='ones',
                 kernel_regularizer=tf.keras.regularizers.l2(l2regloss),
                 kernel_quantizer=self.associationqconfig['association_final']['kernel_quantizer'],
                 bias_quantizer=self.associationqconfig['association_final']['bias_quantizer'],
@@ -264,6 +266,7 @@ class E2EQKerasDiffArgMaxConstraint():
                 QDense(
                     filterSize,
                     kernel_initializer='orthogonal',
+                    bias_initializer='ones',
                     kernel_regularizer=tf.keras.regularizers.L1L2(self.l1regloss,self.l2regloss),
                     kernel_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['kernel_quantizer'],
                     bias_quantizer=self.associationqconfig['association_'+str(ilayer+1)]['bias_quantizer'],
@@ -279,6 +282,7 @@ class E2EQKerasDiffArgMaxConstraint():
                 1,
                 activation=None,
                 kernel_initializer='orthogonal',
+                bias_initializer='ones',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 kernel_quantizer=self.associationqconfig['association_final']['kernel_quantizer'],
                 bias_quantizer=self.associationqconfig['association_final']['bias_quantizer'],
@@ -310,7 +314,7 @@ class E2EQKerasDiffArgMaxConstraint():
             pvPosition_argmax = pvFeatures_argmax
             pvPosition = pvFeatures
 
-        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-tf.floor(x[1])),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
+        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(abs(x[0]-x[1]),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
 
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 

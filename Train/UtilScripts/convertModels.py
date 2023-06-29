@@ -27,14 +27,14 @@ _add_supported_quantized_objects(co)
 with open(sys.argv[1]+'.yaml', 'r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
 
-max_ntracks = 500   
+max_ntracks = 250   
 nlatent = config["Nlatent"]
 nbins = config['nbins']
 
 start = 0
 end = 255
 bit = True
-nMaxTracks = 500
+nMaxTracks = 250
 
 DAnetwork = vtx.nn.E2EDiffArgMax(
             nbins=nbins,

@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
+from vtx.nn.constraints import *
 import vtx
 import numpy
 import numpy as np
@@ -9,7 +10,7 @@ class E2EDiffArgMax():
         nbins=256,
         start=0,
         end=255,
-        max_z0 = 20.46912512,
+        max_z0 = 15,
         ntracks=250, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -60,7 +61,7 @@ class E2EDiffArgMax():
                     nodes,
                     activation=None,
                     trainable=True,
-                    kernel_initializer='random_normal',
+                    kernel_initializer="random_normal",
                     bias_initializer='zeros',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='weight_'+str(ilayer+1)
@@ -73,7 +74,7 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 self.nweights,
                 activation=None, #need to use relu here to remove negative weights
-                kernel_initializer='random_normal',
+                kernel_initializer="random_normal",
                 bias_initializer='zeros',
                 trainable=True,
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
@@ -102,10 +103,11 @@ class E2EDiffArgMax():
                     kernelSize,
                     padding='same',
                     activation=None,
-                    kernel_initializer='random_normal',
+                    kernel_initializer=tf.keras.initializers.Constant(value=0.1),
                     bias_initializer='zeros',
                     use_bias= False,
-                    name='pattern_'+str(ilayer+1)
+                    name='pattern_'+str(ilayer+1),
+                    trainable=True,
                 ) ,
                 tf.keras.layers.Activation(self.activation,name='pattern_'+str(ilayer+1)+'_relu'), 
             ])
@@ -145,8 +147,8 @@ class E2EDiffArgMax():
                 tf.keras.layers.Dense(
                     filterSize,
                     activation=None,
-                    kernel_initializer='random_normal',
-                    bias_initializer='zeros',
+                    kernel_initializer="random_normal",
+                    bias_initializer='ones',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='association_'+str(ilayer+1)
                 ),
@@ -157,8 +159,8 @@ class E2EDiffArgMax():
             tf.keras.layers.Dense(
                 1,
                 activation=None,
-                kernel_initializer='random_normal',
-                bias_initializer='zeros',
+                kernel_initializer="random_normal",
+                bias_initializer='ones',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='association_final'
             )
@@ -219,7 +221,7 @@ class E2EDiffArgMax():
                     kernelSize,
                     padding='same',
                     activation=None,
-                    kernel_initializer='random_normal',
+                    kernel_initializer=tf.ones_initializer(),
                     bias_initializer='zeros',
                     use_bias= False,
                     name='pattern_'+str(ilayer+1)
@@ -239,7 +241,7 @@ class E2EDiffArgMax():
                     filterSize,
                     activation=None,
                     kernel_initializer='random_normal',
-                    bias_initializer='zeros',
+                    bias_initializer='ones',
                     kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                     name='association_'+str(ilayer+1)
                 ),
@@ -251,7 +253,7 @@ class E2EDiffArgMax():
                 1,
                 activation=None,
                 kernel_initializer='random_normal',
-                bias_initializer='zeros',
+                bias_initializer='ones',
                 kernel_regularizer=tf.keras.regularizers.l2(self.l2regloss),
                 name='association_final'
             )
@@ -281,7 +283,7 @@ class E2EDiffArgMax():
             pvPosition_argmax = pvFeatures_argmax
             pvPosition = pvFeatures
 
-        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(tf.abs(x[0]-tf.floor(x[1])),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
+        z0Diff = tf.keras.layers.Lambda(lambda x: tf.stop_gradient(tf.expand_dims(abs(x[0]-x[1]),2)),name='z0_diff_argmax')([self.inputTrackZ0,pvPosition_argmax])
         
         assocFeatures = [self.inputTrackFeatures,z0Diff]   
 
