@@ -14,7 +14,7 @@ import glob
 
 nMaxTracks = 250
 nbins = 256
-max_z0 = 15
+max_z0 = 20.46912512
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -198,9 +198,9 @@ trackFeatures = [
             'trk_word_chi2rz', 
             'trk_word_bendchi2',
             'trk_z0_res',
-            'trk_gtt_pt',
-            'trk_gtt_eta',
-            'trk_gtt_phi',
+            'trk_pt',
+            'trk_eta',
+            'trk_phi',
             'trk_fake',
             'trk_z0',
             'int_z0',

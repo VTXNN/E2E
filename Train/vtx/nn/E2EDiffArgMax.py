@@ -7,10 +7,10 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 class E2EDiffArgMax():
     def __init__(self,
-        nbins=256,
+        nbins=128,
         start=0,
-        end=255,
-        max_z0 = 15,
+        end=127,
+        max_z0 = 20.46912512,
         ntracks=250, 
         nweightfeatures=1,
         nfeatures=1, 
@@ -103,7 +103,7 @@ class E2EDiffArgMax():
                     kernelSize,
                     padding='same',
                     activation=None,
-                    kernel_initializer=tf.keras.initializers.Constant(value=0.1),
+                    kernel_initializer=tf.keras.initializers.Constant(value=0.01),
                     bias_initializer='zeros',
                     use_bias= False,
                     name='pattern_'+str(ilayer+1),

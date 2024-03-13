@@ -27,7 +27,7 @@ LINEWIDTH = 3
 MARKERSIZE = 20
 
 nbins = 256
-max_z0 = 15
+max_z0 = 20.46912512
 
 colormap = "jet"
 
@@ -144,7 +144,7 @@ def predictMET(pt,phi,predictedAssoc,threshold,quality_func):
     return  [np.array(met_pt_list,dtype=np.float32),
              np.array(met_phi_list,dtype=np.float32)]
 
-def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
+def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours,plotting_max_z0=15):
     plt.clf()
     fig,ax = plt.subplots(1,2,figsize=(20,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax[0])
@@ -154,7 +154,7 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
     items = 0
     for i,FH in enumerate(FHdiff):
         qz0_FH = np.percentile(FH,[32,50,68])
-        ax[0].hist(FH,bins=50,range=(-1*max_z0,max_z0),histtype="step",
+        ax[0].hist(FH,bins=50,range=(-1*plotting_max_z0,plotting_max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
                  %(FHnames[i],np.sqrt(np.mean(FH**2))),LEGEND_WIDTH)),density=True)
@@ -166,7 +166,7 @@ def plotz0_residual(NNdiff,FHdiff,NNnames,FHnames,colours=colours):
 
     for i,NN in enumerate(NNdiff):
         qz0_NN = np.percentile(NN,[32,50,68])
-        ax[0].hist(NN,bins=50,range=(-1*max_z0,max_z0),histtype="step",
+        ax[0].hist(NN,bins=50,range=(-1*plotting_max_z0,plotting_max_z0),histtype="step",
                  linewidth=LINEWIDTH,color = colours[items],
                  label='\n'.join(wrap(f"%s \nRMS = %.4f" 
                  %(NNnames[i],np.sqrt(np.mean(NN**2))),LEGEND_WIDTH)),density=True)

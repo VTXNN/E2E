@@ -29,7 +29,8 @@ mkdir -p Assets_${time_stamp}
 
 cd Assets_${time_stamp}
 
-#cp ../../Quantised* .
+cp ../../Unquantised* .
+cp ../../Quantised* .
 cp ../../setup.yaml .
 cp ../EvalScripts/eval.py .
 cp ../TrainingScripts/train.py .
@@ -39,7 +40,7 @@ cp ../UtilScripts/upload_comet.py .
 cp -r ../ConvertFolder .
 cp -r ../Quantising .
 
-python train.py setup DA
+# python train.py setup DA
 
 cp Unquantised_model*.tf.* Quantising/
 cp setup.yaml Quantising/
@@ -61,7 +62,7 @@ cp Unquantised*QConfig.yaml ..
 
 cd ..
 
-python train.py setup QDA
+# python train.py setup QDA
 
 cp Quantised_model*.tf.* Quantising/
 cd Quantising

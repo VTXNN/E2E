@@ -1,5 +1,7 @@
 from comet_ml import Experiment
 from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
+
 import tensorflow as tf
 import numpy as np
 
@@ -14,7 +16,7 @@ import pandas as pd
 
 import yaml
 
-max_z0 = 15
+max_z0 = 20.46912512
 max_ntracks = 250
 
 def decode_data(raw_data):
@@ -103,7 +105,6 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
                             qz0_NN[1],qz0_NN[3],qz0_FH[1],qz0_FH[3]
                     ))
                 print ("Train_NN_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_NN))+" Train_FH_z0_MSE: "+str(metrics.mean_squared_error(batch['pvz0'],predictedZ0_FH)))   
-
             total_steps += 1
 
         prune_level = []
@@ -128,7 +129,7 @@ def train_model(model,experiment,train_files,val_files,trackfeat,weightfeat,epoc
         conv = model.get_layer('pattern_1').get_weights()
         conv[0][2] = conv[0][0]
         model.get_layer('pattern_1').set_weights(conv) 
-        
+
         for val_step,val_batch in enumerate(setup_pipeline(val_files)):
 
             val_trackFeatures = np.stack([val_batch[feature] for feature in trackfeat],axis=2)
@@ -269,7 +270,7 @@ if __name__=="__main__":
     position_final_bias = []
     for i in range(nlatent+1):
         position_final_weights.append(1)
-        position_final_bias.append((max_z0*2)/nbins)
+        position_final_bias.append((max_z0*2)/(2*nbins))
 
     start = 0
     end = nbins - 1
@@ -372,7 +373,7 @@ if __name__=="__main__":
                 'trk_word_MVAquality',
                 'trk_nstub',
                 'trk_MVA1',
-                'trk_gtt_pt',
+                'trk_pt',
                 'trk_eta',
                 'trk_z0_res',
                 'int_z0',
@@ -427,7 +428,7 @@ if __name__=="__main__":
         ],
         loss_weights=[config['z0_loss_weight'],
                       config['crossentropy_loss_weight'],
-                      0
+            0
                       ]
     )
 
@@ -440,6 +441,36 @@ if __name__=="__main__":
         print("|    Start of Floating Point Training     |")
         print("|                                         |")
         print("#=========================================#")
+        model.summary()
+
+    #     model.get_layer('weight_1').set_weights(
+    #                     [np.array([[1,0,0,0,0,0,0,0,0,0],
+    #                     [ 0,0,0,0,0,0,0,0,0,0],
+    #                     [ 0,0,0,0,0,0,0,0,0,0]],
+    #                     dtype=np.float32),
+    #                     np.array([0,0,0,0,0,0,0,0,0,0],dtype=np.float32)])
+
+    #     model.get_layer('weight_2').set_weights( [np.array([[1,0,0,0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0],
+    #    [0,0,0, 0,0,0,0,0,0,0]], dtype=np.float32), np.array([0,0,0,0,0,0,0,0,0,0],
+    #   dtype=np.float32)])
+    #     model.get_layer('weight_final').set_weights([np.array([[1.0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0],
+    #    [0]], dtype=np.float32), np.array([0], dtype=np.float32)])
 
     elif trainable == 'QDA':
         experiment.set_name(config['comet_experiment_name']+str("_Quantised"))
@@ -470,7 +501,7 @@ if __name__=="__main__":
             ],
             loss_weights=[config['z0_loss_weight'],
                         config['crossentropy_loss_weight'],
-                        0]
+            0]
         )
         DAmodel.load_weights(config["UnquantisedModelName"]+".tf")
         model.get_layer('weight_1').set_weights    (DAmodel.get_layer('weight_1').get_weights())
@@ -500,7 +531,7 @@ if __name__=="__main__":
         experiment.set_name(config['comet_experiment_name']+"_Quantised_prune_#"+str(sys.argv[3]))
         model.load_weights(config["QuantisedModelName"]+"_prune_iteration_"+sys.argv[3]+".tf").expect_partial()
 
-        #model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
+        model.get_layer('position_final').set_weights   ([np.array([position_final_weights], dtype=np.float32).T, np.array(position_final_bias, dtype=np.float32)])
         model.get_layer('Bin_weight').set_weights([np.expand_dims(np.arange(nbins),axis=0)]) #Set to bin index 
 
 

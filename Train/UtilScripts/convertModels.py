@@ -32,7 +32,7 @@ nlatent = config["Nlatent"]
 nbins = config['nbins']
 
 start = 0
-end = 255
+end = 127
 bit = True
 nMaxTracks = 250
 

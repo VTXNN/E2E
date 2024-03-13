@@ -13,6 +13,8 @@ import sklearn.metrics as metrics
 import tensorflow as tf
 import yaml
 
+from scipy.special import expit
+
 from tensorflow.keras.models import Model
 
 import vtx
@@ -26,7 +28,8 @@ co = {}
 _add_supported_quantized_objects(co)
 
 nMaxTracks = 250
-max_z0 = 15
+max_z0 = 20.46912512
+plotting_max_z0 = 15
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -60,7 +63,7 @@ if __name__=="__main__":
     z0 = 'int_z0'
     FH_z0 = 'trk_z0'
     start = 0
-    end = 255
+    end = 127
     bit = True
 
     if sys.argv[2] == "TT":
@@ -133,9 +136,9 @@ if __name__=="__main__":
             'trk_word_chi2rz', 
             'trk_word_bendchi2',
             'trk_z0_res',
-            'trk_gtt_pt',
+            'trk_pt',
             'trk_eta',
-            'trk_gtt_phi',
+            'trk_phi',
             'trk_fake',
             'trk_z0',
             'int_z0',
@@ -358,7 +361,7 @@ if __name__=="__main__":
             
             nBatch = batch['pvz0'].shape[0]
 
-            FH = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],linear_res_function(batch['trk_gtt_pt']))
+            FH = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],linear_res_function(batch['trk_pt']))
             predictedZ0_FH.append(FH)
             FHeta = predictFastHisto(batch[FH_z0],batch['trk_word_pT'],eta_res_function(batch['trk_eta']))
             predictedZ0_FHz0res.append(FHeta)
@@ -371,9 +374,9 @@ if __name__=="__main__":
 
             trk_z0.append(batch[FH_z0][np.all(WeightFeatures != -999, axis = 2)])
             trk_MVA.append(batch["trk_word_MVAquality"][np.all(WeightFeatures != -999, axis = 2)])
-            trk_gtt_pt.append(batch['trk_gtt_pt'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_gtt_pt.append(batch['trk_pt'][np.all(WeightFeatures != -999, axis = 2)])
             trk_eta.append(batch['trk_eta'][np.all(WeightFeatures != -999, axis = 2)])
-            trk_gtt_phi.append(batch['trk_gtt_phi'][np.all(WeightFeatures != -999, axis = 2)])
+            trk_gtt_phi.append(batch['trk_phi'][np.all(WeightFeatures != -999, axis = 2)])
             trk_z0_res.append(batch['trk_z0_res'][np.all(WeightFeatures != -999, axis = 2)])
 
             trk_chi2rphi.append(batch['trk_word_chi2rphi'][np.all(WeightFeatures != -999, axis = 2)])
@@ -397,7 +400,7 @@ if __name__=="__main__":
 
             #for i,event in enumerate(batch[z0]):
             #    if abs(FH[i] - batch['pvz0'][i]) > 100:
-            #        figure = plotKDEandTracks(batch['trk_z0'][i],batch['trk_fake'][i],batch['pvz0'][i],FH[i],batch['trk_gtt_pt'][i],weight_label="Baseline",threshold=0.5)
+            #        figure = plotKDEandTracks(batch['trk_z0'][i],batch['trk_fake'][i],batch['pvz0'][i],FH[i],batch['trk_pt'][i],weight_label="Baseline",threshold=0.5)
             #        plt.savefig("%s/event.png" % outputFolder)
             #        break
 
@@ -415,8 +418,9 @@ if __name__=="__main__":
             
             predictedAssoc_QNN_temp = predictedAssoc_QNN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
-            predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
+            predictedAssoc_QNN_temp = expit(predictedAssoc_QNN_temp)
+            #predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,tf.reduce_min(predictedAssoc_QNN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QNN_temp), tf.reduce_min(predictedAssoc_QNN_temp) ))
 
             #predictedAssoc_QNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QNN_temp,-5),15)
 
@@ -438,8 +442,10 @@ if __name__=="__main__":
 
             predictedAssoc_QPNN_temp = predictedAssoc_QPNN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
-            predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
+            predictedAssoc_QPNN_temp = expit(predictedAssoc_QPNN_temp)
+
+            #predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,tf.reduce_min(predictedAssoc_QPNN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_QPNN_temp), tf.reduce_min(predictedAssoc_QPNN_temp) ))
 
             #predictedAssoc_QPNN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_QPNN_temp,-5),15)
 
@@ -465,8 +471,10 @@ if __name__=="__main__":
 
             predictedAssoc_DANN_temp = predictedAssoc_DANN_temp[np.all(WeightFeatures != -999, axis = 2)]
 
-            predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
-                                                    tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
+            predictedAssoc_DANN_temp = expit(predictedAssoc_DANN_temp)
+
+            #predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,tf.reduce_min(predictedAssoc_DANN_temp)), 
+            #                                        tf.math.subtract( tf.reduce_max(predictedAssoc_DANN_temp), tf.reduce_min(predictedAssoc_DANN_temp) ))
 
             #predictedAssoc_DANN_temp = tf.math.divide( tf.math.subtract( predictedAssoc_DANN_temp,-5),15)
 
@@ -477,39 +485,43 @@ if __name__=="__main__":
             actual_MET.append(batch['tp_met_pt'])
             actual_METphi.append(batch['tp_met_phi'])
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],batch['trk_fromPV'],threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             actual_trkMET.append(temp_met)
             actual_trkMETphi.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],FHassocnoFake,threshold=0.5,quality_func=linear_res_function(batch['trk_eta'],return_bool=True))
             predictedMET_FHnoFake.append(temp_met)
             predictedMETphi_FHnoFake.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],FHassocMVA,threshold=0.5,quality_func=MVA_res_function(batch['trk_word_MVAquality'],return_bool=True))
             predictedMET_FHMVA.append(temp_met)
             predictedMETphi_FHMVA.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassocres,
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],FHassocres,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FHres.append(temp_met)
             predictedMETphi_FHres.append(temp_metphi)
 
-            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],FHassoc,
+            temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],FHassoc,
                                               threshold=0.5, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
             predictedMET_FH.append(temp_met)
             predictedMETphi_FH.append(temp_metphi)
 
+            #print(FHassocMVA)
+            #print(FHassoc)
+            #print(predictedAssoc_DANN_temp.numpy().squeeze())
+
             if met:
                 for i in range(0,num_threshold):
-                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QNN_temp.numpy().squeeze(),threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],predictedAssoc_QNN_temp,threshold=i/num_threshold, quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_QPNN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],predictedAssoc_QPNN_temp,threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_QPNN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_QPNN[str(i/num_threshold)].append(temp_metphi)
 
-                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_gtt_phi'],predictedAssoc_DANN_temp.numpy().squeeze(),threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
+                    temp_met,temp_metphi = predictMET(batch['trk_word_pT'],batch['trk_phi'],predictedAssoc_DANN_temp,threshold=i/num_threshold,  quality_func=chi_res_function(batch['trk_word_chi2rphi'], batch['trk_word_chi2rz'], batch['trk_word_bendchi2'],return_bool=True))
                     predictedMET_DANN[str(i/num_threshold)].append(temp_met)
                     predictedMETphi_DANN[str(i/num_threshold)].append(temp_metphi)
 
@@ -1330,10 +1342,10 @@ if __name__=="__main__":
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
     
-    ax.hist(z0_FH_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='r',histtype="step",label="FastHisto Base")
-    ax.hist(z0_FHres_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='g',histtype="step",label="FastHisto with z0 res")
-    ax.hist(z0_QNN_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='b',histtype="step",label="CNN")
-    ax.hist(z0_PV_array,range=(-1*max_z0,max_z0),bins=120,density=True,color='y',histtype="step",label="Truth")
+    ax.hist(z0_FH_array,range=(-1*plotting_max_z0,plotting_max_z0),bins=50,density=True,color='r',histtype="step",label="FastHisto Base",linewidth=LINEWIDTH)
+    ax.hist(z0_FHres_array,range=(-1*plotting_max_z0,plotting_max_z0),bins=50,density=True,color='g',histtype="step",label="FastHisto with z0 res",linewidth=LINEWIDTH)
+    ax.hist(z0_QNN_array,range=(-1*plotting_max_z0,plotting_max_z0),bins=50,density=True,color='b',histtype="step",label="CNN",linewidth=LINEWIDTH)
+    ax.hist(z0_PV_array,range=(-1*plotting_max_z0,plotting_max_z0),bins=50,density=True,color='y',histtype="step",label="Truth",linewidth=LINEWIDTH)
     ax.grid(True)
     ax.set_xlabel('$z_0$ [cm]',ha="right",x=1)
     ax.set_ylabel('Events',ha="right",y=1)
@@ -1345,7 +1357,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FH_array), bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-2*plotting_max_z0,2*plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1357,7 +1369,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHnoFake_array), bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-2*plotting_max_z0,2*plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1369,7 +1381,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_FHMVA_array), bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-2*plotting_max_z0,2*plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1381,7 +1393,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-1*max_z0,max_z0),(-2*max_z0,2*max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, (z0_PV_array-z0_QNN_array), bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-2*plotting_max_z0,2*plotting_max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("True PV $z_0$ - Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1393,7 +1405,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FH_array, bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-1*plotting_max_z0,plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1405,7 +1417,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FHMVA_array, bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-1*plotting_max_z0,plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1417,7 +1429,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_FHnoFake_array, bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-1*plotting_max_z0,plotting_max_z0)) ,norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ Baseline [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1429,7 +1441,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_PV_array, z0_QNN_array, bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-1*plotting_max_z0,plotting_max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("True PV $z_0$ [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)
@@ -1441,7 +1453,7 @@ if __name__=="__main__":
     plt.clf()
     fig,ax = plt.subplots(1,1,figsize=(12,10))
     hep.cms.label(llabel="Phase-2 Simulation Preliminary",rlabel="14 TeV, 200 PU",ax=ax)
-    hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-1*max_z0,max_z0),(-1*max_z0,max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
+    hist2d = ax.hist2d(z0_DANN_array, z0_QNN_array, bins=60,range=((-1*plotting_max_z0,plotting_max_z0),(-1*plotting_max_z0,plotting_max_z0)), norm=matplotlib.colors.LogNorm(vmin=1,vmax=1000),cmap=colormap)
     ax.set_xlabel("Reco PV $z_0$ NN [cm]", horizontalalignment='right', x=1.0)
     ax.set_ylabel("Reco PV $z_0$ QNN [cm]", horizontalalignment='right', y=1.0)
     cbar = plt.colorbar(hist2d[3] , ax=ax)

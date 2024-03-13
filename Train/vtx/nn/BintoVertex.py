@@ -6,7 +6,7 @@ from tensorflow.keras.layers import *
 
 class BintoVertex(Layer):
 
-    def __init__(self,nbins=256, start=-20.46912512, end=20.46912512, **kwargs):
+    def __init__(self,nbins=128, start=-20.46912512, end=20.46912512, **kwargs):
         super(BintoVertex, self).__init__(**kwargs)
         self.nbins = nbins
         self.start = start

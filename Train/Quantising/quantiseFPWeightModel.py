@@ -24,7 +24,7 @@ from sklearn.metrics import mean_squared_error
 
 
 nMaxTracks = 250
-max_z0 = 15
+max_z0 = 20.46912512
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -83,7 +83,7 @@ if __name__=="__main__":
                 'trk_word_MVAquality',
                 'trk_nstub',
                 'trk_MVA1',
-                'trk_gtt_pt',
+                'trk_pt',
                 'trk_eta',
                 'trk_z0_res',
                 'int_z0',
@@ -105,7 +105,7 @@ if __name__=="__main__":
         network = vtx.nn.E2EDiffArgMax(
                 nbins=config['nbins'],
                 start=0,
-                end=255,
+                end=config['nbins'] - 1,
                 max_z0 = max_z0,
                 ntracks=nMaxTracks, 
                 nweightfeatures=len(weightfeat), 
@@ -155,9 +155,9 @@ if __name__=="__main__":
             associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
 
         network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins = 256,
+            nbins = config['nbins'],
             start = 0,
-            end = 255,
+            end = config['nbins'] - 1,
             max_z0 = max_z0,
             ntracks = max_ntracks, 
             nweightfeatures = len(weightfeat), 
@@ -388,8 +388,8 @@ if __name__=="__main__":
     aph.savefig(filename+"Weight_model_activations_profile_opt.png")
     wph.savefig(filename+"Weight_model_weights_profile_opt.png")
 
-    fig = hls4ml.model.profiling.compare(keras_model=weightmodel, hls_model=hls_weight_model,X=weight_array)
-    fig.savefig(filename+"output_weights_comparison.png")
+    # fig = hls4ml.model.profiling.compare(keras_model=weightmodel, hls_model=hls_weight_model,X=weight_array)
+    # fig.savefig(filename+"output_weights_comparison.png")
 
     #print(hls4ml.model.profiling.weights_hlsmodel(model=hls_weight_model,fmt="summary"))
     #print(hls4ml.model.profiling.activations_hlsmodel(model=hls_weight_model,X=weight_array,fmt="summary"))
@@ -440,5 +440,5 @@ if __name__=="__main__":
     if sys.argv[4] == "True":
         import cmsml
 
-        cmsml.tensorflow.save_graph(filename+"weightModelgraph.pb", weightmodel, variables_to_constants=True)
+        cmsml.tensorflow.save_frozen_graph(filename+"weightModelgraph.pb", weightmodel, variables_to_constants=True)
         hls_weight_model.build(synth=True,vsynth=True,cosim=True)

@@ -24,7 +24,7 @@ from sklearn.metrics import mean_squared_error
 
 
 nMaxTracks = 250
-max_z0 = 15
+max_z0 = 20.46912512
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -81,7 +81,7 @@ if __name__=="__main__":
                 'trk_word_MVAquality',
                 'trk_nstub',
                 'trk_MVA1',
-                'trk_gtt_pt',
+                'trk_pt',
                 'trk_eta',
                 'trk_z0_res',
                 'int_z0',
@@ -102,7 +102,7 @@ if __name__=="__main__":
         network = vtx.nn.E2EDiffArgMax(
                 nbins=config['nbins'],
                 start=0,
-                end=255,
+                end=config['nbins'] - 1,
                 max_z0 = max_z0,
                 ntracks=nMaxTracks, 
                 nweightfeatures=len(weightfeat), 
@@ -152,9 +152,9 @@ if __name__=="__main__":
             associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
 
         network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins = 256,
+            nbins = config['nbins'],
             start = 0,
-            end = 255,
+            end = config['nbins'] - 1,
             max_z0 = max_z0,
             ntracks = max_ntracks, 
             nweightfeatures = len(weightfeat), 
@@ -309,7 +309,7 @@ if __name__=="__main__":
 
     for i in range(len(weight_summary)):
         print(weight_summary[i]['weight']," : ", weight_summary[i]['whislo'],weight_summary[i]['whishi']," log2: ", np.log2(weight_summary[i]['whislo']),np.log2(weight_summary[i]['whishi']))
-        int_bits  = np.ceil(np.log2(weight_summary[i]['whishi'])) + 2 if np.rint(np.log2(weight_summary[i]['whishi'])) > 0 else 1
+        int_bits  = np.ceil(np.log2(weight_summary[i]['whishi'])) + 2 #if np.rint(np.log2(weight_summary[i]['whishi'])) > 0 else 1
         total_bits = abs(np.rint(np.log2(weight_summary[i]['whislo']))) + int_bits + 1 if np.rint(np.log2(weight_summary[i]['whishi'])) > 0 else abs(np.rint(np.log2(weight_summary[i]['whislo']))) + int_bits + 2
         if total_bits > lowerlim_cut : total_bits = lowerlim_cut
         if int_bits > upperlim_cut : int_bits = upperlim_cut
@@ -320,7 +320,7 @@ if __name__=="__main__":
     activation_summary = hls4ml.model.profiling.activations_keras(model=assocmodel,X=assoc_array,fmt="summary")
     for i in range(len(activation_summary)):
         print(activation_summary[i]['weight']," : ", activation_summary[i]['whislo'],activation_summary[i]['whishi']," log2: ", np.log2(activation_summary[i]['whislo']),np.log2(activation_summary[i]['whishi']))
-        int_bits  = np.rint(np.log2(activation_summary[i]['whishi'])) + 2 if np.rint(np.log2(activation_summary[i]['whishi'])) > 0 else 1
+        int_bits  = np.rint(np.log2(activation_summary[i]['whishi'])) + 2 #if np.rint(np.log2(activation_summary[i]['whishi'])) > 0 else 1
         total_bits = abs(np.rint(np.log2(activation_summary[i]['whislo']))) + int_bits + 1 if np.rint(np.log2(activation_summary[i]['whishi'])) > 0 else abs(np.rint(np.log2(activation_summary[i]['whislo']))) + int_bits + 2
         if total_bits > lowerlim_cut : total_bits = lowerlim_cut
         if int_bits > upperlim_cut : int_bits = upperlim_cut
@@ -384,8 +384,8 @@ if __name__=="__main__":
     aph.savefig(filename+"Association_model_activations_profile_opt.png")
     wph.savefig(filename+"Association_model_weights_profile_opt.png")
 
-    fig = hls4ml.model.profiling.compare(keras_model=assocmodel, hls_model=hls_assoc_model,X=assoc_array)
-    fig.savefig(filename+"output_Association_comparison.png")
+    # fig = hls4ml.model.profiling.compare(keras_model=assocmodel, hls_model=hls_assoc_model,X=assoc_array)
+    # fig.savefig(filename+"output_Association_comparison.png")
 
     #print(hls4ml.model.profiling.weights_hlsmodel(model=hls_weight_model,fmt="summary"))
     #print(hls4ml.model.profiling.activations_hlsmodel(model=hls_weight_model,X=WeightFeatures,fmt="summary"))
@@ -434,5 +434,5 @@ if __name__=="__main__":
     if sys.argv[4] == "True":
         import cmsml
 
-        cmsml.tensorflow.save_graph(filename+"associationModelgraph.pb", assocmodel, variables_to_constants=True)
+        cmsml.tensorflow.save_frozen_graph(filename+"associationModelgraph.pb", assocmodel, variables_to_constants=True)
         hls_assoc_model.build(synth=True,vsynth=True,cosim=True)

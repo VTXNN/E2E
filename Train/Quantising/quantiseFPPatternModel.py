@@ -24,7 +24,7 @@ from sklearn.metrics import mean_squared_error
 
 
 nMaxTracks = 250
-max_z0 = 15
+max_z0 = 20.46912512
 
 def decode_data(raw_data):
     decoded_data = tf.io.parse_example(raw_data,features)
@@ -83,7 +83,7 @@ if __name__=="__main__":
                 'trk_word_MVAquality',
                 'trk_nstub',
                 'trk_MVA1',
-                'trk_gtt_pt',
+                'trk_pt',
                 'trk_eta',
                 'trk_z0_res',
                 'int_z0',
@@ -106,7 +106,7 @@ if __name__=="__main__":
         network = vtx.nn.E2EDiffArgMax(
                 nbins=config['nbins'],
                 start=0,
-                end=255,
+                end=config['nbins'] - 1,
                 max_z0 = max_z0,
                 ntracks=nMaxTracks, 
                 nweightfeatures=len(weightfeat), 
@@ -156,9 +156,9 @@ if __name__=="__main__":
             associationqconfig = yaml.load(f,Loader=yaml.FullLoader)
 
         network = vtx.nn.E2EQKerasDiffArgMax(
-            nbins = 256,
+            nbins = config['nbins'],
             start = 0,
-            end = 255,
+            end = config['nbins'] - 1,
             max_z0 = max_z0,
             ntracks = max_ntracks, 
             nweightfeatures = len(weightfeat), 
@@ -358,8 +358,8 @@ if __name__=="__main__":
     aph.savefig(filename+"Pattern_model_activations_profile_opt.png")
     wph.savefig(filename+"Pattern_model_weights_profile_opt.png")
 
-    fig = hls4ml.model.profiling.compare(keras_model=patternmodel, hls_model=hls_pattern_model,X=hist_array)
-    fig.savefig(filename+"output_pattern_comparison.png")
+    # fig = hls4ml.model.profiling.compare(keras_model=patternmodel, hls_model=hls_pattern_model,X=hist_array)
+    # fig.savefig(filename+"output_pattern_comparison.png")
     
     y_keras = patternmodel.predict(hist_array)
     y_hls4ml   = hls_pattern_model.predict(np.ascontiguousarray(hist_array))
@@ -398,5 +398,5 @@ if __name__=="__main__":
     if sys.argv[4] == "True":
         import cmsml
 
-        cmsml.tensorflow.save_graph(filename+"patternModelgraph.pb", patternmodel, variables_to_constants=True)
+        cmsml.tensorflow.save_frozen_graph(filename+"patternModelgraph.pb", patternmodel, variables_to_constants=True)
         hls_pattern_model.build(synth=True,vsynth=True,cosim=True)

@@ -11,10 +11,10 @@ from sklearn.metrics import accuracy_score
 
 class E2EQKerasDiffArgMax():
     def __init__(self,
-        nbins=256,
+        nbins=128,
         start=0,
-        end=255,
-        max_z0 = 15,
+        end=127,
+        max_z0 = 20.46912512,
         ntracks=250, 
         nweightfeatures=1,
         nfeatures=1, 

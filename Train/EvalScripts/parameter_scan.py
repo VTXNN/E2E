@@ -24,7 +24,7 @@ from sklearn.metrics import mean_squared_error
 
 
 nMaxTracks = 250
-max_z0 = 15
+max_z0 = 20.46912512
 
 if __name__=="__main__":
 
